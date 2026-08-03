@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "LinkUp_Mobile",
+    "slug": "LinkUp_Mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/S-Logo-Rmbg.png",
+    "scheme": "linkupmobile",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/S-Logo-Rmbg.png"
+    },
+    "android": {
+      "package": "com.linkup.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/S-Logo-Rmbg.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#208AEF",
+          "image": "./assets/images/S-Logo-Rmbg.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c77acfa5-15ee-4263-b80d-a3550ea4d6c2"
+      }
+    },
+    "owner": "quyenmai"
+  }
+}
