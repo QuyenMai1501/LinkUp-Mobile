@@ -1,14 +1,13 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Returns the active color palette for the current theme mode.
+ * Falls back to the system color scheme when no ThemeModeProvider is present.
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeMode } from '@/contexts/theme-context';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
+  const { scheme } = useThemeMode();
 
-  return Colors[theme];
+  return Colors[scheme];
 }
