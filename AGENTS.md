@@ -20,12 +20,14 @@ No test runner, no CI/CD, no commit hooks.
 # Architecture
 
 - **Stack:** Expo SDK 57, React Native 0.86.2, expo-router, React 19.2.3, TypeScript strict
-- **Routing:** expo-router file-based routing in `src/app/` (`index.tsx` = Home, `explore.tsx` = Explore). Entrypoint is `main: "expo-router/entry"` in `package.json`.
-- **`src/app/_layout.tsx`:** tab navigator (`expo-router/unstable-native-tabs` via `AppTabs`) + `ThemeProvider` (`DarkTheme`/`DefaultTheme` from `useColorScheme()`) + animated splash overlay. No other route layouts exist yet.
+- **Routing:** expo-router file-based routing in `src/app/`. Entrypoint is `main: "expo-router/entry"` in `package.json`. Route groups:
+  - `src/app/_layout.tsx` — root **Stack**: `ThemeModeProvider` + `AuthProvider` + animated splash + navigation `ThemeProvider`; screens `(tabs)` and `(auth)`.
+  - `src/app/(tabs)/` — main app: `_layout.tsx` renders `AppTabs` (native tabs); `index.tsx` = Home (LinkUp intro), `explore.tsx` = Explore.
+  - `src/app/(auth)/` — full-screen auth (no tab bar): `_layout.tsx` (Stack, `headerShown:false`), `login.tsx`, `register.tsx`, `forgot-password.tsx`. Register and forgot-password show an inline "check your email" state after the API call.
 - **Path aliases:** `@/*` → `src/*`, `@/assets/*` → `assets/*`
 - **`app.json` experiments:** `typedRoutes` + `reactCompiler` enabled. Scheme `linkupmobile`, Android package `com.linkup.mobile`, EAS project owner `quyenmai`.
 - **Platform variants via file suffix:** `*.web.tsx` (e.g. `app-tabs.web.tsx`, `animated-icon.web.tsx`, `hooks/use-color-scheme.web.ts`). A `.web.tsx` file shadows the base file on web only.
-- **App is still the Expo starter template** — Home/Explore are placeholder screens. LinkUp screens are not built yet.
+- **App is still the Expo starter template** — Home/Explore are placeholder screens. Auth flows (login/register/forgot-password) are built against the backend `/api/auth/*` endpoints.
 
 # Design system
 

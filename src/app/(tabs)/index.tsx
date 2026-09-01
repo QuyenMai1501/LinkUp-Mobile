@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -85,6 +86,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const router = useRouter();
 
   return (
     <ThemedView style={styles.container}>
@@ -121,6 +123,7 @@ export default function HomeScreen() {
 
           <View style={styles.ctaRow}>
             <Pressable
+              onPress={() => router.push('/login')}
               style={({ pressed }) => [
                 styles.ctaPrimary,
                 { backgroundColor: theme.secondary },
@@ -129,6 +132,7 @@ export default function HomeScreen() {
               <ThemedText style={styles.ctaPrimaryText}>Bắt đầu ngay</ThemedText>
             </Pressable>
             <Pressable
+              onPress={() => router.push('/register')}
               style={({ pressed }) => [
                 styles.ctaSecondary,
                 { borderColor: theme.primary, backgroundColor: theme.primaryLight },
