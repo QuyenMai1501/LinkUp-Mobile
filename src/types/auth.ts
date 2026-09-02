@@ -40,3 +40,11 @@ export type RegisterResponse = Omit<AuthResponse, 'tokens'> & {
   tokens?: TokenResponse;
   verify_email?: boolean;
 };
+
+export interface VerifyEmailResponse {
+  verified: boolean;
+  message: string;
+  access_token?: string;
+  refresh_token?: string;
+  role?: string;
+}

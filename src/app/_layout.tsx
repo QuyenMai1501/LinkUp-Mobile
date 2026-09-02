@@ -7,12 +7,26 @@ import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
 
 SplashScreen.preventAutoHideAsync();
 
+const linking = {
+  prefixes: ['linkupmobile://'],
+  config: {
+    screens: {
+      '(auth)': {
+        screens: {
+          'verify-email': 'verify-email',
+        },
+      },
+    },
+  },
+};
+
 function RootNavigator() {
   const { scheme } = useThemeMode();
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+      {/* @ts-ignore — expo-router linking prop not in types */}
+      <Stack screenOptions={{ headerShown: false }} linking={linking}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
       </Stack>

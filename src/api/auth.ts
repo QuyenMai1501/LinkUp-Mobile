@@ -1,6 +1,6 @@
 import { request } from './client';
 
-import type { AuthResponse, RegisterResponse, TokenPayload, TokenResponse } from '@/types/auth';
+import type { AuthResponse, RegisterResponse, TokenPayload, TokenResponse, VerifyEmailResponse } from '@/types/auth';
 
 export const login = (email: string, password: string) =>
   request<AuthResponse>('/auth/login', {
@@ -22,6 +22,18 @@ export const refresh = (refreshToken: string) =>
 
 export const forgotPassword = (email: string) =>
   request<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+
+export const verifyEmail = (token: string) =>
+  request<VerifyEmailResponse>('/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+
+export const resendVerification = (email: string) =>
+  request<{ message: string }>('/auth/resend-verification', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });

@@ -39,7 +39,6 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const validate = (): boolean => {
@@ -91,13 +90,13 @@ export default function RegisterScreen() {
       const res = await register(displayName.trim(), email.trim(), password);
 
       if (res.verify_email) {
-        setVerifiedEmail(email.trim());
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
         return;
       }
 
       if (res.tokens) {
         await signIn({ user: res.user, tokens: res.tokens, storage: res.storage });
-        router.replace('/index');
+        router.replace('/(tabs)');
         return;
       }
 
@@ -109,29 +108,6 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   };
-
-  if (verifiedEmail) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-            <View style={styles.logoRow}>
-              <Image
-                source={require('@/assets/images/S-Logo-Rmbg.png')}
-                style={styles.logo}
-                contentFit="contain"
-              />
-              <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
-            </View>
-            <ThemedText style={styles.title}>Kiểm tra email</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-              Chúng tôi đã gửi liên kết xác thực đến {verifiedEmail}. Vui lòng kiểm tra hộp thư để
-              hoàn tất đăng ký.
-            </ThemedText>
-            <Button label="Về trang đăng nhập" onPress={() => router.replace('/login')} />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView style={styles.container}>
