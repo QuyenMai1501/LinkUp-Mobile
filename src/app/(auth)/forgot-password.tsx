@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -61,17 +60,20 @@ export default function ForgotPasswordScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
+          keyboardVerticalOffset={60}
           style={styles.flex}>
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled">
-            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Image
-                source={require('@/assets/images/S-Logo-Rmbg.png')}
-                style={styles.logo}
-                contentFit="contain"
-              />
+              <View style={styles.logoRow}>
+                <Image
+                  source={require('@/assets/images/S-Logo-Rmbg.png')}
+                  style={styles.logo}
+                  contentFit="contain"
+                />
+                <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
+              </View>
 
               {sentEmail ? (
                 <>
@@ -113,7 +115,6 @@ export default function ForgotPasswordScreen() {
                   </Pressable>
                 </>
               )}
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -134,22 +135,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
     padding: Spacing.xl,
     gap: Spacing.md,
-    alignItems: 'stretch',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   logo: {
-    width: 64,
-    height: 64,
-    alignSelf: 'center',
+    width: 48,
+    height: 48,
+  },
+  logoText: {
+    ...Typography.h2,
   },
   title: {
     ...Typography.h1,

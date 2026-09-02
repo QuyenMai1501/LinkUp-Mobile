@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -115,19 +114,20 @@ export default function RegisterScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Image
-              source={require('@/assets/images/S-Logo-Rmbg.png')}
-              style={styles.logo}
-              contentFit="contain"
-            />
+            <View style={styles.logoRow}>
+              <Image
+                source={require('@/assets/images/S-Logo-Rmbg.png')}
+                style={styles.logo}
+                contentFit="contain"
+              />
+              <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
+            </View>
             <ThemedText style={styles.title}>Kiểm tra email</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.subtitle}>
               Chúng tôi đã gửi liên kết xác thực đến {verifiedEmail}. Vui lòng kiểm tra hộp thư để
               hoàn tất đăng ký.
             </ThemedText>
             <Button label="Về trang đăng nhập" onPress={() => router.replace('/login')} />
-          </View>
         </SafeAreaView>
       </ThemedView>
     );
@@ -137,17 +137,20 @@ export default function RegisterScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
+          keyboardVerticalOffset={60}
           style={styles.flex}>
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled">
-            <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Image
-                source={require('@/assets/images/S-Logo-Rmbg.png')}
-                style={styles.logo}
-                contentFit="contain"
-              />
+              <View style={styles.logoRow}>
+                <Image
+                  source={require('@/assets/images/S-Logo-Rmbg.png')}
+                  style={styles.logo}
+                  contentFit="contain"
+                />
+                <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
+              </View>
               <ThemedText style={styles.title}>Tạo tài khoản</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                 Tham gia LinkUp và kết nối với bạn bè
@@ -196,12 +199,11 @@ export default function RegisterScreen() {
               <View style={styles.footerRow}>
                 <ThemedText themeColor="textSecondary">Đã có tài khoản?</ThemedText>
                 <Pressable onPress={() => router.push('/login')}>
-                  <ThemedText themeColor="primary" style={styles.footerLink}>
+                  <ThemedText themeColor="primary" style={styles.footerLink} numberOfLines={1}>
                     Đăng nhập
                   </ThemedText>
                 </Pressable>
               </View>
-            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -222,22 +224,22 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
     padding: Spacing.xl,
     gap: Spacing.md,
-    alignItems: 'stretch',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   logo: {
-    width: 64,
-    height: 64,
-    alignSelf: 'center',
+    width: 48,
+    height: 48,
+  },
+  logoText: {
+    ...Typography.h2,
   },
   title: {
     ...Typography.h1,
@@ -251,6 +253,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'nowrap',
     gap: Spacing.xs,
     marginTop: Spacing.sm,
   },

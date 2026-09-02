@@ -28,8 +28,8 @@ export function Button({
   const isSolid = variant === 'solid';
   const isDisabled = disabled || loading;
 
-  const backgroundColor = isSolid ? theme.secondary : theme.primaryLight;
-  const borderColor = isSolid ? theme.secondary : theme.primary;
+  const backgroundColor = isSolid ? theme.primary : theme.primaryLight;
+  const borderColor = isSolid ? theme.primary : theme.primary;
   const textColor = isSolid ? '#FFFFFF' : theme.primary;
 
   return (
@@ -46,7 +46,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
-        <ThemedText style={[styles.label, { color: textColor }]}>{label}</ThemedText>
+        <ThemedText style={[styles.label, { color: textColor }]} numberOfLines={1}>{label}</ThemedText>
       )}
     </Pressable>
   );
