@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { verifyEmail, resendVerification } from '@/api/auth';
+import { verifyEmail, resendVerification, decodeToken } from '@/api/auth';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
@@ -72,9 +72,22 @@ export default function VerifyEmailScreen() {
           return;
         }
         if (res.access_token && res.refresh_token) {
+          const payload = decodeToken(res.access_token)
           await signIn({
-            user: { id: '', username: '', email: email || '', status: 'active', created_at: '' },
-            tokens: { access_token: res.access_token, refresh_token: res.refresh_token, token_type: 'Bearer', expires_in: 900, refresh_ttl_in: 604800 },
+            user: {
+              id: payload?.user_id ?? '',
+              username: '',
+              email: payload?.email ?? (email || ''),
+              status: 'active',
+              created_at: '',
+            },
+            tokens: {
+              access_token: res.access_token,
+              refresh_token: res.refresh_token,
+              token_type: 'Bearer',
+              expires_in: 900,
+              refresh_ttl_in: 604800,
+            },
           });
         }
         setStatus('success');
