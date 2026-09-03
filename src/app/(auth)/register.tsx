@@ -96,7 +96,7 @@ export default function RegisterScreen() {
 
       if (res.tokens) {
         await signIn({ user: res.user, tokens: res.tokens, storage: res.storage });
-        router.replace('/(tabs)');
+        router.replace('/(drawer)' as any);
         return;
       }
 

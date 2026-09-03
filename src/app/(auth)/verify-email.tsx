@@ -92,7 +92,7 @@ export default function VerifyEmailScreen() {
         }
         setStatus('success');
         setTimeout(() => {
-          if (!cancelled) router.replace('/(tabs)');
+          if (!cancelled) router.replace('/(drawer)' as any);
         }, 3000);
       } catch (err) {
         if (cancelled) return;

@@ -1,15 +1,14 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing, Typography } from '@/constants/theme';
-import { useAuth } from '@/contexts/auth-context';
-import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useThemeMode } from '@/contexts/theme-context';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 type FeatureIcon = Extract<SymbolViewProps['name'], { ios?: unknown }>;
 
@@ -52,8 +51,8 @@ function ThemeToggleButton() {
       onPress={toggleTheme}
       style={({ pressed }) => [
         styles.toggleButton,
-        { backgroundColor: theme.backgroundElement },
-        pressed && styles.pressed,
+        { backgroundColor: theme.bgSecondary },
+        pressed && { opacity: 0.7 },
       ]}>
       <SymbolView
         tintColor={theme.primary}
@@ -85,58 +84,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
   );
 }
 
-function FeedView() {
-  const theme = useTheme();
-  const { user, signOut } = useAuth();
-
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.feedScroll}>
-          <View style={styles.feedHeader}>
-            <Image
-              source={require('@/assets/images/S-Logo-Rmbg.png')}
-              style={styles.logo}
-              contentFit="contain"
-            />
-            <ThemedText style={styles.brandName}>LinkUp</ThemedText>
-            <Pressable
-              onPress={signOut}
-              style={({ pressed }) => [
-                styles.logoutButton,
-                { backgroundColor: theme.dangerLight },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText style={[styles.logoutText, { color: theme.danger }]}>Đăng xuất</ThemedText>
-            </Pressable>
-          </View>
-
-          <View style={styles.feedEmpty}>
-            <ThemedText style={styles.feedEmptyIcon}>📰</ThemedText>
-            <ThemedText style={styles.feedEmptyTitle}>Chưa có bài viết nào</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.feedEmptySubtitle}>
-              {user?.username
-                ? `Xin chào ${user.username}! Hãy kết bạn và theo dõi mọi người để xem bài viết.`
-                : 'Hãy kết bạn và theo dõi mọi người để xem bài viết.'}
-            </ThemedText>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-export default function HomeScreen() {
-  const { isAuthenticated } = useAuth();
-
-  if (isAuthenticated) {
-    return <FeedView />;
-  }
-
-  return <LandingView />;
-}
-
-function LandingView() {
+export default function LandingScreen() {
   const theme = useTheme();
   const router = useRouter();
 
@@ -179,7 +127,7 @@ function LandingView() {
               style={({ pressed }) => [
                 styles.ctaPrimary,
                 { backgroundColor: theme.secondary },
-                pressed && styles.pressed,
+                pressed && { opacity: 0.7 },
               ]}>
               <ThemedText style={styles.ctaPrimaryText}>Bắt đầu ngay</ThemedText>
             </Pressable>
@@ -188,7 +136,7 @@ function LandingView() {
               style={({ pressed }) => [
                 styles.ctaSecondary,
                 { borderColor: theme.primary, backgroundColor: theme.primaryLight },
-                pressed && styles.pressed,
+                pressed && { opacity: 0.7 },
               ]}>
               <ThemedText style={[styles.ctaSecondaryText, { color: theme.primary }]}>
                 Tìm hiểu thêm
@@ -206,12 +154,8 @@ function LandingView() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
   scrollContent: {
     width: '100%',
     maxWidth: MaxContentWidth,
@@ -228,14 +172,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  logo: {
-    width: 40,
-    height: 40,
-  },
-  brandName: {
-    ...Typography.h2,
-    fontSize: 22,
-  },
+  logo: { width: 40, height: 40 },
+  brandName: { ...Typography.h2, fontSize: 22 },
   toggleButton: {
     marginLeft: 'auto',
     flexDirection: 'row',
@@ -245,28 +183,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
   },
-  hero: {
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  heroLogo: {
-    width: 84,
-    height: 84,
-  },
-  tagline: {
-    ...Typography.h2,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...Typography.body,
-    textAlign: 'center',
-  },
-  featuresGrid: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
+  hero: { alignItems: 'center', gap: Spacing.md },
+  heroLogo: { width: 84, height: 84 },
+  tagline: { ...Typography.h2, textAlign: 'center' },
+  subtitle: { ...Typography.body, textAlign: 'center' },
+  featuresGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   featureCard: {
     flexBasis: '46%',
     flexGrow: 1,
@@ -275,30 +196,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
   },
-  featureTitle: {
-    ...Typography.h2,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  featureDescription: {
-    ...Typography.caption,
-  },
-  ctaRow: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
+  featureTitle: { ...Typography.h2, fontSize: 16, lineHeight: 22 },
+  featureDescription: { ...Typography.caption },
+  ctaRow: { width: '100%', flexDirection: 'row', gap: Spacing.md },
   ctaPrimary: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
   },
-  ctaPrimaryText: {
-    ...Typography.body,
-    fontWeight: 700,
-    color: '#FFFFFF',
-  },
+  ctaPrimaryText: { ...Typography.body, fontWeight: 700, color: '#FFFFFF' },
   ctaSecondary: {
     flex: 1,
     alignItems: 'center',
@@ -306,54 +213,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     borderWidth: 1.5,
   },
-  ctaSecondaryText: {
-    ...Typography.body,
-    fontWeight: 700,
-  },
-  footer: {
-    ...Typography.caption,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  feedScroll: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: BottomTabInset + Spacing.xl,
-  },
-  feedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  logoutButton: {
-    marginLeft: 'auto',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-  },
-  logoutText: {
-    ...Typography.caption,
-    fontWeight: 700,
-  },
-  feedEmpty: {
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingTop: Spacing.xl * 3,
-  },
-  feedEmptyIcon: {
-    fontSize: 48,
-  },
-  feedEmptyTitle: {
-    ...Typography.h2,
-    textAlign: 'center',
-  },
-  feedEmptySubtitle: {
-    ...Typography.body,
-    textAlign: 'center',
-  },
+  ctaSecondaryText: { ...Typography.body, fontWeight: 700 },
+  footer: { ...Typography.caption },
 });

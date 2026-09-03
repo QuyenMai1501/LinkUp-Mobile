@@ -35,7 +35,7 @@ export default function LoginScreen() {
     try {
       const res = await login(email.trim(), password);
       await signIn(res);
-      router.replace('/(tabs)');
+      router.replace('/(drawer)' as any);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Đăng nhập thất bại';
       Alert.alert('Đăng nhập thất bại', message);
