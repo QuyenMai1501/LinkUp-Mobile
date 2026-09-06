@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { useRouter, usePathname } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,15 +18,10 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'Trang chủ', icon: '🏠', href: '/(tabs)' },
-  { key: 'messages', label: 'Tin nhắn', icon: '💬', href: '/(tabs)/messages' },
-  { key: 'notifications', label: 'Thông báo', icon: '🔔', href: '/(tabs)/notifications' },
-];
-
-const SECONDARY_ITEMS: NavItem[] = [
-  { key: 'friends', label: 'Bạn bè', icon: '👥', href: '/friends' },
-  { key: 'communities', label: 'Cộng đồng', icon: '🌐', href: '/communities' },
-  { key: 'saved', label: 'Đã lưu', icon: '🔖', href: '/saved' },
+  { key: 'friends', label: 'Bạn bè', icon: '👥', href: 'friends' },
+  { key: 'communities', label: 'Cộng đồng', icon: '🌐', href: 'communities' },
+  { key: 'saved', label: 'Đã lưu', icon: '🔖', href: 'saved' },
+  { key: 'settings', label: 'Cài đặt', icon: '⚙️', href: 'settings' },
 ];
 
 interface DrawerContentProps {
@@ -36,21 +30,17 @@ interface DrawerContentProps {
 }
 
 export default function DrawerContent({ state, navigation }: DrawerContentProps) {
-  const router = useRouter();
-  const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
 
   const handleNavigate = (href: string) => {
     navigation.closeDrawer();
-    // expo-router typed routes don't cover dynamic drawer paths
-    router.push(href as any);
+    navigation.navigate(href);
   };
 
   const isActive = (href: string) => {
-    if (href === '/(tabs)') return pathname === '/';
-    return pathname.startsWith(href.replace('(tabs)', ''));
+    return state.routeNames[state.index] === href;
   };
 
   return (
@@ -66,35 +56,8 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Primary nav */}
           <View style={styles.navSection}>
             {NAV_ITEMS.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Pressable
-                  key={item.key}
-                  onPress={() => handleNavigate(item.href)}
-                  style={({ pressed }) => [
-                    styles.navItem,
-                    active && { backgroundColor: colors.primaryLight },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <ThemedText style={styles.navIcon}>{item.icon}</ThemedText>
-                  <ThemedText
-                    style={[styles.navLabel, active && { color: colors.primary, fontWeight: '700' }]}>
-                    {item.label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Divider */}
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          {/* Secondary nav */}
-          <View style={styles.navSection}>
-            {SECONDARY_ITEMS.map((item) => {
               const active = isActive(item.href);
               return (
                 <Pressable
@@ -119,7 +82,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
         {/* User section */}
         <View style={[styles.userSection, { borderTopColor: colors.border }]}>
           <Pressable
-            onPress={() => handleNavigate('/profile')}
+            onPress={() => handleNavigate('profile')}
             style={({ pressed }) => [styles.userRow, pressed && { opacity: 0.7 }]}>
             <View style={[styles.avatar, { backgroundColor: colors.bgSecondary }]}>
               <ThemedText style={styles.avatarText}>
@@ -137,11 +100,6 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
           </Pressable>
 
           <View style={styles.userActions}>
-            <Pressable
-              onPress={() => handleNavigate('/settings')}
-              style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}>
-              <ThemedText style={styles.actionIcon}>⚙️</ThemedText>
-            </Pressable>
             <Pressable
               onPress={() => {
                 navigation.closeDrawer();
@@ -206,11 +164,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    marginVertical: Spacing.sm,
-    marginHorizontal: Spacing.lg,
   },
   userSection: {
     borderTopWidth: 1,

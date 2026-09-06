@@ -6,15 +6,15 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 
-export default function NotificationsScreen() {
+export default function MessagesScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <ThemedText style={styles.icon}>🔔</ThemedText>
-          <ThemedText style={styles.title}>Thông báo</ThemedText>
+          <ThemedText style={styles.icon}>💬</ThemedText>
+          <ThemedText style={styles.title}>Tin nhắn</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-            Theo dõi hoạt động của bạn bè
+            Trò chuyện với bạn bè và nhóm
           </ThemedText>
         </View>
       </SafeAreaView>

@@ -20,7 +20,8 @@ export default function DrawerLayout() {
         swipeEnabled: true,
         swipeEdgeWidth: 50,
       }}>
-      <Drawer.Screen name="(tabs)" />
+      <Drawer.Screen name="index" />
+      <Drawer.Screen name="messages" />
       <Drawer.Screen name="friends" />
       <Drawer.Screen name="communities" />
       <Drawer.Screen name="saved" />
