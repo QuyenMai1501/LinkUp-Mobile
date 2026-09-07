@@ -5,6 +5,7 @@ import { useNavigation } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import Feed from '@/components/feed';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -19,22 +20,6 @@ const TABS: { key: TabKey; icon: string }[] = [
   { key: 'notifications', icon: '🔔' },
   { key: 'profile', icon: '👤' },
 ];
-
-function HomeContent() {
-  const { user } = useAuth();
-
-  return (
-    <View style={styles.centerContent}>
-      <ThemedText style={styles.emptyIcon}>📰</ThemedText>
-      <ThemedText style={styles.emptyTitle}>Chưa có bài viết nào</ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-        {user?.username
-          ? `Xin chào ${user.username}! Hãy kết bạn và theo dõi mọi người để xem bài viết.`
-          : 'Hãy kết bạn và theo dõi mọi người để xem bài viết.'}
-      </ThemedText>
-    </View>
-  );
-}
 
 function FriendsContent() {
   return (
@@ -79,7 +64,7 @@ function ProfileContent() {
 }
 
 const CONTENT_MAP: Record<TabKey, React.ComponentType> = {
-  home: HomeContent,
+  home: Feed,
   friends: FriendsContent,
   notifications: NotificationsContent,
   profile: ProfileContent,
@@ -146,9 +131,15 @@ export default function HomeScreen() {
         </View>
 
         {/* Tab content */}
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          <ActiveContent />
-        </ScrollView>
+        {activeTab === 'home' ? (
+          <View style={styles.content}>
+            <Feed />
+          </View>
+        ) : (
+          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+            <ActiveContent />
+          </ScrollView>
+        )}
       </SafeAreaView>
     </ThemedView>
   );

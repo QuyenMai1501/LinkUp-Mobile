@@ -33,7 +33,7 @@ function AuthRedirect() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/' as any);
+      router.replace('/(auth)/login' as any);
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(drawer)' as any);
     }

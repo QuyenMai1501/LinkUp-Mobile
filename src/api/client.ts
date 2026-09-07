@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 
 import { tokenStorage } from './token-storage';
+import type { TokenResponse } from '../types/auth';
 
 /**
  * Backend base URL resolution:
@@ -29,6 +30,28 @@ interface ApiErrorBody {
   message?: string;
 }
 
+// --- Token refresh mutex ---
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+
+async function tryRefreshToken(): Promise<string> {
+  const refreshToken = await tokenStorage.getRefreshToken();
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!res.ok) throw new Error('Refresh failed');
+
+  const data: TokenResponse = await res.json();
+  const user = await tokenStorage.getUser();
+  await tokenStorage.save(data.access_token, data.refresh_token, user!);
+  return data.access_token;
+}
+
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
 
@@ -41,10 +64,32 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
+
+  // Auto-refresh on 401 (skip for auth endpoints to avoid infinite loop)
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    try {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = tryRefreshToken();
+      }
+      const newToken = await refreshPromise!;
+      headers.Authorization = `Bearer ${newToken}`;
+      res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+    } catch {
+      await tokenStorage.clear();
+      throw new Error('Phiên đăng nhập đã hết hạn');
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  }
 
   if (!res.ok) {
     const body: ApiErrorBody | null = await res.json().catch(() => null);

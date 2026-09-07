@@ -32,7 +32,8 @@
           "image": "./assets/images/S-Logo-Rmbg.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
