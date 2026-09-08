@@ -11,7 +11,7 @@
       "icon": "./assets/images/S-Logo-Rmbg.png"
     },
     "android": {
-      "package": "com.linkup.mobile",
+      "package": "com.linkup.app",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/S-Logo-Rmbg.png",
@@ -33,7 +33,8 @@
           "imageWidth": 76
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
