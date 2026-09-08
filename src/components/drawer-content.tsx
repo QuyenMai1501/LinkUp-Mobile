@@ -18,6 +18,7 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
+  { key: 'home', label: 'Trang chủ', icon: '🏠', href: 'index' },
   { key: 'friends', label: 'Bạn bè', icon: '👥', href: 'friends' },
   { key: 'communities', label: 'Cộng đồng', icon: '🌐', href: 'communities' },
   { key: 'saved', label: 'Đã lưu', icon: '🔖', href: 'saved' },

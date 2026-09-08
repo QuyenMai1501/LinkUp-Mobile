@@ -6,6 +6,7 @@ import { useNavigation } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import Feed from '@/components/feed';
+import FriendsListPanel from '@/components/friends-list-panel';
 import { Colors } from '@/constants/colors';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -20,18 +21,6 @@ const TABS: { key: TabKey; icon: string }[] = [
   { key: 'notifications', icon: '🔔' },
   { key: 'profile', icon: '👤' },
 ];
-
-function FriendsContent() {
-  return (
-    <View style={styles.centerContent}>
-      <ThemedText style={styles.emptyIcon}>👥</ThemedText>
-      <ThemedText style={styles.emptyTitle}>Bạn bè</ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-        Quản lý danh sách bạn bè và lời mời kết bạn
-      </ThemedText>
-    </View>
-  );
-}
 
 function NotificationsContent() {
   return (
@@ -63,9 +52,8 @@ function ProfileContent() {
   );
 }
 
-const CONTENT_MAP: Record<TabKey, React.ComponentType> = {
+const CONTENT_MAP: Partial<Record<TabKey, React.ComponentType>> = {
   home: Feed,
-  friends: FriendsContent,
   notifications: NotificationsContent,
   profile: ProfileContent,
 };
@@ -135,11 +123,15 @@ export default function HomeScreen() {
           <View style={styles.content}>
             <Feed />
           </View>
-        ) : (
+        ) : activeTab === 'friends' ? (
+          <View style={styles.content}>
+            <FriendsListPanel />
+          </View>
+        ) : ActiveContent ? (
           <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
             <ActiveContent />
           </ScrollView>
-        )}
+        ) : null}
       </SafeAreaView>
     </ThemedView>
   );
