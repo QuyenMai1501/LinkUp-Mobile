@@ -60,6 +60,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const maxReconnectDelay = 30000;
 
   const refreshUnreadCount = useCallback(async () => {
+    const token = await tokenStorage.getAccessToken();
+    if (!token) return;
     try {
       const res = await getUnreadCount();
       setUnreadCount(res.count);
@@ -69,6 +71,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
+    const token = await tokenStorage.getAccessToken();
+    if (!token) return;
     try {
       const res = await getNotifications(1, 20, false);
       setNotifications(groupNotifications(res.data));
@@ -107,13 +111,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Push notification registration + listeners
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        registerPushToken(token).catch((err) =>
+    const initPush = async () => {
+      const token = await tokenStorage.getAccessToken();
+      if (!token) return;
+
+      const pushToken = await registerForPushNotificationsAsync();
+      if (pushToken) {
+        registerPushToken(pushToken).catch((err) =>
           console.error('Failed to register push token:', err),
         );
       }
-    });
+    };
+
+    initPush();
 
     const receivedListener = Notifications.addNotificationReceivedListener(() => {
       refreshUnreadCount();

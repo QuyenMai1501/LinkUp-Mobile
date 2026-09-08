@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.linkup.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/S-Logo-Rmbg.png",
