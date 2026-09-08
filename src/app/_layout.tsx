@@ -5,6 +5,7 @@ import { useSegments, useRouter } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -61,9 +62,11 @@ export default function RootLayout() {
   return (
     <ThemeModeProvider>
       <AuthProvider>
-        <AnimatedSplashOverlay />
-        <AuthRedirect />
-        <RootNavigator />
+        <NotificationProvider>
+          <AnimatedSplashOverlay />
+          <AuthRedirect />
+          <RootNavigator />
+        </NotificationProvider>
       </AuthProvider>
     </ThemeModeProvider>
   );

@@ -1,19 +1,28 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 
+import NotificationItem from '@/components/notification-item';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import Feed from '@/components/feed';
 import FriendsListPanel from '@/components/friends-list-panel';
 import { Colors } from '@/constants/colors';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
 
 type TabKey = 'home' | 'friends' | 'notifications' | 'profile';
+type Filter = 'all' | 'unread' | 'read';
 
 const TABS: { key: TabKey; icon: string }[] = [
   { key: 'home', icon: '🏠' },
@@ -22,14 +31,97 @@ const TABS: { key: TabKey; icon: string }[] = [
   { key: 'profile', icon: '👤' },
 ];
 
-function NotificationsContent() {
+function NotificationPanel() {
+  const theme = useTheme();
+  const { unreadCount, notifications, loading, markAsRead, markAllAsRead } = useNotification();
+  const [filter, setFilter] = React.useState<Filter>('all');
+
+  const filtered = React.useMemo(() => {
+    if (filter === 'unread') return notifications.filter((n) => !n.is_read);
+    if (filter === 'read') return notifications.filter((n) => n.is_read);
+    return notifications;
+  }, [notifications, filter]);
+
+  const handleItemPress = (item: typeof notifications[0]) => {
+    if (!item.is_read) {
+      markAsRead(item);
+    }
+  };
+
+  const handleMarkAll = () => {
+    if (unreadCount > 0) {
+      markAllAsRead();
+    }
+  };
+
+  if (loading && notifications.length === 0) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <ThemedText themeColor="textSecondary" style={styles.loadingText}>
+          Đang tải...
+        </ThemedText>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.centerContent}>
-      <ThemedText style={styles.emptyIcon}>🔔</ThemedText>
-      <ThemedText style={styles.emptyTitle}>Thông báo</ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-        Theo dõi hoạt động của bạn bè
-      </ThemedText>
+    <View style={styles.panelContainer}>
+      {/* Filter tabs + actions */}
+      <View style={[styles.filterBar, { borderBottomColor: theme.border }]}>
+        {(['all', 'unread', 'read'] as Filter[]).map((f) => (
+          <Pressable
+            key={f}
+            onPress={() => setFilter(f)}
+            style={[
+              styles.filterTab,
+              filter === f && { backgroundColor: theme.primaryLight },
+            ]}>
+            <ThemedText
+              style={[
+                styles.filterLabel,
+                { color: filter === f ? theme.primary : theme.textSecondary },
+              ]}>
+              {f === 'all' ? 'Tất cả' : f === 'unread' ? 'Chưa đọc' : 'Đã đọc'}
+            </ThemedText>
+          </Pressable>
+        ))}
+        {unreadCount > 0 && (
+          <Pressable onPress={handleMarkAll} style={styles.markAllBtn}>
+            <ThemedText style={[styles.markAllLabel, { color: theme.primary }]}>
+              Đọc tất cả
+            </ThemedText>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Notification list */}
+      {filtered.length === 0 ? (
+        <View style={styles.center}>
+          <ThemedText style={styles.emptyIcon}>🔔</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+            {filter === 'unread'
+              ? 'Không có thông báo chưa đọc'
+              : filter === 'read'
+                ? 'Chưa có thông báo đã đọc'
+                : 'Chưa có thông báo nào'}
+          </ThemedText>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item }) => (
+            <NotificationItem
+              item={item}
+              onPress={() => handleItemPress(item)}
+            />
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
@@ -52,19 +144,11 @@ function ProfileContent() {
   );
 }
 
-const CONTENT_MAP: Partial<Record<TabKey, React.ComponentType>> = {
-  home: Feed,
-  notifications: NotificationsContent,
-  profile: ProfileContent,
-};
-
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
-
-  const ActiveContent = CONTENT_MAP[activeTab];
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
@@ -127,11 +211,15 @@ export default function HomeScreen() {
           <View style={styles.content}>
             <FriendsListPanel />
           </View>
-        ) : ActiveContent ? (
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-            <ActiveContent />
-          </ScrollView>
-        ) : null}
+        ) : activeTab === 'notifications' ? (
+          <View style={styles.content}>
+            <NotificationPanel />
+          </View>
+        ) : (
+          <View style={styles.content}>
+            <ProfileContent />
+          </View>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -184,9 +272,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  contentContainer: {
-    padding: Spacing.md,
-  },
   centerContent: {
     alignItems: 'center',
     gap: Spacing.md,
@@ -207,5 +292,53 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Notification panel styles
+  panelContainer: {
+    flex: 1,
+  },
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+    borderBottomWidth: 1,
+  },
+  filterTab: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+  },
+  filterLabel: {
+    ...Typography.caption,
+    fontWeight: 600,
+  },
+  markAllBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  markAllLabel: {
+    ...Typography.caption,
+    fontWeight: 600,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    padding: Spacing.xl,
+  },
+  loadingText: {
+    ...Typography.body,
+  },
+  emptyText: {
+    ...Typography.body,
+    textAlign: 'center',
+  },
+  listContent: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
   },
 });
