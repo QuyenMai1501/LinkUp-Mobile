@@ -38,6 +38,12 @@ export const resendVerification = (email: string) =>
     body: JSON.stringify({ email }),
   });
 
+export const changePassword = (oldPassword: string, newPassword: string) =>
+  request<{ message: string }>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+
 export function decodeToken(token: string): TokenPayload | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1])) as Partial<TokenPayload>;
