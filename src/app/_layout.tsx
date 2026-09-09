@@ -51,7 +51,6 @@ function RootNavigator() {
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       {/* @ts-ignore — expo-router linking prop not in types */}
       <Stack screenOptions={{ headerShown: false }} linking={linking}>
-        <Stack.Screen name="index" />
         <Stack.Screen name="(drawer)" />
         <Stack.Screen name="(auth)" />
       </Stack>

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -102,16 +102,28 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
             </View>
           </Pressable>
 
-          <View style={styles.userActions}>
-            <Pressable
-              onPress={() => {
-                navigation.closeDrawer();
-                signOut();
-              }}
-              style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}>
-              <ThemedText style={styles.actionIcon}>🚪</ThemedText>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => {
+              Alert.alert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('sidebar.logout'),
+                  style: 'destructive',
+                  onPress: () => {
+                    navigation.closeDrawer();
+                    signOut();
+                  },
+                },
+              ]);
+            }}
+            style={({ pressed }) => [
+              styles.logoutBtn,
+              { backgroundColor: colors.danger },
+              pressed && { opacity: 0.7 },
+            ]}>
+            <ThemedText style={styles.logoutIcon}>🚪</ThemedText>
+            <ThemedText style={styles.logoutLabel}>{t('sidebar.logout')}</ThemedText>
+          </Pressable>
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -202,20 +214,24 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 12,
   },
-  userActions: {
+  logoutBtn: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingLeft: Spacing.sm,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: Radius.md,
   },
-  actionIcon: {
-    fontSize: 18,
+  logoutIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  logoutLabel: {
+    ...Typography.body,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
