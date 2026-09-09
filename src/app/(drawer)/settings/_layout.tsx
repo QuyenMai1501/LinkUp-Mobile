@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
 import { useThemeMode } from '@/contexts/theme-context';
 import { Colors } from '@/constants/colors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function SettingsLayout() {
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
+  const { t } = useTranslation();
 
   return (
     <Stack
@@ -15,13 +17,13 @@ export default function SettingsLayout() {
         headerShadowVisible: false,
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="change-password" options={{ title: 'Đổi mật khẩu' }} />
-      <Stack.Screen name="privacy" options={{ title: 'Bảo mật' }} />
-      <Stack.Screen name="storage" options={{ title: 'Lưu trữ' }} />
-      <Stack.Screen name="appearance" options={{ title: 'Giao diện' }} />
-      <Stack.Screen name="sessions" options={{ title: 'Phiên đăng nhập' }} />
-      <Stack.Screen name="notifications" options={{ title: 'Thông báo' }} />
-      <Stack.Screen name="deactivate" options={{ title: 'Vô hiệu hóa' }} />
+      <Stack.Screen name="change-password" options={{ title: t('settings.items.changePassword.label') }} />
+      <Stack.Screen name="privacy" options={{ title: t('settings.items.privacy.label') }} />
+      <Stack.Screen name="storage" options={{ title: t('settings.items.storage.label') }} />
+      <Stack.Screen name="appearance" options={{ title: t('settings.items.appearance.label') }} />
+      <Stack.Screen name="sessions" options={{ title: t('settings.items.sessions.label') }} />
+      <Stack.Screen name="notifications" options={{ title: t('settings.items.notifications.label') }} />
+      <Stack.Screen name="deactivate" options={{ title: t('settings.items.deactivate.label') }} />
     </Stack>
   );
 }

@@ -18,12 +18,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export default function ForgotPasswordScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
@@ -35,11 +37,11 @@ export default function ForgotPasswordScreen() {
     const target = email.trim();
 
     if (!target) {
-      setFieldError('Vui lòng nhập email');
+      setFieldError(t('auth.forgotPassword.emailLabel'));
       return;
     }
     if (!EMAIL_REGEX.test(target)) {
-      setFieldError('Email không hợp lệ');
+      setFieldError(t('auth.register.validation.emailInvalid'));
       return;
     }
 
@@ -49,8 +51,8 @@ export default function ForgotPasswordScreen() {
       await forgotPassword(target);
       setSentEmail(target);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Gửi yêu cầu thất bại';
-      Alert.alert('Quên mật khẩu', message);
+      const message = err instanceof Error ? err.message : t('auth.forgotPassword.sendFailed');
+      Alert.alert(t('auth.forgotPassword.title'), message);
     } finally {
       setLoading(false);
     }
@@ -77,23 +79,22 @@ export default function ForgotPasswordScreen() {
 
               {sentEmail ? (
                 <>
-                  <ThemedText style={styles.title}>Đã gửi liên kết</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.forgotPassword.emailSent')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    Chúng tôi đã gửi liên kết đặt lại mật khẩu đến{' '}
-                    <ThemedText style={styles.strong}>{sentEmail}</ThemedText>. Vui lòng kiểm tra
-                    hộp thư để tiếp tục.
+                    {t('auth.forgotPassword.emailSentMessage')}{' '}
+                    <ThemedText style={styles.strong}>{sentEmail}</ThemedText>
                   </ThemedText>
-                  <Button label="Về trang đăng nhập" onPress={() => router.replace('/login')} />
+                  <Button label={t('auth.forgotPassword.backToLogin')} onPress={() => router.replace('/login')} />
                 </>
               ) : (
                 <>
-                  <ThemedText style={styles.title}>Quên mật khẩu?</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.forgotPassword.title')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    Nhập email của bạn để nhận liên kết đặt lại mật khẩu.
+                    {t('auth.forgotPassword.subtitle')}
                   </ThemedText>
 
                   <FormTextInput
-                    label="Email"
+                    label={t('auth.forgotPassword.emailLabel')}
                     value={email}
                     onChangeText={(value) => {
                       setEmail(value);
@@ -106,11 +107,11 @@ export default function ForgotPasswordScreen() {
                     error={fieldError}
                   />
 
-                  <Button label="Gửi liên kết" onPress={handleSubmit} loading={loading} />
+                  <Button label={t('auth.forgotPassword.sendButton')} onPress={handleSubmit} loading={loading} />
 
                   <Pressable onPress={() => router.replace('/login')}>
                     <ThemedText themeColor="primary" style={styles.backToLogin}>
-                      Quay lại đăng nhập
+                      {t('auth.forgotPassword.backToLogin')}
                     </ThemedText>
                   </Pressable>
                 </>

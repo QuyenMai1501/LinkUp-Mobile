@@ -8,35 +8,36 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 type FeatureIcon = Extract<SymbolViewProps['name'], { ios?: unknown }>;
 
 type Feature = {
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: FeatureIcon;
 };
 
 const FEATURES: Feature[] = [
   {
-    title: 'Kết bạn',
-    description: 'Kết nối với bạn bè và mở rộng mối quan hệ',
+    titleKey: 'home.features.addFriend',
+    descriptionKey: 'home.features.addFriendDesc',
     icon: { ios: 'person.2.fill', android: 'group', web: 'group' },
   },
   {
-    title: 'Chia sẻ',
-    description: 'Đăng bài viết, ảnh và cập nhật trạng thái',
+    titleKey: 'home.features.share',
+    descriptionKey: 'home.features.shareDesc',
     icon: { ios: 'photo.on.rectangle', android: 'photo_library', web: 'photo_library' },
   },
   {
-    title: 'Chat & Gọi video',
-    description: 'Nhắn tin riêng tư và gọi video trực tiếp',
+    titleKey: 'home.features.chatVideo',
+    descriptionKey: 'home.features.chatVideoDesc',
     icon: { ios: 'video.fill', android: 'videocam', web: 'videocam' },
   },
   {
-    title: 'Cộng đồng & Tin',
-    description: 'Tham gia cộng đồng và theo dõi tin bạn bè',
+    titleKey: 'home.features.communityNews',
+    descriptionKey: 'home.features.communityNewsDesc',
     icon: { ios: 'person.3.fill', android: 'diversity_3', web: 'diversity_3' },
   },
 ];
@@ -44,6 +45,7 @@ const FEATURES: Feature[] = [
 function ThemeToggleButton() {
   const { scheme, toggleTheme } = useThemeMode();
   const theme = useTheme();
+  const { t } = useTranslation();
   const isDark = scheme === 'dark';
 
   return (
@@ -64,7 +66,7 @@ function ThemeToggleButton() {
         size={16}
       />
       <ThemedText themeColor="textSecondary" type="small">
-        {isDark ? 'Tối' : 'Sáng'}
+        {isDark ? t('common.dark') : t('common.light')}
       </ThemedText>
     </Pressable>
   );
@@ -72,13 +74,14 @@ function ThemeToggleButton() {
 
 function FeatureCard({ feature }: { feature: Feature }) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <ThemedView type="card" style={[styles.featureCard, { borderColor: theme.border }]}>
       <SymbolView tintColor={theme.primary} name={feature.icon} size={22} />
-      <ThemedText style={styles.featureTitle}>{feature.title}</ThemedText>
+      <ThemedText style={styles.featureTitle}>{t(feature.titleKey)}</ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.featureDescription}>
-        {feature.description}
+        {t(feature.descriptionKey)}
       </ThemedText>
     </ThemedView>
   );
@@ -87,6 +90,7 @@ function FeatureCard({ feature }: { feature: Feature }) {
 export default function LandingScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { t } = useTranslation();
 
   return (
     <ThemedView style={styles.container}>
@@ -108,16 +112,15 @@ export default function LandingScreen() {
               style={styles.heroLogo}
               contentFit="contain"
             />
-            <ThemedText style={styles.tagline}>Mạng xã hội kết nối cộng đồng Việt</ThemedText>
+            <ThemedText style={styles.tagline}>{t('home.tagline')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-              Kết bạn, chia sẻ khoảnh khắc, trò chuyện và gọi video với mọi người — mọi lúc, mọi
-              nơi.
+              {t('home.subtitle')}
             </ThemedText>
           </View>
 
           <View style={styles.featuresGrid}>
             {FEATURES.map((feature) => (
-              <FeatureCard key={feature.title} feature={feature} />
+              <FeatureCard key={feature.titleKey} feature={feature} />
             ))}
           </View>
 
@@ -129,7 +132,7 @@ export default function LandingScreen() {
                 { backgroundColor: theme.secondary },
                 pressed && { opacity: 0.7 },
               ]}>
-              <ThemedText style={styles.ctaPrimaryText}>Bắt đầu ngay</ThemedText>
+              <ThemedText style={styles.ctaPrimaryText}>{t('home.ctaStart')}</ThemedText>
             </Pressable>
             <Pressable
               onPress={() => router.push('/register')}
@@ -139,13 +142,13 @@ export default function LandingScreen() {
                 pressed && { opacity: 0.7 },
               ]}>
               <ThemedText style={[styles.ctaSecondaryText, { color: theme.primary }]}>
-                Tìm hiểu thêm
+                {t('home.ctaLearnMore')}
               </ThemedText>
             </Pressable>
           </View>
 
           <ThemedText themeColor="textSecondary" style={styles.footer}>
-            LinkUp — Bản thử nghiệm
+            LinkUp — {t('home.beta')}
           </ThemedText>
         </ScrollView>
       </SafeAreaView>

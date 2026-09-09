@@ -7,14 +7,15 @@ import { updateAppearance } from '@/api/settings';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ThemeMode, LanguageCode } from '@/types/settings';
 
 export default function AppearanceForm() {
   const colors = useTheme();
   const { scheme, setScheme } = useThemeMode();
+  const { t, language, setLanguage } = useTranslation();
 
   const [theme, setTheme] = useState<ThemeMode>(scheme);
-  const [language, setLanguage] = useState<LanguageCode>('vi');
 
   const handleThemeChange = async (mode: ThemeMode) => {
     setTheme(mode);
@@ -22,7 +23,7 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ theme: mode });
     } catch {
-      Alert.alert('Lỗi', 'Không thể lưu cài đặt giao diện');
+      Alert.alert(t('common.error'), t('settings.appearance.saveFailed'));
     }
   };
 
@@ -31,7 +32,7 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ language: lang });
     } catch {
-      Alert.alert('Lỗi', 'Không thể lưu cài đặt ngôn ngữ');
+      Alert.alert(t('common.error'), t('settings.appearance.languageSaveFailed'));
     }
   };
 
@@ -39,9 +40,9 @@ export default function AppearanceForm() {
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
         <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>Giao diện tối</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.appearance.darkMode')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            Chế độ tối giúp giảm mỏi mắt
+            {t('settings.appearance.darkModeDesc')}
           </ThemedText>
         </ThemedView>
         <Switch
@@ -54,9 +55,9 @@ export default function AppearanceForm() {
 
       <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
         <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>Ngôn ngữ</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.appearance.language')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            Chọn ngôn ngữ hiển thị
+            {t('settings.appearance.languageDesc')}
           </ThemedText>
         </ThemedView>
         <ThemedView style={styles.langGroup}>

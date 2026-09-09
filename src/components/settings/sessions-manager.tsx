@@ -6,11 +6,12 @@ import { ThemedView } from '@/components/themed-view';
 import { getSessions, revokeSession, revokeOtherSessions } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { UserSessionDTO } from '@/types/settings';
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('vi-VN', {
+  return d.toLocaleDateString(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -21,6 +22,7 @@ function formatDate(dateStr: string): string {
 
 export default function SessionsManager() {
   const colors = useTheme();
+  const { t, language } = useTranslation();
 
   const [sessions, setSessions] = useState<UserSessionDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function SessionsManager() {
       const res = await getSessions();
       setSessions(res.data);
     } catch {
-      Alert.alert('Lỗi', 'Không thể tải danh sách phiên');
+      Alert.alert(t('common.error'), t('settings.sessions.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -46,23 +48,23 @@ export default function SessionsManager() {
         const res = await getSessions();
         if (!cancelled) setSessions(res.data);
       } catch {
-        if (!cancelled) Alert.alert('Lỗi', 'Không thể tải danh sách phiên');
+        if (!cancelled) Alert.alert(t('common.error'), t('settings.sessions.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     run();
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   const handleRevoke = async (id: string) => {
     setRevokingId(id);
     try {
       await revokeSession(id);
-      Alert.alert('Thành công', 'Đã thu hồi phiên');
+      Alert.alert(t('common.success'), t('settings.sessions.revokeSuccess'));
       await load();
     } catch {
-      Alert.alert('Lỗi', 'Không thể thu hồi phiên');
+      Alert.alert(t('common.error'), t('settings.sessions.revokeFailed'));
     } finally {
       setRevokingId(null);
     }
@@ -72,11 +74,11 @@ export default function SessionsManager() {
     setRevokingAll(true);
     try {
       await revokeOtherSessions();
-      Alert.alert('Thành công', 'Đã thu hồi tất cả phiên khác');
+      Alert.alert(t('common.success'), t('settings.sessions.revokeAllSuccess'));
       setConfirmAll(false);
       await load();
     } catch {
-      Alert.alert('Lỗi', 'Không thể thu hồi phiên');
+      Alert.alert(t('common.error'), t('settings.sessions.revokeFailed'));
     } finally {
       setRevokingAll(false);
     }
@@ -94,9 +96,9 @@ export default function SessionsManager() {
     return (
       <ThemedView style={styles.center}>
         <ThemedText style={styles.emptyIcon}>💻</ThemedText>
-        <ThemedText style={styles.emptyTitle}>Chưa có phiên nào</ThemedText>
+        <ThemedText style={styles.emptyTitle}>{t('settings.sessions.emptyTitle')}</ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.emptyDesc}>
-          Các phiên đăng nhập sẽ hiển thị ở đây
+          {t('settings.sessions.emptyDesc')}
         </ThemedText>
       </ThemedView>
     );
@@ -116,16 +118,16 @@ export default function SessionsManager() {
                 {session.is_current && (
                   <ThemedView style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
                     <ThemedText style={[styles.badgeText, { color: colors.primary }]}>
-                      Hiện tại
+                      {t('settings.sessions.currentSession')}
                     </ThemedText>
                   </ThemedView>
                 )}
               </ThemedView>
               <ThemedText themeColor="textSecondary" style={styles.sessionMeta}>
-                Hoạt động: {formatDate(session.last_active_at)}
+                {t('settings.sessions.activeAt')}{formatDate(session.last_active_at, language === 'vi' ? 'vi-VN' : 'en-US')}
               </ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.sessionMeta}>
-                Tạo: {formatDate(session.created_at)}
+                {t('settings.sessions.createdAt')}{formatDate(session.created_at, language === 'vi' ? 'vi-VN' : 'en-US')}
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -138,7 +140,7 @@ export default function SessionsManager() {
                 <ActivityIndicator size="small" color={colors.danger} />
               ) : (
                 <ThemedText style={[styles.revokeBtnText, { color: colors.danger }]}>
-                  Thu hồi
+                  {t('settings.sessions.revoke')}
                 </ThemedText>
               )}
             </TouchableOpacity>
@@ -152,7 +154,7 @@ export default function SessionsManager() {
           onPress={() => setConfirmAll(true)}
           disabled={revokingAll}>
           <ThemedText style={[styles.revokeAllText, { color: colors.danger }]}>
-            {revokingAll ? 'Đang thu hồi...' : 'Thu hồi tất cả'}
+            {revokingAll ? t('settings.sessions.revoking') : t('settings.sessions.revokeAll')}
           </ThemedText>
         </TouchableOpacity>
       )}
@@ -160,21 +162,21 @@ export default function SessionsManager() {
       <Modal visible={confirmAll} transparent animationType="fade">
         <ThemedView style={styles.overlay}>
           <ThemedView style={[styles.modal, { backgroundColor: colors.card }]}>
-            <ThemedText style={styles.modalTitle}>Thu hồi tất cả phiên</ThemedText>
+            <ThemedText style={styles.modalTitle}>{t('settings.sessions.revokeAllTitle')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.modalDesc}>
-              Bạn có chắc muốn thu hồi tất cả phiên khác? Thiết bị sẽ cần đăng nhập lại.
+              {t('settings.sessions.revokeAllDesc')}
             </ThemedText>
             <ThemedView style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalBtn, { borderColor: colors.border }]}
                 onPress={() => setConfirmAll(false)}>
-                <ThemedText style={styles.modalBtnText}>Hủy</ThemedText>
+                <ThemedText style={styles.modalBtnText}>{t('common.cancel')}</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: colors.danger }]}
                 onPress={handleRevokeAll}>
                 <ThemedText style={[styles.modalBtnText, { color: '#fff' }]}>
-                  {revokingAll ? 'Đang xử lý...' : 'Xác nhận'}
+                  {revokingAll ? t('settings.sessions.processing') : t('common.confirm')}
                 </ThemedText>
               </TouchableOpacity>
             </ThemedView>

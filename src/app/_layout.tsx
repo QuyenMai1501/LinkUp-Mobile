@@ -5,6 +5,7 @@ import { useSegments, useRouter } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { LanguageProvider } from '@/contexts/language-context';
 import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
 
@@ -60,14 +61,16 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeModeProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <AnimatedSplashOverlay />
-          <AuthRedirect />
-          <RootNavigator />
-        </NotificationProvider>
-      </AuthProvider>
-    </ThemeModeProvider>
+    <LanguageProvider>
+      <ThemeModeProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <AnimatedSplashOverlay />
+            <AuthRedirect />
+            <RootNavigator />
+          </NotificationProvider>
+        </AuthProvider>
+      </ThemeModeProvider>
+    </LanguageProvider>
   );
 }

@@ -9,6 +9,7 @@ import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/contexts/auth-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type NavItem = {
   key: string;
@@ -18,11 +19,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'Trang chủ', icon: '🏠', href: 'index' },
-  { key: 'friends', label: 'Bạn bè', icon: '👥', href: 'friends' },
-  { key: 'communities', label: 'Cộng đồng', icon: '🌐', href: 'communities' },
-  { key: 'saved', label: 'Đã lưu', icon: '🔖', href: 'saved' },
-  { key: 'settings', label: 'Cài đặt', icon: '⚙️', href: 'settings' },
+  { key: 'home', label: 'home', icon: '🏠', href: 'index' },
+  { key: 'friends', label: 'friends', icon: '👥', href: 'friends' },
+  { key: 'communities', label: 'community', icon: '🌐', href: 'communities' },
+  { key: 'saved', label: 'saved', icon: '🔖', href: 'saved' },
+  { key: 'settings', label: 'settings', icon: '⚙️', href: 'settings' },
 ];
 
 interface DrawerContentProps {
@@ -34,6 +35,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
   const { user, signOut } = useAuth();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
+  const { t } = useTranslation();
 
   const handleNavigate = (href: string) => {
     navigation.closeDrawer();
@@ -72,7 +74,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
                   <ThemedText style={styles.navIcon}>{item.icon}</ThemedText>
                   <ThemedText
                     style={[styles.navLabel, active && { color: colors.primary, fontWeight: '700' }]}>
-                    {item.label}
+                    {t(`sidebar.${item.label}`)}
                   </ThemedText>
                 </Pressable>
               );

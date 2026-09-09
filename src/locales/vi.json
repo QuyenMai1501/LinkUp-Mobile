@@ -1,0 +1,371 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "saveChanges": "Lưu thay đổi",
+    "retry": "Thử lại",
+    "ok": "OK",
+    "yes": "Có",
+    "no": "Không",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "done": "Xong",
+    "close": "Đóng",
+    "search": "Tìm kiếm",
+    "noResults": "Không tìm thấy kết quả",
+    "emptyState": "Không có dữ liệu",
+    "actionRequired": "Yêu cầu hành động",
+    "processing": "Đang xử lý...",
+    "dark": "Tối",
+    "light": "Sáng",
+    "sessionExpired": "Phiên đăng nhập đã hết hạn"
+  },
+  "auth": {
+    "login": {
+      "title": "Đăng nhập",
+      "subtitle": "Chào mừng bạn đến với LinkUp",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Nhập email của bạn",
+      "passwordLabel": "Mật khẩu",
+      "passwordPlaceholder": "Nhập mật khẩu của bạn",
+      "forgotPassword": "Quên mật khẩu?",
+      "loginButton": "Đăng nhập",
+      "noAccount": "Chưa có tài khoản?",
+      "registerLink": "Đăng ký",
+      "loginFailed": "Đăng nhập thất bại",
+      "invalidCredentials": "Email hoặc mật khẩu không đúng",
+      "loginSuccess": "Đăng nhập thành công"
+    },
+    "register": {
+      "title": "Đăng ký",
+      "subtitle": "Tạo tài khoản mới",
+      "nameLabel": "Họ và tên",
+      "namePlaceholder": "Nhập họ và tên",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Nhập email",
+      "passwordLabel": "Mật khẩu",
+      "passwordPlaceholder": "Nhập mật khẩu",
+      "confirmPasswordLabel": "Xác nhận mật khẩu",
+      "confirmPasswordPlaceholder": "Nhập lại mật khẩu",
+      "registerButton": "Đăng ký",
+      "hasAccount": "Đã có tài khoản?",
+      "loginLink": "Đăng nhập",
+      "registerSuccess": "Đăng ký thành công",
+      "registerFailed": "Đăng ký thất bại",
+      "validation": {
+        "nameRequired": "Vui lòng nhập họ tên",
+        "nameMin": "Họ tên phải có ít nhất 2 ký tự",
+        "nameMax": "Họ tên không được quá 50 ký tự",
+        "emailRequired": "Vui lòng nhập email",
+        "emailInvalid": "Email không hợp lệ",
+        "passwordRequired": "Vui lòng nhập mật khẩu",
+        "passwordMin": "Mật khẩu phải có ít nhất 6 ký tự",
+        "passwordMax": "Mật khẩu không được quá 50 ký tự",
+        "passwordPattern": "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt",
+        "confirmRequired": "Vui lòng xác nhận mật khẩu",
+        "confirmMismatch": "Mật khẩu xác nhận không khớp"
+      }
+    },
+    "forgotPassword": {
+      "title": "Quên mật khẩu",
+      "subtitle": "Nhập email để đặt lại mật khẩu",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Nhập email đã đăng ký",
+      "sendButton": "Gửi liên kết đặt lại",
+      "backToLogin": "Quay lại đăng nhập",
+      "emailSent": "Email đã được gửi",
+      "emailSentMessage": "Vui lòng kiểm tra email của bạn để đặt lại mật khẩu",
+      "sendFailed": "Không thể gửi email"
+    },
+    "verifyEmail": {
+      "title": "Xác minh email",
+      "subtitle": "Kiểm tra email của bạn",
+      "message": "Chúng tôi đã gửi mã xác minh đến",
+      "resendCode": "Gửi lại mã",
+      "resendCountdown": "Gửi lại sau {{seconds}}s",
+      "verifyButton": "Xác minh",
+      "codeRequired": "Vui lòng nhập mã xác minh",
+      "invalidCode": "Mã xác minh không hợp lệ",
+      "verifySuccess": "Xác minh thành công",
+      "verifyFailed": "Xác minh thất bại",
+      "resendSuccess": "Mã đã được gửi lại",
+      "resendFailed": "Không thể gửi lại mã"
+    }
+  },
+  "sidebar": {
+    "home": "Trang chủ",
+    "friends": "Bạn bè",
+    "community": "Cộng đồng",
+    "saved": "Đã lưu",
+    "settings": "Cài đặt",
+    "logout": "Đăng xuất",
+    "logoutConfirm": "Bạn có chắc muốn đăng xuất?",
+    "version": "Phiên bản {{version}}"
+  },
+  "home": {
+    "tagline": "Mạng xã hội kết nối cộng đồng Việt",
+    "subtitle": "Kết bạn, chia sẻ khoảnh khắc, trò chuyện và gọi video với mọi người — mọi lúc, mọi nơi.",
+    "ctaStart": "Bắt đầu ngay",
+    "ctaLearnMore": "Tìm hiểu thêm",
+    "beta": "Bản thử nghiệm",
+    "features": {
+      "addFriend": "Kết bạn",
+      "addFriendDesc": "Kết nối với bạn bè và mở rộng mối quan hệ",
+      "share": "Chia sẻ",
+      "shareDesc": "Đăng bài viết, ảnh và cập nhật trạng thái",
+      "chatVideo": "Chat & Gọi video",
+      "chatVideoDesc": "Nhắn tin riêng tư và gọi video trực tiếp",
+      "communityNews": "Cộng đồng & Tin",
+      "communityNewsDesc": "Tham gia cộng đồng và theo dõi tin bạn bè"
+    }
+  },
+  "community": {
+    "subtitle": "Tham gia các cộng đồng quan tâm"
+  },
+  "saved": {
+    "subtitle": "Bài viết và nội dung đã lưu"
+  },
+  "feed": {
+    "loadError": "Lỗi tải dữ liệu",
+    "endOfFeed": "Đã xem hết bài viết.",
+    "emptyTitle": "Chưa có bài viết nào",
+    "emptySubtitle": "Hãy kết bạn và theo dõi mọi người để xem bài viết."
+  },
+  "post": {
+    "readMore": "Xem thêm",
+    "collapse": "Thu gọn"
+  },
+  "friends": {
+    "title": "Bạn bè",
+    "tabs": {
+      "all": "Tất cả",
+      "online": "Trực tuyến",
+      "pending": "Chờ xác nhận",
+      "blocked": "Đã chặn"
+    },
+    "actions": {
+      "addFriend": "Thêm bạn",
+      "removeFriend": "Hủy kết bạn",
+      "blockUser": "Chặn người dùng",
+      "unblockUser": "Bỏ chặn",
+      "accept": "Chấp nhận",
+      "decline": "Từ chối",
+      "revoke": "Thu hồi",
+      "message": "Nhắn tin",
+      "acceptSuccess": "Đã chấp nhận lời mời kết bạn",
+      "rejectSuccess": "Đã từ chối lời mời kết bạn",
+      "revokeSuccess": "Đã thu hồi lời mời kết bạn",
+      "sendSuccess": "Đã gửi lời mời kết bạn",
+      "unfriendSuccess": "Đã hủy kết bạn"
+    },
+    "request": {
+      "wantsToAdd": "muốn kết bạn với bạn",
+      "sentRequest": "đã gửi lời mời"
+    },
+    "mutual": {
+      "count": "{{count}} bạn chung",
+      "more": "và {{count}} người khác"
+    },
+    "empty": {
+      "noFriends": "Chưa có bạn bè",
+      "noOnline": "Không ai trực tuyến",
+      "noPending": "Không có lời mời chờ xử lý",
+      "noBlocked": "Không có ai bị chặn",
+      "noSearchResults": "Không tìm thấy kết quả"
+    },
+    "status": {
+      "online": "Trực tuyến",
+      "offline": "Ngoại tuyến"
+    },
+    "confirm": {
+      "removeFriend": "Bạn có chắc muốn hủy kết bạn với {{name}}?",
+      "blockUser": "Bạn có chắc muốn chặn {{name}}?",
+      "unblockUser": "Bạn có chắc muốn bỏ chặn {{name}}?"
+    }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "empty": "Chưa có thông báo",
+    "markAllRead": "Đánh dấu đã đọc",
+    "clearAll": "Xóa tất cả",
+    "filterUnread": "Chưa đọc",
+    "filterRead": "Đã đọc",
+    "types": {
+      "like": "thích bài viết của bạn",
+      "comment": "bình luận bài viết của bạn",
+      "follow": "đang theo dõi bạn",
+      "friendRequest": "gửi lời mời kết bạn",
+      "friendAccept": "chấp nhận lời mời kết bạn",
+      "mention": "đề cập đến bạn",
+      "system": "thông báo hệ thống"
+    },
+    "time": {
+      "justNow": "vừa xong",
+      "minutesAgo": "{{count}} phút trước",
+      "hoursAgo": "{{count}} giờ trước",
+      "daysAgo": "{{count}} ngày trước",
+      "weeksAgo": "{{count}} tuần trước",
+      "monthsAgo": "{{count}} tháng trước"
+    }
+  },
+  "chat": {
+    "title": "Tin nhắn",
+    "placeholder": "Nhập tin nhắn...",
+    "send": "Gửi",
+    "typing": "đang nhập...",
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến",
+    "lastSeen": "Hoạt động {{time}}",
+    "noMessages": "Chưa có tin nhắn",
+    "noChats": "Chưa có cuộc trò chuyện",
+    "searchPlaceholder": "Tìm kiếm tin nhắn...",
+    "deleteChat": "Xóa cuộc trò chuyện",
+    "deleteConfirm": "Bạn có chắc muốn xóa cuộc trò chuyện này?"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "items": {
+      "changePassword": {
+        "label": "Đổi mật khẩu",
+        "desc": "Thay đổi mật khẩu tài khoản"
+      },
+      "privacy": {
+        "label": "Bảo mật",
+        "desc": "Quản lý cài đặt bảo mật"
+      },
+      "storage": {
+        "label": "Lưu trữ",
+        "desc": "Xem dung lượng đã sử dụng"
+      },
+      "appearance": {
+        "label": "Giao diện",
+        "desc": "Giao diện và ngôn ngữ"
+      },
+      "sessions": {
+        "label": "Phiên đăng nhập",
+        "desc": "Quản lý các thiết bị đã đăng nhập"
+      },
+      "notifications": {
+        "label": "Thông báo",
+        "desc": "Tùy chọn thông báo"
+      },
+      "deactivate": {
+        "label": "Vô hiệu hóa tài khoản",
+        "desc": "Tạm thời tắt tài khoản"
+      }
+    },
+    "changePassword": {
+      "title": "Đổi mật khẩu",
+      "currentPassword": "Mật khẩu hiện tại",
+      "currentPasswordPlaceholder": "Nhập mật khẩu hiện tại",
+      "newPassword": "Mật khẩu mới",
+      "newPasswordPlaceholder": "Nhập mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "confirmPasswordPlaceholder": "Nhập lại mật khẩu mới",
+      "changeButton": "Đổi mật khẩu",
+      "changeSuccess": "Đổi mật khẩu thành công",
+      "changeFailed": "Đổi mật khẩu thất bại",
+      "validation": {
+        "currentRequired": "Vui lòng nhập mật khẩu hiện tại",
+        "newRequired": "Vui lòng nhập mật khẩu mới",
+        "newMin": "Mật khẩu phải có ít nhất 8 ký tự",
+        "newMax": "Mật khẩu không được quá 50 ký tự",
+        "newPattern": "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt",
+        "newSame": "Mật khẩu mới không được trùng mật khẩu cũ",
+        "confirmRequired": "Vui lòng xác nhận mật khẩu",
+        "confirmMismatch": "Mật khẩu xác nhận không khớp"
+      }
+    },
+    "privacy": {
+      "title": "Bảo mật",
+      "searchable": "Hiển thị trong tìm kiếm",
+      "searchableDesc": "Cho phép người khác tìm thấy bạn qua tìm kiếm",
+      "strangers": "Nhận tin từ người lạ",
+      "strangersDesc": "Cho phép người chưa kết bạn gửi tin nhắn",
+      "saveButton": "Lưu thay đổi",
+      "saveSuccess": "Đã lưu cài đặt bảo mật",
+      "saveFailed": "Không thể lưu cài đặt",
+      "loadFailed": "Không thể tải cài đặt bảo mật"
+    },
+    "appearance": {
+      "title": "Giao diện",
+      "darkMode": "Giao diện tối",
+      "darkModeDesc": "Chế độ tối giúp giảm mỏi mắt",
+      "language": "Ngôn ngữ",
+      "languageDesc": "Chọn ngôn ngữ hiển thị",
+      "saveFailed": "Không thể lưu cài đặt giao diện",
+      "languageSaveFailed": "Không thể lưu cài đặt ngôn ngữ"
+    },
+    "sessions": {
+      "title": "Phiên đăng nhập",
+      "currentSession": "Hiện tại",
+      "activeAt": "Hoạt động: ",
+      "createdAt": "Tạo: ",
+      "revoke": "Thu hồi",
+      "revokeAll": "Thu hồi tất cả",
+      "revoking": "Đang thu hồi...",
+      "revokeSuccess": "Đã thu hồi phiên",
+      "revokeFailed": "Không thể thu hồi phiên",
+      "revokeAllSuccess": "Đã thu hồi tất cả phiên khác",
+      "revokeAllFailed": "Không thể thu hồi phiên",
+      "revokeAllTitle": "Thu hồi tất cả phiên",
+      "revokeAllDesc": "Bạn có chắc muốn thu hồi tất cả phiên khác? Thiết bị sẽ cần đăng nhập lại.",
+      "processing": "Đang xử lý...",
+      "emptyTitle": "Chưa có phiên nào",
+      "emptyDesc": "Các phiên đăng nhập sẽ hiển thị ở đây",
+      "loadFailed": "Không thể tải danh sách phiên"
+    },
+    "storage": {
+      "title": "Lưu trữ",
+      "quota": "Dung lượng: ",
+      "used": "Đã dùng",
+      "free": "Còn trống",
+      "rate": "Tỷ lệ",
+      "loadFailed": "Không thể tải thông tin lưu trữ"
+    },
+    "notificationsPrefs": {
+      "title": "Tùy chọn thông báo",
+      "likePost": "Thích bài viết",
+      "comment": "Bình luận",
+      "follow": "Theo dõi",
+      "message": "Tin nhắn",
+      "friendRequest": "Lời mời kết bạn",
+      "community": "Cộng đồng",
+      "voiceCall": "Cuộc gọi thoại",
+      "saveButton": "Lưu thay đổi",
+      "saveSuccess": "Đã lưu tùy chọn thông báo",
+      "saveFailed": "Không thể lưu tùy chọn"
+    },
+    "deactivate": {
+      "title": "Vô hiệu hóa tài khoản",
+      "warning": "Khi vô hiệu hóa tài khoản, tất cả dữ liệu sẽ bị ẩn và bạn không thể đăng nhập lại.",
+      "confirmLabel": "Nhập mật khẩu để xác nhận",
+      "confirmPlaceholder": "Mật khẩu",
+      "deactivateButton": "Vô hiệu hóa tài khoản",
+      "confirmTitle": "Xác nhận",
+      "confirmMessage": "Bạn có chắc muốn vô hiệu hóa tài khoản? Hành động này không thể hoàn tác.",
+      "confirmAction": "Vô hiệu hóa",
+      "deactivateSuccess": "Tài khoản đã bị vô hiệu hóa",
+      "deactivateFailed": "Không thể vô hiệu hóa tài khoản",
+      "passwordRequired": "Vui lòng nhập mật khẩu để xác nhận"
+    }
+  },
+  "profile": {
+    "title": "Hồ sơ",
+    "editProfile": "Chỉnh sửa hồ sơ",
+    "followers": "Người theo dõi",
+    "following": "Đang theo dõi",
+    "posts": "Bài viết",
+    "loading": "Đang tải hồ sơ...",
+    "notFound": "Không tìm thấy hồ sơ",
+    "bio": "Giới thiệu",
+    "location": "Địa chỉ",
+    "joined": "Tham gia"
+  }
+}

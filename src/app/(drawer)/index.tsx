@@ -20,6 +20,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type TabKey = 'home' | 'friends' | 'notifications' | 'profile';
 type Filter = 'all' | 'unread' | 'read';
@@ -34,6 +35,7 @@ const TABS: { key: TabKey; icon: string }[] = [
 function NotificationPanel() {
   const theme = useTheme();
   const { unreadCount, notifications, loading, markAsRead, markAllAsRead } = useNotification();
+  const { t } = useTranslation();
   const [filter, setFilter] = React.useState<Filter>('all');
 
   const filtered = React.useMemo(() => {
@@ -59,7 +61,7 @@ function NotificationPanel() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.primary} />
         <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-          Đang tải...
+          {t('common.loading')}
         </ThemedText>
       </View>
     );
@@ -82,14 +84,14 @@ function NotificationPanel() {
                 styles.filterLabel,
                 { color: filter === f ? theme.primary : theme.textSecondary },
               ]}>
-              {f === 'all' ? 'Tất cả' : f === 'unread' ? 'Chưa đọc' : 'Đã đọc'}
+              {f === 'all' ? t('friends.tabs.all') : f === 'unread' ? t('notifications.filterUnread') : t('notifications.filterRead')}
             </ThemedText>
           </Pressable>
         ))}
         {unreadCount > 0 && (
           <Pressable onPress={handleMarkAll} style={styles.markAllBtn}>
             <ThemedText style={[styles.markAllLabel, { color: theme.primary }]}>
-              Đọc tất cả
+              {t('notifications.markAllRead')}
             </ThemedText>
           </Pressable>
         )}
@@ -101,10 +103,10 @@ function NotificationPanel() {
           <ThemedText style={styles.emptyIcon}>🔔</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {filter === 'unread'
-              ? 'Không có thông báo chưa đọc'
+              ? t('notifications.empty')
               : filter === 'read'
-                ? 'Chưa có thông báo đã đọc'
-                : 'Chưa có thông báo nào'}
+                ? t('notifications.empty')
+                : t('notifications.empty')}
           </ThemedText>
         </View>
       ) : (

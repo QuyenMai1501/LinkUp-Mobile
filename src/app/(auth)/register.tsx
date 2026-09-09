@@ -19,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -33,6 +34,7 @@ export default function RegisterScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
+  const { t } = useTranslation();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,38 +47,38 @@ export default function RegisterScreen() {
     const errors: FieldErrors = {};
 
     if (!displayName.trim()) {
-      errors.displayName = 'Vui lòng nhập tên hiển thị';
+      errors.displayName = t('auth.register.validation.nameRequired');
     } else if (Array.from(displayName.trim()).length < 3) {
-      errors.displayName = 'Tên hiển thị phải có ít nhất 3 ký tự';
+      errors.displayName = t('auth.register.validation.nameMin');
     } else if (Array.from(displayName.trim()).length > 55) {
-      errors.displayName = 'Tên hiển thị không được vượt quá 55 ký tự';
+      errors.displayName = t('auth.register.validation.nameMax');
     }
 
     if (!email.trim()) {
-      errors.email = 'Vui lòng nhập email';
+      errors.email = t('auth.register.validation.emailRequired');
     } else if (!EMAIL_REGEX.test(email.trim())) {
-      errors.email = 'Email không hợp lệ';
+      errors.email = t('auth.register.validation.emailInvalid');
     }
 
     if (!password) {
-      errors.password = 'Vui lòng nhập mật khẩu';
+      errors.password = t('auth.register.validation.passwordRequired');
     } else if (password.length < 8) {
-      errors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+      errors.password = t('auth.register.validation.passwordMin');
     } else if (password.length > 50) {
-      errors.password = 'Mật khẩu không được vượt quá 50 ký tự';
+      errors.password = t('auth.register.validation.passwordMax');
     } else if (
       !/[A-Z]/.test(password) ||
       !/[a-z]/.test(password) ||
       !/[0-9]/.test(password) ||
       !/[^A-Za-z0-9]/.test(password)
     ) {
-      errors.password = 'Mật khẩu phải gồm chữ hoa, chữ thường, số và ký tự đặc biệt';
+      errors.password = t('auth.register.validation.passwordPattern');
     }
 
     if (!confirmPassword) {
-      errors.confirmPassword = 'Vui lòng nhập lại mật khẩu';
+      errors.confirmPassword = t('auth.register.validation.confirmRequired');
     } else if (confirmPassword !== password) {
-      errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+      errors.confirmPassword = t('auth.register.validation.confirmMismatch');
     }
 
     setFieldErrors(errors);
@@ -102,8 +104,8 @@ export default function RegisterScreen() {
 
       router.replace('/login');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Đăng ký thất bại';
-      Alert.alert('Đăng ký thất bại', message);
+      const message = err instanceof Error ? err.message : t('auth.register.registerFailed');
+      Alert.alert(t('auth.register.registerFailed'), message);
     } finally {
       setLoading(false);
     }
@@ -127,22 +129,22 @@ export default function RegisterScreen() {
                 />
                 <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
               </View>
-              <ThemedText style={styles.title}>Tạo tài khoản</ThemedText>
+              <ThemedText style={styles.title}>{t('auth.register.title')}</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                Tham gia LinkUp và kết nối với bạn bè
+                {t('auth.register.subtitle')}
               </ThemedText>
 
               <FormTextInput
-                label="Tên hiển thị"
+                label={t('auth.register.nameLabel')}
                 value={displayName}
                 onChangeText={setDisplayName}
-                placeholder="Nguyễn Văn A"
+                placeholder={t('auth.register.namePlaceholder')}
                 error={fieldErrors.displayName}
                 autoComplete="name"
               />
 
               <FormTextInput
-                label="Email"
+                label={t('auth.register.emailLabel')}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
@@ -153,30 +155,30 @@ export default function RegisterScreen() {
               />
 
               <FormTextInput
-                label="Mật khẩu"
+                label={t('auth.register.passwordLabel')}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Ít nhất 8 ký tự"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 secureTextEntry
                 error={fieldErrors.password}
               />
 
               <FormTextInput
-                label="Xác nhận mật khẩu"
+                label={t('auth.register.confirmPasswordLabel')}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Nhập lại mật khẩu"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 secureTextEntry
                 error={fieldErrors.confirmPassword}
               />
 
-              <Button label="Đăng ký" onPress={handleSubmit} loading={loading} />
+              <Button label={t('auth.register.registerButton')} onPress={handleSubmit} loading={loading} />
 
               <View style={styles.footerRow}>
-                <ThemedText themeColor="textSecondary">Đã có tài khoản?</ThemedText>
+                <ThemedText themeColor="textSecondary">{t('auth.register.hasAccount')}</ThemedText>
                 <Pressable onPress={() => router.push('/login')}>
                   <ThemedText themeColor="primary" style={styles.footerLink} numberOfLines={1}>
-                    Đăng nhập
+                    {t('auth.register.loginLink')}
                   </ThemedText>
                 </Pressable>
               </View>

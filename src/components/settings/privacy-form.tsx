@@ -6,10 +6,12 @@ import { ThemedView } from '@/components/themed-view';
 import { getPrivacy, updatePrivacy } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { PrivacySettingsResponse } from '@/types/settings';
 
 export default function PrivacyForm() {
   const colors = useTheme();
+  const { t } = useTranslation();
 
   const [initial, setInitial] = useState<PrivacySettingsResponse | null>(null);
   const [discoverable, setDiscoverable] = useState(false);
@@ -27,7 +29,7 @@ export default function PrivacyForm() {
         setDiscoverable(res.discoverable_in_search);
         setAllowStrangers(res.allow_stranger_messages);
       } catch {
-        if (!cancelled) Alert.alert('Lỗi', 'Không thể tải cài đặt bảo mật');
+        if (!cancelled) Alert.alert(t('common.error'), t('settings.privacy.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -50,9 +52,9 @@ export default function PrivacyForm() {
       if (allowStrangers !== initial.allow_stranger_messages) input.allow_stranger_messages = allowStrangers;
       const res = await updatePrivacy(input);
       setInitial(res);
-      Alert.alert('Thành công', 'Đã lưu cài đặt bảo mật');
+      Alert.alert(t('common.success'), t('settings.privacy.saveSuccess'));
     } catch {
-      Alert.alert('Lỗi', 'Không thể lưu cài đặt');
+      Alert.alert(t('common.error'), t('settings.privacy.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -70,9 +72,9 @@ export default function PrivacyForm() {
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
         <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>Hiển thị trong tìm kiếm</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.privacy.searchable')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            Cho phép người khác tìm thấy bạn qua tìm kiếm
+            {t('settings.privacy.searchableDesc')}
           </ThemedText>
         </ThemedView>
         <Switch
@@ -85,9 +87,9 @@ export default function PrivacyForm() {
 
       <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
         <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>Nhận tin từ người lạ</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.privacy.strangers')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            Cho phép người chưa kết bạn gửi tin nhắn
+            {t('settings.privacy.strangersDesc')}
           </ThemedText>
         </ThemedView>
         <Switch
@@ -106,7 +108,7 @@ export default function PrivacyForm() {
             <ThemedText
               style={[styles.saveBtn, { color: colors.primary }]}
               onPress={handleSave}>
-              Lưu thay đổi
+              {t('settings.privacy.saveButton')}
             </ThemedText>
           )}
         </ThemedView>

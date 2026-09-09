@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { getFriends, unfriend } from '@/api/friends';
 import type { FriendUser } from '@/types/friend';
 
@@ -21,6 +22,7 @@ const PAGE_SIZE = 20;
 
 export default function FriendsListPanel() {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,13 +51,13 @@ export default function FriendsListPanel() {
       });
       setHasMore(res.has_more);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setLoading(false);
       setInitial(false);
       loadingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     pageRef.current = 0;
@@ -77,10 +79,10 @@ export default function FriendsListPanel() {
     try {
       await unfriend(unfriendTarget.user_id);
       setFriends((prev) => prev.filter((f) => f.user_id !== unfriendTarget.user_id));
-      Alert.alert('Thành công', 'Đã hủy kết bạn');
+      Alert.alert(t('common.success'), t('friends.actions.unfriendSuccess'));
       setUnfriendTarget(null);
     } catch (err) {
-      Alert.alert('Lỗi', err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setUnfriending(false);
     }
@@ -91,7 +93,7 @@ export default function FriendsListPanel() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.primary} />
         <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-          Đang tải...
+          {t('common.loading')}
         </ThemedText>
       </View>
     );
@@ -110,7 +112,7 @@ export default function FriendsListPanel() {
             loadFriends();
           }}
           style={[styles.retryBtn, { borderColor: theme.primary }]}>
-          <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>Thử lại</ThemedText>
+          <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>{t('common.retry')}</ThemedText>
         </Pressable>
       </View>
     );
@@ -121,7 +123,7 @@ export default function FriendsListPanel() {
       <View style={styles.center}>
         <ThemedText style={styles.emptyIcon}>👥</ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-          Chưa có bạn bè nào
+          {t('friends.empty.noFriends')}
         </ThemedText>
       </View>
     );
@@ -136,7 +138,7 @@ export default function FriendsListPanel() {
           <FriendCard
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
-            actionLabel="Hủy kết bạn"
+            actionLabel={t('friends.actions.removeFriend')}
             actionIcon="✕"
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
@@ -155,7 +157,7 @@ export default function FriendsListPanel() {
             </View>
           ) : !hasMore && friends.length > 0 ? (
             <ThemedText themeColor="textSecondary" style={styles.endText}>
-              Đã hiển thị tất cả
+              {t('common.done')}
             </ThemedText>
           ) : null
         }
@@ -165,7 +167,7 @@ export default function FriendsListPanel() {
       {unfriendTarget && (
         <View style={styles.modalOverlay}>
           <ThemedView style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <ThemedText style={styles.modalTitle}>Hủy kết bạn</ThemedText>
+            <ThemedText style={styles.modalTitle}>{t('friends.actions.removeFriend')}</ThemedText>
             <View style={styles.modalBody}>
               <View style={[styles.modalAvatar, { backgroundColor: theme.primaryLight }]}>
                 {unfriendTarget.avatar_uri ? (
@@ -182,7 +184,7 @@ export default function FriendsListPanel() {
               </View>
               <ThemedText style={styles.modalName}>{unfriendTarget.display_name}</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.modalDesc}>
-                Bạn có chắc muốn hủy kết bạn với người này?
+                {t('friends.confirm.removeFriend', { name: unfriendTarget.display_name })}
               </ThemedText>
             </View>
             <View style={styles.modalActions}>
@@ -195,7 +197,7 @@ export default function FriendsListPanel() {
                   pressed && styles.modalBtnPressed,
                 ]}>
                 <ThemedText style={[styles.modalBtnLabel, { color: theme.textSecondary }]}>
-                  Đóng
+                  {t('common.close')}
                 </ThemedText>
               </Pressable>
               <Pressable
@@ -210,7 +212,7 @@ export default function FriendsListPanel() {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <ThemedText style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
-                    Hủy kết bạn
+                    {t('friends.actions.removeFriend')}
                   </ThemedText>
                 )}
               </Pressable>

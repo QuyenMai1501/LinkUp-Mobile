@@ -7,36 +7,38 @@ import { deactivateAccount } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function DeactivateAccount() {
   const colors = useTheme();
   const { signOut } = useAuth();
+  const { t } = useTranslation();
 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleDeactivate = async () => {
     if (!password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận');
+      Alert.alert(t('common.error'), t('settings.deactivate.passwordRequired'));
       return;
     }
 
     Alert.alert(
-      'Xác nhận',
-      'Bạn có chắc muốn vô hiệu hóa tài khoản? Hành động này không thể hoàn tác.',
+      t('settings.deactivate.confirmTitle'),
+      t('settings.deactivate.confirmMessage'),
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Vô hiệu hóa',
+          text: t('settings.deactivate.confirmAction'),
           style: 'destructive',
           onPress: async () => {
             setLoading(true);
             try {
               await deactivateAccount(password);
-              Alert.alert('Thành công', 'Tài khoản đã bị vô hiệu hóa');
+              Alert.alert(t('common.success'), t('settings.deactivate.deactivateSuccess'));
               signOut();
             } catch (err) {
-              Alert.alert('Lỗi', err instanceof Error ? err.message : 'Không thể vô hiệu hóa tài khoản');
+              Alert.alert(t('common.error'), err instanceof Error ? err.message : t('settings.deactivate.deactivateFailed'));
             } finally {
               setLoading(false);
             }
@@ -51,19 +53,19 @@ export default function DeactivateAccount() {
       <ThemedView style={[styles.warningBox, { backgroundColor: colors.dangerLight }]}>
         <ThemedText style={styles.warningIcon}>⚠️</ThemedText>
         <ThemedText style={styles.warningText}>
-          Khi vô hiệu hóa tài khoản, tất cả dữ liệu sẽ bị ẩn và bạn không thể đăng nhập lại.
+          {t('settings.deactivate.warning')}
         </ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.field}>
-        <ThemedText style={styles.label}>Nhập mật khẩu để xác nhận</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.deactivate.confirmLabel')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="Mật khẩu"
+            placeholder={t('settings.deactivate.confirmPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
           />
@@ -78,7 +80,7 @@ export default function DeactivateAccount() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <ThemedText style={styles.buttonText}>Vô hiệu hóa tài khoản</ThemedText>
+          <ThemedText style={styles.buttonText}>{t('settings.deactivate.deactivateButton')}</ThemedText>
         )}
       </TouchableOpacity>
     </ThemedView>
