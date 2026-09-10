@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import NotificationItem from '@/components/notification-item';
 import { ThemedText } from '@/components/themed-text';
@@ -148,6 +148,7 @@ function ProfileContent() {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
@@ -174,7 +175,7 @@ export default function HomeScreen() {
             <Pressable style={styles.actionBtn} onPress={() => {}}>
               <ThemedText style={[styles.actionIcon, { color: colors.text }]}>🔍</ThemedText>
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => {}}>
+            <Pressable style={styles.actionBtn} onPress={() => (router as any).push('/(drawer)/messages')}>
               <ThemedText style={[styles.actionIcon, { color: colors.text }]}>💬</ThemedText>
             </Pressable>
           </View>

@@ -27,6 +27,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="saved" />
       <Drawer.Screen name="settings" />
       <Drawer.Screen name="profile" />
+      <Drawer.Screen name="chat/[chatId]" options={{ headerShown: false, swipeEnabled: false }} />
     </Drawer>
   );
 }

@@ -224,9 +224,15 @@
     "lastSeen": "Hoạt động {{time}}",
     "noMessages": "Chưa có tin nhắn",
     "noChats": "Chưa có cuộc trò chuyện",
+    "noConversations": "Chưa có cuộc trò chuyện nào",
+    "noResults": "Không tìm thấy kết quả",
     "searchPlaceholder": "Tìm kiếm tin nhắn...",
     "deleteChat": "Xóa cuộc trò chuyện",
-    "deleteConfirm": "Bạn có chắc muốn xóa cuộc trò chuyện này?"
+    "deleteConfirm": "Bạn có chắc muốn xóa cuộc trò chuyện này?",
+    "newChat": "Cuộc trò chuyện mới",
+    "unknown": "Không xác định",
+    "e2eBadge": "Bảo mật",
+    "youPrefix": "Bạn: "
   },
   "settings": {
     "title": "Cài đặt",
