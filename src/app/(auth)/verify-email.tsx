@@ -180,6 +180,7 @@ export default function VerifyEmailScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    editable={false}
                   />
 
                   <Button
@@ -227,6 +228,7 @@ export default function VerifyEmailScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    editable={false}
                   />
 
                   <Button

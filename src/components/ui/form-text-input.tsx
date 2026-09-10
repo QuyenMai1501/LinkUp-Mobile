@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   input: {
     ...Typography.body,
     flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     backgroundColor: 'transparent',
   },
