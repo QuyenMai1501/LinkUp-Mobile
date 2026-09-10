@@ -6,12 +6,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 import VideoPlayer from './video-player';
 import type { FeedPost, FeedMedia } from '../types/post';
 
 const CONTENT_TRUNCATE_LENGTH = 200;
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const now = Date.now();
   const past = new Date(dateStr).getTime();
   const diffMs = now - past;
@@ -19,10 +20,10 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'Vừa xong';
-  if (diffMins < 60) return `${diffMins} phút`;
-  if (diffHours < 24) return `${diffHours} giờ`;
-  if (diffDays <= 7) return `${diffDays} ngày`;
+  if (diffMins < 1) return t('notifications.time.justNow');
+  if (diffMins < 60) return t('notifications.time.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('notifications.time.hoursAgo', { count: diffHours });
+  if (diffDays <= 7) return t('notifications.time.daysAgo', { count: diffDays });
 
   const d = new Date(dateStr);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -80,6 +81,7 @@ interface PostCardProps {
 
 export default function PostCard({ post, onLike, onSave, onComment }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
 
   const needsTruncation = post.content.length > CONTENT_TRUNCATE_LENGTH;
   const displayContent =
@@ -105,7 +107,7 @@ export default function PostCard({ post, onLike, onSave, onComment }: PostCardPr
         <View style={styles.authorMeta}>
           <ThemedText style={styles.displayName}>{post.display_name}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
-            @{post.username} · {formatRelativeTime(post.created_at)}
+            @{post.username} · {formatRelativeTime(post.created_at, t)}
           </ThemedText>
         </View>
       </View>
@@ -119,7 +121,7 @@ export default function PostCard({ post, onLike, onSave, onComment }: PostCardPr
             {needsTruncation && (
               <Pressable onPress={() => setExpanded((v) => !v)}>
                 <ThemedText style={styles.toggleBtn}>
-                  {expanded ? 'Thu gọn' : 'Xem thêm'}
+                  {expanded ? t('post.collapse') : t('post.readMore')}
                 </ThemedText>
               </Pressable>
             )}

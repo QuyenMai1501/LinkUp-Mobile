@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { changePassword } from '@/api/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface FieldErrors {
   oldPassword?: string;
@@ -21,6 +22,7 @@ interface FieldErrors {
 
 export default function ChangePasswordForm() {
   const colors = useTheme();
+  const { t } = useTranslation();
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -35,32 +37,32 @@ export default function ChangePasswordForm() {
     const errors: FieldErrors = {};
 
     if (!oldPassword) {
-      errors.oldPassword = 'Vui lòng nhập mật khẩu hiện tại';
+      errors.oldPassword = t('settings.changePassword.validation.currentRequired');
     }
 
     if (!newPassword) {
-      errors.newPassword = 'Vui lòng nhập mật khẩu mới';
+      errors.newPassword = t('settings.changePassword.validation.newRequired');
     } else if (newPassword.length < 8) {
-      errors.newPassword = 'Mật khẩu phải có ít nhất 8 ký tự';
+      errors.newPassword = t('settings.changePassword.validation.newMin');
     } else if (newPassword.length > 50) {
-      errors.newPassword = 'Mật khẩu không được quá 50 ký tự';
+      errors.newPassword = t('settings.changePassword.validation.newMax');
     } else if (
       !/[A-Z]/.test(newPassword) ||
       !/[a-z]/.test(newPassword) ||
       !/[0-9]/.test(newPassword) ||
       !/[^A-Za-z0-9]/.test(newPassword)
     ) {
-      errors.newPassword = 'Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt';
+      errors.newPassword = t('settings.changePassword.validation.newPattern');
     }
 
     if (newPassword && newPassword === oldPassword) {
-      errors.newPassword = 'Mật khẩu mới không được trùng mật khẩu cũ';
+      errors.newPassword = t('settings.changePassword.validation.newSame');
     }
 
     if (!confirmPassword) {
-      errors.confirmPassword = 'Vui lòng xác nhận mật khẩu';
+      errors.confirmPassword = t('settings.changePassword.validation.confirmRequired');
     } else if (confirmPassword !== newPassword) {
-      errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+      errors.confirmPassword = t('settings.changePassword.validation.confirmMismatch');
     }
 
     setFieldErrors(errors);
@@ -73,13 +75,13 @@ export default function ChangePasswordForm() {
     setLoading(true);
     try {
       const res = await changePassword(oldPassword, newPassword);
-      Alert.alert('Thành công', res.message || 'Đổi mật khẩu thành công');
+      Alert.alert(t('common.success'), res.message || t('settings.changePassword.changeSuccess'));
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setFieldErrors({});
     } catch (err) {
-      Alert.alert('Lỗi', err instanceof Error ? err.message : 'Đổi mật khẩu thất bại');
+      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('settings.changePassword.changeFailed'));
     } finally {
       setLoading(false);
     }
@@ -88,14 +90,14 @@ export default function ChangePasswordForm() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.field}>
-        <ThemedText style={styles.label}>Mật khẩu hiện tại</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.changePassword.currentPassword')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
             value={oldPassword}
             onChangeText={setOldPassword}
             secureTextEntry={!showOld}
-            placeholder="Nhập mật khẩu hiện tại"
+            placeholder={t('settings.changePassword.currentPasswordPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
           />
@@ -109,14 +111,14 @@ export default function ChangePasswordForm() {
       </ThemedView>
 
       <ThemedView style={styles.field}>
-        <ThemedText style={styles.label}>Mật khẩu mới</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.changePassword.newPassword')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry={!showNew}
-            placeholder="Nhập mật khẩu mới"
+            placeholder={t('settings.changePassword.newPasswordPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
           />
@@ -130,14 +132,14 @@ export default function ChangePasswordForm() {
       </ThemedView>
 
       <ThemedView style={styles.field}>
-        <ThemedText style={styles.label}>Xác nhận mật khẩu</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.changePassword.confirmPassword')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry={!showConfirm}
-            placeholder="Nhập lại mật khẩu mới"
+            placeholder={t('settings.changePassword.confirmPasswordPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
           />
@@ -158,7 +160,7 @@ export default function ChangePasswordForm() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <ThemedText style={styles.buttonText}>Đổi mật khẩu</ThemedText>
+          <ThemedText style={styles.buttonText}>{t('settings.changePassword.changeButton')}</ThemedText>
         )}
       </TouchableOpacity>
     </ThemedView>

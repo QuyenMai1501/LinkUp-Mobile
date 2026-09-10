@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 import PostCard from './post-card';
 import { getFeedPosts, reactPost, savePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
@@ -40,6 +41,7 @@ function SkeletonCard() {
 }
 
 export default function Feed() {
+  const { t } = useTranslation();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -64,13 +66,13 @@ export default function Feed() {
       cursorRef.current = res.next_cursor;
       setHasMore(res.next_cursor !== null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lỗi tải dữ liệu');
+      setError(err instanceof Error ? err.message : t('feed.loadError'));
     } finally {
       setLoading(false);
       setInitialLoading(false);
       loadingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchNext();
@@ -142,7 +144,7 @@ export default function Feed() {
             fetchNext();
           }}
           style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.7 }]}>
-          <ThemedText style={styles.retryText}>Thử lại</ThemedText>
+          <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
         </Pressable>
       </View>
     );
@@ -167,12 +169,12 @@ export default function Feed() {
           <View style={styles.loadingMore}>
             <ActivityIndicator size="small" />
             <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-              Đang tải...
+              {t('common.loading')}
             </ThemedText>
           </View>
         ) : !hasMore && posts.length > 0 ? (
           <ThemedText themeColor="textSecondary" style={styles.endMessage}>
-            Đã xem hết bài viết.
+            {t('feed.endOfFeed')}
           </ThemedText>
         ) : null
       }
@@ -180,9 +182,9 @@ export default function Feed() {
         !initialLoading && !error ? (
           <View style={styles.centerContent}>
             <ThemedText style={styles.emptyIcon}>📰</ThemedText>
-            <ThemedText style={styles.emptyTitle}>Chưa có bài viết nào</ThemedText>
+            <ThemedText style={styles.emptyTitle}>{t('feed.emptyTitle')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-              Hãy kết bạn và theo dõi mọi người để xem bài viết.
+              {t('feed.emptySubtitle')}
             </ThemedText>
           </View>
         ) : null

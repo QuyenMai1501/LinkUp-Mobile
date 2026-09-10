@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   acceptFriendRequest,
   getFriendRequests,
@@ -41,6 +42,7 @@ const MAX_BADGE = 99;
 export default function FriendsScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
@@ -90,12 +92,12 @@ export default function FriendsScreen() {
       setReceived(res.received);
       setSent(res.sent);
     } catch (err) {
-      setRequestsError(err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      setRequestsError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setRequestsLoading(false);
       requestsLoadingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   const loadSuggestions = useCallback(async () => {
     if (suggestionsLoadingRef.current) return;
@@ -113,13 +115,13 @@ export default function FriendsScreen() {
       });
       setSuggestionsHasMore(res.has_more);
     } catch (err) {
-      setSuggestionsError(err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      setSuggestionsError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setSuggestionsLoading(false);
       setSuggestionsInitial(false);
       suggestionsLoadingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   const loadFriends = useCallback(async () => {
     if (friendsLoadingRef.current) return;
@@ -137,13 +139,13 @@ export default function FriendsScreen() {
       });
       setFriendsHasMore(res.has_more);
     } catch (err) {
-      setFriendsError(err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      setFriendsError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setFriendsLoading(false);
       setFriendsInitial(false);
       friendsLoadingRef.current = false;
     }
-  }, []);
+  }, [t]);
 
   // ============ EFFECTS ============
 
@@ -185,12 +187,12 @@ export default function FriendsScreen() {
       try {
         await fn;
         onSuccess();
-        Alert.alert('Thành công', successMsg);
+        Alert.alert(t('common.success'), successMsg);
       } catch (err) {
-        Alert.alert('Lỗi', err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+        Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
       }
     },
-    [],
+    [t],
   );
 
   const handleAccept = (item: FriendRequestItem) => {
@@ -200,7 +202,7 @@ export default function FriendsScreen() {
         setReceived((prev) => prev.filter((r) => r.id !== item.id));
         setSuggestions((prev) => prev.filter((s) => s.user_id !== item.user_id));
       },
-      'Đã chấp nhận lời mời kết bạn',
+      t('friends.actions.acceptSuccess'),
     );
   };
 
@@ -208,7 +210,7 @@ export default function FriendsScreen() {
     runAction(
       rejectFriendRequest(item.id),
       () => setReceived((prev) => prev.filter((r) => r.id !== item.id)),
-      'Đã từ chối lời mời kết bạn',
+      t('friends.actions.rejectSuccess'),
     );
   };
 
@@ -216,7 +218,7 @@ export default function FriendsScreen() {
     runAction(
       toggleFriendRequest(item.user_id),
       () => setSent((prev) => prev.filter((r) => r.id !== item.id)),
-      'Đã thu hồi lời mời kết bạn',
+      t('friends.actions.revokeSuccess'),
     );
   };
 
@@ -240,7 +242,7 @@ export default function FriendsScreen() {
           },
         ]);
       },
-      'Đã gửi lời mời kết bạn',
+      t('friends.actions.sendSuccess'),
     );
   };
 
@@ -254,10 +256,10 @@ export default function FriendsScreen() {
     try {
       await unfriend(unfriendTarget.user_id);
       setFriends((prev) => prev.filter((f) => f.user_id !== unfriendTarget.user_id));
-      Alert.alert('Thành công', 'Đã hủy kết bạn');
+      Alert.alert(t('common.success'), t('friends.actions.unfriendSuccess'));
       setUnfriendTarget(null);
     } catch (err) {
-      Alert.alert('Lỗi', err instanceof Error ? err.message : 'Đã xảy ra lỗi');
+      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setUnfriending(false);
     }
@@ -265,15 +267,15 @@ export default function FriendsScreen() {
 
   // ============ TAB CONFIG ============
 
-  const MAIN_TABS: { key: MainTab; label: string; icon: string }[] = [
-    { key: 'requests', label: 'Lời mời', icon: '📩' },
-    { key: 'suggestions', label: 'Gợi ý', icon: '👤' },
-    { key: 'list', label: 'Bạn bè', icon: '👥' },
+  const MAIN_TABS: { key: MainTab; labelKey: string; icon: string }[] = [
+    { key: 'requests', labelKey: 'friends.tabs.pending', icon: '📩' },
+    { key: 'suggestions', labelKey: 'friends.tabs.all', icon: '👤' },
+    { key: 'list', labelKey: 'friends.title', icon: '👥' },
   ];
 
-  const SUB_TABS: { key: SubTab; label: string }[] = [
-    { key: 'received', label: 'Đã nhận' },
-    { key: 'sent', label: 'Đã gửi' },
+  const SUB_TABS: { key: SubTab; labelKey: string }[] = [
+    { key: 'received', labelKey: 'friends.actions.accept' },
+    { key: 'sent', labelKey: 'friends.actions.decline' },
   ];
 
   // ============ RENDER: REQUESTS ============
@@ -285,8 +287,8 @@ export default function FriendsScreen() {
       return (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-            Đang tải...
+            <ThemedText themeColor="textSecondary" style={styles.loadingText}>
+            {t('common.loading')}
           </ThemedText>
         </View>
       );
@@ -300,7 +302,7 @@ export default function FriendsScreen() {
             {requestsError}
           </ThemedText>
           <Pressable onPress={loadRequests} style={[styles.retryBtn, { borderColor: theme.primary }]}>
-            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>Thử lại</ThemedText>
+            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -313,7 +315,7 @@ export default function FriendsScreen() {
             {subTab === 'received' ? '📩' : '📤'}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            {subTab === 'received' ? 'Không có lời mời nào' : 'Chưa gửi lời mời nào'}
+            {subTab === 'received' ? t('friends.empty.noPending') : t('friends.empty.noPending')}
           </ThemedText>
         </View>
       );
@@ -347,8 +349,8 @@ export default function FriendsScreen() {
       return (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-            Đang tải...
+            <ThemedText themeColor="textSecondary" style={styles.loadingText}>
+            {t('common.loading')}
           </ThemedText>
         </View>
       );
@@ -367,7 +369,7 @@ export default function FriendsScreen() {
               loadSuggestions();
             }}
             style={[styles.retryBtn, { borderColor: theme.primary }]}>
-            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>Thử lại</ThemedText>
+            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -378,7 +380,7 @@ export default function FriendsScreen() {
         <View style={styles.center}>
           <ThemedText style={styles.emptyIcon}>👤</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            Không có gợi ý kết bạn
+            {t('friends.empty.noFriends')}
           </ThemedText>
         </View>
       );
@@ -392,8 +394,8 @@ export default function FriendsScreen() {
           const subtitle =
             item.mutual_count > 0
               ? item.mutual_names && item.mutual_names.length > 0
-                ? `${item.mutual_names.join(', ')}${item.mutual_count > item.mutual_names.length ? ` và ${item.mutual_count - item.mutual_names.length} người khác` : ''}`
-                : `${item.mutual_count} bạn chung`
+                ? `${item.mutual_names.join(', ')}${item.mutual_count > item.mutual_names.length ? ` ${t('friends.mutual.more', { count: item.mutual_count - item.mutual_names.length })}` : ''}`
+                : t('friends.mutual.count', { count: item.mutual_count })
               : undefined;
 
           return (
@@ -401,7 +403,7 @@ export default function FriendsScreen() {
               avatarUri={item.avatar_uri}
               displayName={item.display_name}
               subtitle={subtitle}
-              actionLabel={item._friendStatus === 'sent' ? 'Đã gửi' : 'Thêm bạn'}
+              actionLabel={item._friendStatus === 'sent' ? t('common.done') : t('friends.actions.addFriend')}
               actionIcon={item._friendStatus === 'sent' ? '✓' : '👤+'}
               onAction={() => {
                 if (item._friendStatus !== 'sent') handleAddFriend(item);
@@ -424,7 +426,7 @@ export default function FriendsScreen() {
             </View>
           ) : !suggestionsHasMore && suggestions.length > 0 ? (
             <ThemedText themeColor="textSecondary" style={styles.endText}>
-              Đã hiển thị tất cả
+              {t('common.done')}
             </ThemedText>
           ) : null
         }
@@ -441,7 +443,7 @@ export default function FriendsScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.primary} />
           <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-            Đang tải...
+            {t('common.loading')}
           </ThemedText>
         </View>
       );
@@ -460,7 +462,7 @@ export default function FriendsScreen() {
               loadFriends();
             }}
             style={[styles.retryBtn, { borderColor: theme.primary }]}>
-            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>Thử lại</ThemedText>
+            <ThemedText style={[styles.retryLabel, { color: theme.primary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -471,7 +473,7 @@ export default function FriendsScreen() {
         <View style={styles.center}>
           <ThemedText style={styles.emptyIcon}>👥</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-            Chưa có bạn bè nào
+            {t('friends.empty.noFriends')}
           </ThemedText>
         </View>
       );
@@ -485,7 +487,7 @@ export default function FriendsScreen() {
           <FriendCard
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
-            actionLabel="Hủy kết bạn"
+            actionLabel={t('friends.actions.removeFriend')}
             actionIcon="✕"
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
@@ -504,7 +506,7 @@ export default function FriendsScreen() {
             </View>
           ) : !friendsHasMore && friends.length > 0 ? (
             <ThemedText themeColor="textSecondary" style={styles.endText}>
-              Đã hiển thị tất cả
+              {t('common.done')}
             </ThemedText>
           ) : null
         }
@@ -525,7 +527,7 @@ export default function FriendsScreen() {
           <Pressable style={styles.backBtn} onPress={openDrawer}>
             <ThemedText style={[styles.backIcon, { color: theme.text }]}>☰</ThemedText>
           </Pressable>
-          <ThemedText style={styles.headerTitle}>Bạn bè</ThemedText>
+          <ThemedText style={styles.headerTitle}>{t('friends.title')}</ThemedText>
         </View>
 
         {/* Main tabs */}
@@ -552,7 +554,7 @@ export default function FriendsScreen() {
                     styles.tabLabel,
                     { color: isActive ? theme.primary : theme.textSecondary },
                   ]}>
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </ThemedText>
                 {tab.key === 'requests' && unreadCount > 0 && (
                   <View style={[styles.badge, { backgroundColor: theme.accent }]}>
@@ -584,7 +586,7 @@ export default function FriendsScreen() {
                       styles.subTabLabel,
                       { color: isActive ? theme.primary : theme.textSecondary },
                     ]}>
-                    {tab.label}
+                    {t(tab.labelKey)}
                     {tab.key === 'received' && received.length > 0
                       ? ` (${received.length})`
                       : ''}
@@ -608,7 +610,7 @@ export default function FriendsScreen() {
       {unfriendTarget && (
         <View style={styles.modalOverlay}>
           <ThemedView style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <ThemedText style={styles.modalTitle}>Hủy kết bạn</ThemedText>
+            <ThemedText style={styles.modalTitle}>{t('friends.actions.removeFriend')}</ThemedText>
             <View style={styles.modalBody}>
               <View style={[styles.modalAvatar, { backgroundColor: theme.primaryLight }]}>
                 {unfriendTarget.avatar_uri ? (
@@ -625,7 +627,7 @@ export default function FriendsScreen() {
               </View>
               <ThemedText style={styles.modalName}>{unfriendTarget.display_name}</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.modalDesc}>
-                Bạn có chắc muốn hủy kết bạn với người này?
+                {t('friends.confirm.removeFriend', { name: unfriendTarget.display_name })}
               </ThemedText>
             </View>
             <View style={styles.modalActions}>
@@ -638,7 +640,7 @@ export default function FriendsScreen() {
                   pressed && styles.modalBtnPressed,
                 ]}>
                 <ThemedText style={[styles.modalBtnLabel, { color: theme.textSecondary }]}>
-                  Hủy
+                  {t('common.cancel')}
                 </ThemedText>
               </Pressable>
               <Pressable
@@ -653,7 +655,7 @@ export default function FriendsScreen() {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <ThemedText style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
-                    Hủy kết bạn
+                    {t('friends.actions.removeFriend')}
                   </ThemedText>
                 )}
               </Pressable>

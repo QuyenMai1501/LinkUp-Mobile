@@ -6,21 +6,23 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const SETTINGS_ITEMS = [
-  { key: 'change-password', icon: '🔒', label: 'Đổi mật khẩu', desc: 'Thay đổi mật khẩu tài khoản' },
-  { key: 'privacy', icon: '🛡️', label: 'Bảo mật', desc: 'Quản lý cài đặt bảo mật' },
-  { key: 'storage', icon: '💾', label: 'Lưu trữ', desc: 'Xem dung lượng đã sử dụng' },
-  { key: 'appearance', icon: '🎨', label: 'Giao diện', desc: 'Giao diện và ngôn ngữ' },
-  { key: 'sessions', icon: '💻', label: 'Phiên đăng nhập', desc: 'Quản lý các thiết bị đã đăng nhập' },
-  { key: 'notifications', icon: '🔔', label: 'Thông báo', desc: 'Tùy chọn thông báo' },
-  { key: 'deactivate', icon: '⚠️', label: 'Vô hiệu hóa tài khoản', desc: 'Tạm thời tắt tài khoản' },
+  { key: 'change-password', icon: '🔒', labelKey: 'settings.items.changePassword.label', descKey: 'settings.items.changePassword.desc' },
+  { key: 'privacy', icon: '🛡️', labelKey: 'settings.items.privacy.label', descKey: 'settings.items.privacy.desc' },
+  { key: 'storage', icon: '💾', labelKey: 'settings.items.storage.label', descKey: 'settings.items.storage.desc' },
+  { key: 'appearance', icon: '🎨', labelKey: 'settings.items.appearance.label', descKey: 'settings.items.appearance.desc' },
+  { key: 'sessions', icon: '💻', labelKey: 'settings.items.sessions.label', descKey: 'settings.items.sessions.desc' },
+  { key: 'notifications', icon: '🔔', labelKey: 'settings.items.notifications.label', descKey: 'settings.items.notifications.desc' },
+  { key: 'deactivate', icon: '⚠️', labelKey: 'settings.items.deactivate.label', descKey: 'settings.items.deactivate.desc' },
 ] as const;
 
 export default function SettingsIndex() {
   const router = useRouter();
   const navigation = useNavigation();
   const colors = useTheme();
+  const { t } = useTranslation();
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
@@ -33,7 +35,7 @@ export default function SettingsIndex() {
           <Pressable onPress={openDrawer} style={styles.menuBtn}>
             <ThemedText style={[styles.menuIcon, { color: colors.text }]}>☰</ThemedText>
           </Pressable>
-          <ThemedText style={styles.header}>Cài đặt</ThemedText>
+          <ThemedText style={styles.header}>{t('settings.title')}</ThemedText>
         </ThemedView>
         <ScrollView contentContainerStyle={styles.list}>
           {SETTINGS_ITEMS.map((item, index) => (
@@ -49,9 +51,9 @@ export default function SettingsIndex() {
                 ]}>
                 <ThemedText style={styles.icon}>{item.icon}</ThemedText>
                 <ThemedView style={styles.itemContent}>
-                  <ThemedText style={styles.label}>{item.label}</ThemedText>
+                  <ThemedText style={styles.label}>{t(item.labelKey)}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.desc}>
-                    {item.desc}
+                    {t(item.descKey)}
                   </ThemedText>
                 </ThemedView>
                 <ThemedText style={[styles.arrow, { color: colors.textSecondary }]}>›</ThemedText>

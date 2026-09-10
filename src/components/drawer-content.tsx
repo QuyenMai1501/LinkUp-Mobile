@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,7 @@ import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/contexts/auth-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type NavItem = {
   key: string;
@@ -18,11 +19,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'Trang chủ', icon: '🏠', href: 'index' },
-  { key: 'friends', label: 'Bạn bè', icon: '👥', href: 'friends' },
-  { key: 'communities', label: 'Cộng đồng', icon: '🌐', href: 'communities' },
-  { key: 'saved', label: 'Đã lưu', icon: '🔖', href: 'saved' },
-  { key: 'settings', label: 'Cài đặt', icon: '⚙️', href: 'settings' },
+  { key: 'home', label: 'home', icon: '🏠', href: 'index' },
+  { key: 'friends', label: 'friends', icon: '👥', href: 'friends' },
+  { key: 'communities', label: 'community', icon: '🌐', href: 'communities' },
+  { key: 'saved', label: 'saved', icon: '🔖', href: 'saved' },
+  { key: 'settings', label: 'settings', icon: '⚙️', href: 'settings' },
 ];
 
 interface DrawerContentProps {
@@ -34,6 +35,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
   const { user, signOut } = useAuth();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
+  const { t } = useTranslation();
 
   const handleNavigate = (href: string) => {
     navigation.closeDrawer();
@@ -72,7 +74,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
                   <ThemedText style={styles.navIcon}>{item.icon}</ThemedText>
                   <ThemedText
                     style={[styles.navLabel, active && { color: colors.primary, fontWeight: '700' }]}>
-                    {item.label}
+                    {t(`sidebar.${item.label}`)}
                   </ThemedText>
                 </Pressable>
               );
@@ -100,16 +102,28 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
             </View>
           </Pressable>
 
-          <View style={styles.userActions}>
-            <Pressable
-              onPress={() => {
-                navigation.closeDrawer();
-                signOut();
-              }}
-              style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}>
-              <ThemedText style={styles.actionIcon}>🚪</ThemedText>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => {
+              Alert.alert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('sidebar.logout'),
+                  style: 'destructive',
+                  onPress: () => {
+                    navigation.closeDrawer();
+                    signOut();
+                  },
+                },
+              ]);
+            }}
+            style={({ pressed }) => [
+              styles.logoutBtn,
+              { backgroundColor: colors.danger },
+              pressed && { opacity: 0.7 },
+            ]}>
+            <ThemedText style={styles.logoutIcon}>🚪</ThemedText>
+            <ThemedText style={styles.logoutLabel}>{t('sidebar.logout')}</ThemedText>
+          </Pressable>
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -200,20 +214,24 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 12,
   },
-  userActions: {
+  logoutBtn: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingLeft: Spacing.sm,
-  },
-  actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: Radius.md,
   },
-  actionIcon: {
-    fontSize: 18,
+  logoutIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  logoutLabel: {
+    ...Typography.body,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

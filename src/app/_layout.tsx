@@ -5,6 +5,7 @@ import { useSegments, useRouter } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { LanguageProvider } from '@/contexts/language-context';
 import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
 
@@ -50,7 +51,6 @@ function RootNavigator() {
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       {/* @ts-ignore — expo-router linking prop not in types */}
       <Stack screenOptions={{ headerShown: false }} linking={linking}>
-        <Stack.Screen name="index" />
         <Stack.Screen name="(drawer)" />
         <Stack.Screen name="(auth)" />
       </Stack>
@@ -60,14 +60,16 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeModeProvider>
-      <AuthProvider>
-        <NotificationProvider>
-          <AnimatedSplashOverlay />
-          <AuthRedirect />
-          <RootNavigator />
-        </NotificationProvider>
-      </AuthProvider>
-    </ThemeModeProvider>
+    <LanguageProvider>
+      <ThemeModeProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <AnimatedSplashOverlay />
+            <AuthRedirect />
+            <RootNavigator />
+          </NotificationProvider>
+        </AuthProvider>
+      </ThemeModeProvider>
+    </LanguageProvider>
   );
 }

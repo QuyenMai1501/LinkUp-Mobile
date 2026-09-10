@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { getStorage } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { UserStorageInfo } from '@/types/settings';
 
 function formatBytes(bytes: number): { value: string; unit: string } {
@@ -21,6 +22,7 @@ function formatBytes(bytes: number): { value: string; unit: string } {
 
 export default function StorageInfo() {
   const colors = useTheme();
+  const { t } = useTranslation();
 
   const [storage, setStorage] = useState<UserStorageInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function StorageInfo() {
   if (!storage) {
     return (
       <ThemedView style={styles.center}>
-        <ThemedText themeColor="textSecondary">Không thể tải thông tin lưu trữ</ThemedText>
+        <ThemedText themeColor="textSecondary">{t('settings.storage.loadFailed')}</ThemedText>
       </ThemedView>
     );
   }
@@ -72,7 +74,7 @@ export default function StorageInfo() {
           <ThemedText style={styles.usedUnit}> {used.unit}</ThemedText>
         </ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.quotaLabel}>
-          Dung lượng: {quota.value} {quota.unit}
+          {t('settings.storage.quota')}{quota.value} {quota.unit}
         </ThemedText>
       </ThemedView>
 
@@ -87,19 +89,19 @@ export default function StorageInfo() {
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {used.value} {used.unit}
           </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.statLabel}>Đã dùng</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.statLabel}>{t('settings.storage.used')}</ThemedText>
         </ThemedView>
         <ThemedView style={[styles.stat, { backgroundColor: colors.card }]}>
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {avail.value} {avail.unit}
           </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.statLabel}>Còn trống</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.statLabel}>{t('settings.storage.free')}</ThemedText>
         </ThemedView>
         <ThemedView style={[styles.stat, { backgroundColor: colors.card }]}>
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {Math.round(percent)}%
           </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.statLabel}>Tỷ lệ</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.statLabel}>{t('settings.storage.rate')}</ThemedText>
         </ThemedView>
       </ThemedView>
     </ThemedView>

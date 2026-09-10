@@ -6,18 +6,19 @@ import { ThemedView } from '@/components/themed-view';
 import { getPreferences, updatePreferences as apiUpdatePreferences } from '@/api/notifications';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { NotificationPreferences } from '@/types/notification';
 
 type PrefKey = keyof NotificationPreferences;
 
-const PREF_ROWS: { key: PrefKey; label: string }[] = [
-  { key: 'like_enabled', label: 'Thích bài viết' },
-  { key: 'comment_enabled', label: 'Bình luận' },
-  { key: 'follow_enabled', label: 'Theo dõi' },
-  { key: 'message_enabled', label: 'Tin nhắn' },
-  { key: 'friend_request_enabled', label: 'Lời mời kết bạn' },
-  { key: 'community_enabled', label: 'Cộng đồng' },
-  { key: 'voice_call_enabled', label: 'Cuộc gọi thoại' },
+const PREF_ROWS: { key: PrefKey; labelKey: string }[] = [
+  { key: 'like_enabled', labelKey: 'settings.notificationsPrefs.likePost' },
+  { key: 'comment_enabled', labelKey: 'settings.notificationsPrefs.comment' },
+  { key: 'follow_enabled', labelKey: 'settings.notificationsPrefs.follow' },
+  { key: 'message_enabled', labelKey: 'settings.notificationsPrefs.message' },
+  { key: 'friend_request_enabled', labelKey: 'settings.notificationsPrefs.friendRequest' },
+  { key: 'community_enabled', labelKey: 'settings.notificationsPrefs.community' },
+  { key: 'voice_call_enabled', labelKey: 'settings.notificationsPrefs.voiceCall' },
 ];
 
 const DEFAULT_PREFS: NotificationPreferences = {
@@ -32,6 +33,7 @@ const DEFAULT_PREFS: NotificationPreferences = {
 
 export default function NotificationsForm() {
   const colors = useTheme();
+  const { t } = useTranslation();
 
   const [values, setValues] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [initial, setInitial] = useState<NotificationPreferences | null>(null);
@@ -73,9 +75,9 @@ export default function NotificationsForm() {
       }
       await apiUpdatePreferences(input);
       setInitial({ ...values });
-      Alert.alert('Thành công', 'Đã lưu tùy chọn thông báo');
+      Alert.alert(t('common.success'), t('settings.notificationsPrefs.saveSuccess'));
     } catch {
-      Alert.alert('Lỗi', 'Không thể lưu tùy chọn');
+      Alert.alert(t('common.error'), t('settings.notificationsPrefs.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -93,7 +95,7 @@ export default function NotificationsForm() {
     <ThemedView style={styles.container}>
       {PREF_ROWS.map((row) => (
         <ThemedView key={row.key} style={[styles.row, { backgroundColor: colors.card }]}>
-          <ThemedText style={styles.label}>{row.label}</ThemedText>
+          <ThemedText style={styles.label}>{t(row.labelKey)}</ThemedText>
           <Switch
             value={values[row.key]}
             onValueChange={(v) =>
@@ -113,7 +115,7 @@ export default function NotificationsForm() {
             <ThemedText
               style={[styles.saveBtn, { color: colors.primary }]}
               onPress={handleSave}>
-              Lưu thay đổi
+              {t('settings.notificationsPrefs.saveButton')}
             </ThemedText>
           )}
         </ThemedView>

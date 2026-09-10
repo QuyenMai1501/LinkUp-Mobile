@@ -19,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Status = 'verifying' | 'pending' | 'success' | 'error';
 
@@ -28,6 +29,7 @@ export default function VerifyEmailScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ token?: string; email?: string }>();
 
   const initialToken = params.token ?? null;
@@ -108,21 +110,21 @@ export default function VerifyEmailScreen() {
   const handleResend = async () => {
     const target = email.trim();
     if (!target) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email');
+      Alert.alert(t('common.error'), t('auth.register.validation.emailRequired'));
       return;
     }
     if (!EMAIL_REGEX.test(target)) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+      Alert.alert(t('common.error'), t('auth.register.validation.emailInvalid'));
       return;
     }
     setResendLoading(true);
     try {
       const res = await resendVerification(target);
-      Alert.alert('Thành công', res.message || 'Đã gửi lại email xác minh');
+      Alert.alert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
       setCooldown(60);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Gửi lại thất bại';
-      Alert.alert('Lỗi', msg);
+      const msg = err instanceof Error ? err.message : t('auth.verifyEmail.resendFailed');
+      Alert.alert(t('common.error'), msg);
     } finally {
       setResendLoading(false);
     }
@@ -150,9 +152,9 @@ export default function VerifyEmailScreen() {
               {status === 'verifying' && (
                 <>
                   <ThemedText style={styles.icon}>⏳</ThemedText>
-                  <ThemedText style={styles.title}>Đang xác minh</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.verifyEmail.title')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    Vui lòng chờ trong giây lát...
+                    {t('common.loading')}
                   </ThemedText>
                 </>
               )}
@@ -160,29 +162,29 @@ export default function VerifyEmailScreen() {
               {status === 'pending' && (
                 <>
                   <ThemedText style={styles.icon}>📧</ThemedText>
-                  <ThemedText style={styles.title}>Xác minh email</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.verifyEmail.title')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    Chúng tôi đã gửi liên kết xác minh đến{' '}
+                    {t('auth.verifyEmail.message')}{' '}
                     <ThemedText style={styles.strong}>{email || '—'}</ThemedText>.
-                    Vui lòng kiểm tra hộp thư của bạn.
                   </ThemedText>
 
                   <ThemedText themeColor="textSecondary" style={styles.hint}>
-                    Không nhận được email? Kiểm tra thư rác hoặc gửi lại bên dưới.
+                    {t('auth.forgotPassword.subtitle')}
                   </ThemedText>
 
                   <FormTextInput
-                    label="Email"
+                    label={t('auth.forgotPassword.emailLabel')}
                     value={email}
                     onChangeText={setEmail}
                     placeholder="you@example.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    editable={false}
                   />
 
                   <Button
-                    label={cooldown > 0 ? `Gửi lại (${cooldown}s)` : 'Gửi lại email xác minh'}
+                    label={cooldown > 0 ? t('auth.verifyEmail.resendCountdown', { seconds: cooldown }) : t('auth.verifyEmail.resendCode')}
                     onPress={handleResend}
                     loading={resendLoading}
                     disabled={cooldown > 0}
@@ -190,7 +192,7 @@ export default function VerifyEmailScreen() {
 
                   <Pressable onPress={() => router.replace('/login')}>
                     <ThemedText themeColor="primary" style={styles.backLink}>
-                      Về trang đăng nhập
+                      {t('auth.forgotPassword.backToLogin')}
                     </ThemedText>
                   </Pressable>
                 </>
@@ -199,9 +201,9 @@ export default function VerifyEmailScreen() {
               {status === 'success' && (
                 <>
                   <ThemedText style={styles.icon}>✅</ThemedText>
-                  <ThemedText style={styles.title}>Xác minh thành công</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.verifyEmail.verifySuccess')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    {message || 'Email đã được xác minh thành công. Đang chuyển trang...'}
+                    {message || t('auth.verifyEmail.verifySuccess')}
                   </ThemedText>
                 </>
               )}
@@ -209,27 +211,28 @@ export default function VerifyEmailScreen() {
               {status === 'error' && (
                 <>
                   <ThemedText style={styles.icon}>❌</ThemedText>
-                  <ThemedText style={styles.title}>Xác minh thất bại</ThemedText>
+                  <ThemedText style={styles.title}>{t('auth.verifyEmail.verifyFailed')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                    {message || 'Liên kết xác minh không hợp lệ hoặc đã hết hạn.'}
+                    {message || t('auth.verifyEmail.invalidCode')}
                   </ThemedText>
 
                   <ThemedText themeColor="textSecondary" style={styles.hint}>
-                    Vui lòng nhập email để gửi lại liên kết xác minh.
+                    {t('auth.forgotPassword.subtitle')}
                   </ThemedText>
 
                   <FormTextInput
-                    label="Email"
+                    label={t('auth.forgotPassword.emailLabel')}
                     value={email}
                     onChangeText={setEmail}
                     placeholder="you@example.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    editable={false}
                   />
 
                   <Button
-                    label={cooldown > 0 ? `Gửi lại (${cooldown}s)` : 'Gửi lại email xác minh'}
+                    label={cooldown > 0 ? t('auth.verifyEmail.resendCountdown', { seconds: cooldown }) : t('auth.verifyEmail.resendCode')}
                     onPress={handleResend}
                     loading={resendLoading}
                     disabled={cooldown > 0}
@@ -237,7 +240,7 @@ export default function VerifyEmailScreen() {
 
                   <Pressable onPress={() => router.replace('/login')}>
                     <ThemedText themeColor="primary" style={styles.backLink}>
-                      Về trang đăng nhập
+                      {t('auth.forgotPassword.backToLogin')}
                     </ThemedText>
                   </Pressable>
                 </>

@@ -19,11 +19,13 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,8 +39,8 @@ export default function LoginScreen() {
       await signIn(res);
       router.replace('/(drawer)' as any);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Đăng nhập thất bại';
-      Alert.alert('Đăng nhập thất bại', message);
+      const message = err instanceof Error ? err.message : t('auth.login.loginFailed');
+      Alert.alert(t('auth.login.loginFailed'), message);
     } finally {
       setLoading(false);
     }
@@ -62,13 +64,13 @@ export default function LoginScreen() {
                 />
                 <ThemedText style={[styles.logoText, { color: theme.primary }]}>LinkUp</ThemedText>
               </View>
-              <ThemedText style={styles.title}>Đăng nhập</ThemedText>
+              <ThemedText style={styles.title}>{t('auth.login.title')}</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-                Chào mừng bạn quay lại LinkUp
+                {t('auth.login.subtitle')}
               </ThemedText>
 
               <FormTextInput
-                label="Email"
+                label={t('auth.login.emailLabel')}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
@@ -78,7 +80,7 @@ export default function LoginScreen() {
               />
 
               <FormTextInput
-                label="Mật khẩu"
+                label={t('auth.login.passwordLabel')}
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
@@ -87,17 +89,17 @@ export default function LoginScreen() {
 
               <Pressable onPress={() => router.push('/forgot-password')}>
                 <ThemedText themeColor="primary" style={styles.forgot}>
-                  Quên mật khẩu?
+                  {t('auth.login.forgotPassword')}
                 </ThemedText>
               </Pressable>
 
-              <Button label="Đăng nhập" onPress={handleSubmit} loading={loading} />
+              <Button label={t('auth.login.loginButton')} onPress={handleSubmit} loading={loading} />
 
               <View style={styles.footerRow}>
-                <ThemedText themeColor="textSecondary">Chưa có tài khoản?</ThemedText>
+                <ThemedText themeColor="textSecondary">{t('auth.login.noAccount')}</ThemedText>
                 <Pressable onPress={() => router.push('/register')}>
                   <ThemedText themeColor="primary" style={styles.footerLink} numberOfLines={1}>
-                    Đăng ký
+                    {t('auth.login.registerLink')}
                   </ThemedText>
                 </Pressable>
               </View>

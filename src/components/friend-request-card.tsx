@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type FriendRequestCardProps = {
   avatarUri?: string;
@@ -25,6 +26,7 @@ export default function FriendRequestCard({
   loading = false,
 }: FriendRequestCardProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -47,7 +49,7 @@ export default function FriendRequestCard({
           {displayName}
         </ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.directionLabel}>
-          {direction === 'received' ? 'muốn kết bạn với bạn' : 'đã gửi lời mời'}
+          {direction === 'received' ? t('friends.request.wantsToAdd') : t('friends.request.sentRequest')}
         </ThemedText>
       </View>
 
@@ -64,7 +66,7 @@ export default function FriendRequestCard({
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <ThemedText style={styles.actionBtnAccept}>Chấp nhận</ThemedText>
+              <ThemedText style={styles.actionBtnAccept}>{t('friends.actions.accept')}</ThemedText>
             )}
           </Pressable>
           <Pressable
@@ -76,7 +78,7 @@ export default function FriendRequestCard({
               pressed && styles.actionPressed,
             ]}>
             <ThemedText style={[styles.actionBtnReject, { color: theme.textSecondary }]}>
-              Từ chối
+              {t('friends.actions.decline')}
             </ThemedText>
           </Pressable>
         </View>
@@ -93,7 +95,7 @@ export default function FriendRequestCard({
             <ActivityIndicator color={theme.textSecondary} size="small" />
           ) : (
             <ThemedText style={[styles.actionBtnRevoke, { color: theme.textSecondary }]}>
-              Thu hồi
+              {t('friends.actions.revoke')}
             </ThemedText>
           )}
         </Pressable>

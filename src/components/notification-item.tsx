@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { NotificationGroup, NotificationType } from '../types/notification';
 
 type NotificationItemProps = {
@@ -11,7 +12,7 @@ type NotificationItemProps = {
   onPress: () => void;
 };
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const now = Date.now();
   const past = new Date(dateStr).getTime();
   const diffMs = now - past;
@@ -19,10 +20,10 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return 'Vừa xong';
-  if (diffMins < 60) return `${diffMins} phút`;
-  if (diffHours < 24) return `${diffHours} giờ`;
-  if (diffDays <= 7) return `${diffDays} ngày`;
+  if (diffMins < 1) return t('notifications.time.justNow');
+  if (diffMins < 60) return t('notifications.time.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('notifications.time.hoursAgo', { count: diffHours });
+  if (diffDays <= 7) return t('notifications.time.daysAgo', { count: diffDays });
 
   const d = new Date(dateStr);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -97,6 +98,7 @@ function getIconColor(type: NotificationType): string {
 
 export default function NotificationItem({ item, onPress }: NotificationItemProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const iconEmoji = getIconEmoji(item.type);
   const iconColor = getIconColor(item.type);
 
@@ -134,7 +136,7 @@ export default function NotificationItem({ item, onPress }: NotificationItemProp
           {item.content}
         </ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.time}>
-          {formatRelativeTime(item.created_at)}
+          {formatRelativeTime(item.created_at, t)}
         </ThemedText>
       </View>
 

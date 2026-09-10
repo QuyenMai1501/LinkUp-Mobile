@@ -1,0 +1,377 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "saveChanges": "Save Changes",
+    "retry": "Retry",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "close": "Close",
+    "search": "Search",
+    "noResults": "No results found",
+    "emptyState": "No data available",
+    "actionRequired": "Action Required",
+    "processing": "Processing...",
+    "dark": "Dark",
+    "light": "Light",
+    "sessionExpired": "Session expired"
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "subtitle": "Welcome to LinkUp",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter your email",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "forgotPassword": "Forgot password?",
+      "loginButton": "Login",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Sign up",
+      "loginFailed": "Login failed",
+      "invalidCredentials": "Invalid email or password",
+      "loginSuccess": "Login successful"
+    },
+    "register": {
+      "title": "Sign Up",
+      "subtitle": "Create a new account",
+      "nameLabel": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter your email",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "confirmPasswordLabel": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter your password",
+      "registerButton": "Sign Up",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Login",
+      "registerSuccess": "Registration successful",
+      "registerFailed": "Registration failed",
+      "validation": {
+        "nameRequired": "Name is required",
+        "nameMin": "Name must be at least 2 characters",
+        "nameMax": "Name must be at most 50 characters",
+        "emailRequired": "Email is required",
+        "emailInvalid": "Invalid email address",
+        "passwordRequired": "Password is required",
+        "passwordMin": "Password must be at least 6 characters",
+        "passwordMax": "Password must be at most 50 characters",
+        "passwordPattern": "Password must contain uppercase, lowercase, number and special character",
+        "confirmRequired": "Please confirm your password",
+        "confirmMismatch": "Passwords do not match"
+      }
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "subtitle": "Enter your email to reset password",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter registered email",
+      "sendButton": "Send Reset Link",
+      "backToLogin": "Back to Login",
+      "emailSent": "Email Sent",
+      "emailSentMessage": "Please check your email to reset your password",
+      "sendFailed": "Failed to send email"
+    },
+    "verifyEmail": {
+      "title": "Verify Email",
+      "subtitle": "Check your email",
+      "message": "We sent a verification code to",
+      "resendCode": "Resend Code",
+      "resendCountdown": "Resend in {{seconds}}s",
+      "verifyButton": "Verify",
+      "codeRequired": "Please enter the verification code",
+      "invalidCode": "Invalid verification code",
+      "verifySuccess": "Verification successful",
+      "verifyFailed": "Verification failed",
+      "resendSuccess": "Code resent successfully",
+      "resendFailed": "Failed to resend code"
+    }
+  },
+  "sidebar": {
+    "home": "Home",
+    "friends": "Friends",
+    "community": "Community",
+    "saved": "Saved",
+    "settings": "Settings",
+    "logout": "Logout",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "version": "Version {{version}}"
+  },
+  "home": {
+    "tagline": "Social network connecting Vietnamese communities",
+    "subtitle": "Add friends, share moments, chat and video call with everyone — anytime, anywhere.",
+    "ctaStart": "Get Started",
+    "ctaLearnMore": "Learn More",
+    "beta": "Beta Version",
+    "features": {
+      "addFriend": "Add Friends",
+      "addFriendDesc": "Connect with friends and expand your network",
+      "share": "Share",
+      "shareDesc": "Post articles, photos and status updates",
+      "chatVideo": "Chat & Video Call",
+      "chatVideoDesc": "Private messaging and live video calls",
+      "communityNews": "Community & News",
+      "communityNewsDesc": "Join communities and follow friends' news"
+    }
+  },
+  "community": {
+    "subtitle": "Join communities you're interested in"
+  },
+  "saved": {
+    "subtitle": "Saved posts and content"
+  },
+  "feed": {
+    "loadError": "Failed to load data",
+    "endOfFeed": "You've reached the end of the feed.",
+    "emptyTitle": "No posts yet",
+    "emptySubtitle": "Add friends and follow people to see posts."
+  },
+  "post": {
+    "readMore": "Read more",
+    "collapse": "Collapse"
+  },
+  "friends": {
+    "title": "Friends",
+    "tabs": {
+      "all": "All",
+      "online": "Online",
+      "pending": "Pending",
+      "blocked": "Blocked"
+    },
+    "actions": {
+      "addFriend": "Add Friend",
+      "removeFriend": "Remove Friend",
+      "blockUser": "Block User",
+      "unblockUser": "Unblock",
+      "accept": "Accept",
+      "decline": "Decline",
+      "revoke": "Revoke",
+      "message": "Message",
+      "acceptSuccess": "Friend request accepted",
+      "rejectSuccess": "Friend request rejected",
+      "revokeSuccess": "Friend request revoked",
+      "sendSuccess": "Friend request sent",
+      "unfriendSuccess": "Friend removed"
+    },
+    "request": {
+      "wantsToAdd": "wants to add you as a friend",
+      "sentRequest": "sent you a request"
+    },
+    "mutual": {
+      "count": "{{count}} mutual friends",
+      "more": "and {{count}} more"
+    },
+    "empty": {
+      "noFriends": "No friends yet",
+      "noOnline": "No one is online",
+      "noPending": "No pending requests",
+      "noBlocked": "No blocked users",
+      "noSearchResults": "No search results"
+    },
+    "status": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "confirm": {
+      "removeFriend": "Are you sure you want to remove {{name}}?",
+      "blockUser": "Are you sure you want to block {{name}}?",
+      "unblockUser": "Are you sure you want to unblock {{name}}?"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read",
+    "clearAll": "Clear all",
+    "filterUnread": "Unread",
+    "filterRead": "Read",
+    "types": {
+      "like": "liked your post",
+      "comment": "commented on your post",
+      "follow": "started following you",
+      "friendRequest": "sent you a friend request",
+      "friendAccept": "accepted your friend request",
+      "mention": "mentioned you",
+      "system": "system notification"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}} minutes ago",
+      "hoursAgo": "{{count}} hours ago",
+      "daysAgo": "{{count}} days ago",
+      "weeksAgo": "{{count}} weeks ago",
+      "monthsAgo": "{{count}} months ago"
+    }
+  },
+  "chat": {
+    "title": "Messages",
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "typing": "typing...",
+    "online": "Online",
+    "offline": "Offline",
+    "lastSeen": "Active {{time}}",
+    "noMessages": "No messages yet",
+    "noChats": "No conversations yet",
+    "noConversations": "No conversations yet",
+    "noResults": "No results found",
+    "searchPlaceholder": "Search messages...",
+    "deleteChat": "Delete conversation",
+    "deleteConfirm": "Are you sure you want to delete this conversation?",
+    "newChat": "New conversation",
+    "unknown": "Unknown",
+    "e2eBadge": "Encrypted",
+    "youPrefix": "You: "
+  },
+  "settings": {
+    "title": "Settings",
+    "items": {
+      "changePassword": {
+        "label": "Change Password",
+        "desc": "Change your account password"
+      },
+      "privacy": {
+        "label": "Privacy",
+        "desc": "Manage privacy settings"
+      },
+      "storage": {
+        "label": "Storage",
+        "desc": "View used storage"
+      },
+      "appearance": {
+        "label": "Appearance",
+        "desc": "Appearance and language"
+      },
+      "sessions": {
+        "label": "Login Sessions",
+        "desc": "Manage logged-in devices"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "desc": "Notification preferences"
+      },
+      "deactivate": {
+        "label": "Deactivate Account",
+        "desc": "Temporarily disable account"
+      }
+    },
+    "changePassword": {
+      "title": "Change Password",
+      "currentPassword": "Current Password",
+      "currentPasswordPlaceholder": "Enter current password",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "Enter new password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter new password",
+      "changeButton": "Change Password",
+      "changeSuccess": "Password changed successfully",
+      "changeFailed": "Failed to change password",
+      "validation": {
+        "currentRequired": "Current password is required",
+        "newRequired": "New password is required",
+        "newMin": "Password must be at least 8 characters",
+        "newMax": "Password must be at most 50 characters",
+        "newPattern": "Password must contain uppercase, lowercase, number and special character",
+        "newSame": "New password must be different from current password",
+        "confirmRequired": "Please confirm your password",
+        "confirmMismatch": "Passwords do not match"
+      }
+    },
+    "privacy": {
+      "title": "Privacy",
+      "searchable": "Visible in Search",
+      "searchableDesc": "Allow others to find you via search",
+      "strangers": "Receive Messages from Strangers",
+      "strangersDesc": "Allow non-friends to send you messages",
+      "saveButton": "Save Changes",
+      "saveSuccess": "Privacy settings saved",
+      "saveFailed": "Failed to save settings",
+      "loadFailed": "Failed to load privacy settings"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "darkMode": "Dark Mode",
+      "darkModeDesc": "Dark mode reduces eye strain",
+      "language": "Language",
+      "languageDesc": "Choose display language",
+      "saveFailed": "Failed to save appearance settings",
+      "languageSaveFailed": "Failed to save language settings"
+    },
+    "sessions": {
+      "title": "Login Sessions",
+      "currentSession": "Current",
+      "activeAt": "Active: ",
+      "createdAt": "Created: ",
+      "revoke": "Revoke",
+      "revokeAll": "Revoke All",
+      "revoking": "Revoking...",
+      "revokeSuccess": "Session revoked",
+      "revokeFailed": "Failed to revoke session",
+      "revokeAllSuccess": "All other sessions revoked",
+      "revokeAllFailed": "Failed to revoke sessions",
+      "revokeAllTitle": "Revoke All Sessions",
+      "revokeAllDesc": "Are you sure you want to revoke all other sessions? The device will need to log in again.",
+      "processing": "Processing...",
+      "emptyTitle": "No sessions yet",
+      "emptyDesc": "Login sessions will appear here",
+      "loadFailed": "Failed to load sessions"
+    },
+    "storage": {
+      "title": "Storage",
+      "quota": "Quota: ",
+      "used": "Used",
+      "free": "Free",
+      "rate": "Usage",
+      "loadFailed": "Failed to load storage info"
+    },
+    "notificationsPrefs": {
+      "title": "Notification Preferences",
+      "likePost": "Post Likes",
+      "comment": "Comments",
+      "follow": "Follows",
+      "message": "Messages",
+      "friendRequest": "Friend Requests",
+      "community": "Community",
+      "voiceCall": "Voice Calls",
+      "saveButton": "Save Changes",
+      "saveSuccess": "Notification preferences saved",
+      "saveFailed": "Failed to save preferences"
+    },
+    "deactivate": {
+      "title": "Deactivate Account",
+      "warning": "When you deactivate your account, all data will be hidden and you won't be able to log in again.",
+      "confirmLabel": "Enter password to confirm",
+      "confirmPlaceholder": "Password",
+      "deactivateButton": "Deactivate Account",
+      "confirmTitle": "Confirm",
+      "confirmMessage": "Are you sure you want to deactivate your account? This action cannot be undone.",
+      "confirmAction": "Deactivate",
+      "deactivateSuccess": "Account deactivated",
+      "deactivateFailed": "Failed to deactivate account",
+      "passwordRequired": "Please enter your password to confirm"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "followers": "Followers",
+    "following": "Following",
+    "posts": "Posts",
+    "loading": "Loading profile...",
+    "notFound": "Profile not found",
+    "bio": "Bio",
+    "location": "Location",
+    "joined": "Joined"
+  }
+}

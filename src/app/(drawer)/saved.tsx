@@ -5,16 +5,19 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function SavedScreen() {
+  const { t } = useTranslation();
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
           <ThemedText style={styles.icon}>🔖</ThemedText>
-          <ThemedText style={styles.title}>Đã lưu</ThemedText>
+          <ThemedText style={styles.title}>{t('sidebar.saved')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-            Bài viết và nội dung đã lưu
+            {t('saved.subtitle')}
           </ThemedText>
         </View>
       </SafeAreaView>
