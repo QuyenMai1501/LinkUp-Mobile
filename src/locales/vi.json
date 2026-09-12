@@ -228,11 +228,31 @@
     "noResults": "Không tìm thấy kết quả",
     "searchPlaceholder": "Tìm kiếm tin nhắn...",
     "deleteChat": "Xóa cuộc trò chuyện",
-    "deleteConfirm": "Bạn có chắc muốn xóa cuộc trò chuyện này?",
+    "deleteMessage": "Xóa tin nhắn",
+    "deleteConfirm": "Bạn có chắc muốn xóa tin nhắn này?",
+    "deleteForMe": "Xóa phía tôi",
+    "deleteForAll": "Xóa phía mọi người",
     "newChat": "Cuộc trò chuyện mới",
+    "newMessage": "Tin nhắn mới",
     "unknown": "Không xác định",
     "e2eBadge": "Bảo mật",
-    "youPrefix": "Bạn: "
+    "youPrefix": "Bạn: ",
+    "reply": "Trả lời",
+    "copy": "Sao chép",
+    "attachment": "Tệp đính kèm",
+    "messageDeleted": "Tin nhắn đã bị xóa",
+    "undecryptable": "Không thể giải mã tin nhắn",
+    "mediaMessage": "Media",
+    "today": "Hôm nay",
+    "yesterday": "Hôm qua",
+    "justNow": "vừa xong",
+    "minutesAgo": "{{minutes}} phút trước",
+    "hoursAgo": "{{hours}} giờ trước",
+    "emojiCat": {
+      "positive": "😊",
+      "neutral": "😐",
+      "negative": "😢"
+    }
   },
   "settings": {
     "title": "Cài đặt",

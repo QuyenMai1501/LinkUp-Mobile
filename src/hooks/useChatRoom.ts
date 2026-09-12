@@ -37,30 +37,26 @@ export function useChatRoom({
   const tempSeqRef = useRef(0);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset state on chatId change
+  // Effect 1: Subscribe to events + reset state on chatId change.
+  // Subscriptions MUST be set up before chat:join is sent (Effect 2),
+  // so message:history is caught even if the server responds immediately.
   useEffect(() => {
+    if (!chatId) return;
     if (chatIdRef.current === chatId) return;
     chatIdRef.current = chatId;
+
     setMessages([]);
     setHasMore(false);
     setLoadingMore(false);
     setPartnerTyping(false);
     cursorRef.current = null;
-    if (!chatId) return;
-
     setLoading(true);
-    socket.send('chat:join', { chat_id: chatId, limit: 30 });
-  }, [chatId, socket]);
-
-  // Subscribe to events
-  useEffect(() => {
-    if (!chatId) return;
 
     const unsubs = [
       socket.subscribe('message:history', (payload: any) => {
         if (payload.chat_id !== chatId) return;
         const msgs: ChatMessage[] = payload.messages ?? [];
-        setMessages(msgs);
+        setMessages([...msgs].reverse());
         setHasMore(payload.has_more ?? false);
         cursorRef.current = payload.next_cursor ?? null;
         setLoading(false);
@@ -69,7 +65,7 @@ export function useChatRoom({
       socket.subscribe('message:history_more', (payload: any) => {
         if (payload.chat_id !== chatId) return;
         const msgs: ChatMessage[] = payload.messages ?? [];
-        setMessages((prev) => [...msgs, ...prev]);
+        setMessages((prev) => [...[...msgs].reverse(), ...prev]);
         setHasMore(payload.has_more ?? false);
         cursorRef.current = payload.next_cursor ?? null;
         setLoadingMore(false);
@@ -79,7 +75,6 @@ export function useChatRoom({
         if (payload.chat_id !== chatId) return;
         const msg = payload as ChatMessage;
         setMessages((prev) => {
-          // Replace temp message if same sender
           const idx = prev.findIndex(
             (m) =>
               m.id.startsWith('temp-') &&
@@ -115,7 +110,17 @@ export function useChatRoom({
     ];
 
     return () => unsubs.forEach((u) => u());
-  }, [chatId, socket, myUserId, onNewMessage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- socket.subscribe is stable (useCallback [])
+  }, [chatId, socket.subscribe, myUserId, onNewMessage]);
+
+  // Effect 2: Send chat:join only when the WebSocket is actually open.
+  // socket.send() silently drops the message if readyState !== OPEN,
+  // so we gate on socket.status and re-send on reconnect.
+  useEffect(() => {
+    if (!chatId || socket.status !== 'open') return;
+    socket.send('chat:join', { chat_id: chatId, limit: 30 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- socket.send is stable, socket.status is listed
+  }, [chatId, socket.status, socket.send]);
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {

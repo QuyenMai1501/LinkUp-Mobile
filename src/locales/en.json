@@ -228,11 +228,31 @@
     "noResults": "No results found",
     "searchPlaceholder": "Search messages...",
     "deleteChat": "Delete conversation",
-    "deleteConfirm": "Are you sure you want to delete this conversation?",
+    "deleteMessage": "Delete message",
+    "deleteConfirm": "Are you sure you want to delete this message?",
+    "deleteForMe": "Delete for me",
+    "deleteForAll": "Delete for everyone",
     "newChat": "New conversation",
+    "newMessage": "New message",
     "unknown": "Unknown",
     "e2eBadge": "Encrypted",
-    "youPrefix": "You: "
+    "youPrefix": "You: ",
+    "reply": "Reply",
+    "copy": "Copy",
+    "attachment": "Attachment",
+    "messageDeleted": "Message deleted",
+    "undecryptable": "Message can't be decrypted",
+    "mediaMessage": "Media",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "justNow": "just now",
+    "minutesAgo": "{{minutes}} min ago",
+    "hoursAgo": "{{hours}}h ago",
+    "emojiCat": {
+      "positive": "😊",
+      "neutral": "😐",
+      "negative": "😢"
+    }
   },
   "settings": {
     "title": "Settings",

@@ -2,18 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
+import { MessageActions } from '@/components/chat/message-actions';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -36,6 +36,11 @@ export default function ChatScreen() {
 
   const [conversation, setConversation] = useState<ChatConversation | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  // Message actions state
+  const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
 
   // Load conversation info
   useEffect(() => {
@@ -75,13 +80,13 @@ export default function ChatScreen() {
       } catch {
         // Send unencrypted if encryption fails
       }
-      room.sendMessage(content);
-      // Scroll to bottom
+      room.sendMessage(content, { replyToMessageId: replyingTo?.id });
+      setReplyingTo(null);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption],
+    [room, encryption, replyingTo],
   );
 
   const handleTyping = useCallback(
@@ -91,16 +96,49 @@ export default function ChatScreen() {
     [room],
   );
 
+  const handleLongPress = useCallback((msg: ChatMessage) => {
+    setActionTarget(msg);
+  }, []);
+
+  const handleReply = useCallback((msg: ChatMessage) => {
+    setReplyingTo(msg);
+  }, []);
+
+  const handleDeleteRequest = useCallback((msg: ChatMessage) => {
+    setDeleteTarget(msg);
+  }, []);
+
+  const handleConfirmDelete = useCallback(
+    (mode: 'all' | 'me') => {
+      if (deleteTarget) {
+        room.deleteMessage(deleteTarget.id, mode);
+      }
+      setDeleteTarget(null);
+    },
+    [deleteTarget, room],
+  );
+
+  const handleReplyPress = useCallback(
+    (messageId: string) => {
+      const idx = room.messages.findIndex((m) => m.id === messageId);
+      if (idx >= 0) {
+        (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
+      }
+    },
+    [room.messages],
+  );
+
   const partner = conversation?.partner;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior="padding"
+        keyboardVerticalOffset={0}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.bg }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={() => router.navigate('/(drawer)/messages')} hitSlop={8} style={styles.backBtn}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </Pressable>
 
@@ -152,6 +190,8 @@ export default function ChatScreen() {
                   message={item}
                   isMine={item.sender_id === myUserId}
                   showTime={showTime}
+                  onLongPress={handleLongPress}
+                  onReplyPress={handleReplyPress}
                 />
               );
             }}
@@ -166,13 +206,59 @@ export default function ChatScreen() {
       </View>
 
       {/* Composer */}
-      <ChatComposer onSend={handleSend} onTyping={handleTyping} />
-    </KeyboardAvoidingView>
+      <ChatComposer
+        onSend={handleSend}
+        onTyping={handleTyping}
+        replyingTo={replyingTo}
+        onClearReply={() => setReplyingTo(null)}
+      />
+      </KeyboardAvoidingView>
+
+      {/* Message actions menu */}
+      <MessageActions
+        message={actionTarget}
+        myUserId={myUserId}
+        onClose={() => setActionTarget(null)}
+        onReply={handleReply}
+        onDelete={handleDeleteRequest}
+      />
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <View style={styles.deleteOverlay}>
+          <Pressable style={styles.deleteOverlayBg} onPress={() => setDeleteTarget(null)} />
+          <View style={[styles.deleteDialog, { backgroundColor: theme.card }]}>
+            <ThemedText style={[styles.deleteTitle, { color: theme.text }]}>{t('chat.deleteMessage')}</ThemedText>
+            <ThemedText style={[styles.deleteDesc, { color: theme.textSecondary }]}>{t('chat.deleteConfirm')}</ThemedText>
+            <View style={styles.deleteActions}>
+              <Pressable
+                style={[styles.deleteBtn, { backgroundColor: theme.bgSecondary }]}
+                onPress={() => handleConfirmDelete('me')}>
+                <ThemedText style={[styles.deleteBtnText, { color: theme.text }]}>{t('chat.deleteForMe')}</ThemedText>
+              </Pressable>
+              {deleteTarget.sender_id === myUserId && (
+                <Pressable
+                  style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
+                  onPress={() => handleConfirmDelete('all')}>
+                  <ThemedText style={[styles.deleteBtnText, { color: '#FFF' }]}>{t('chat.deleteForAll')}</ThemedText>
+                </Pressable>
+              )}
+            </View>
+            <Pressable style={styles.deleteCancel} onPress={() => setDeleteTarget(null)}>
+              <ThemedText style={[styles.deleteCancelText, { color: theme.textSecondary }]}>{t('common.cancel')}</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  flex: {
     flex: 1,
   },
   header: {
@@ -226,5 +312,62 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
+  },
+  // Delete confirmation dialog
+  deleteOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteOverlayBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  deleteDialog: {
+    width: '80%',
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+    zIndex: 101,
+  },
+  deleteTitle: {
+    ...Typography.h2,
+    fontSize: 17,
+  },
+  deleteDesc: {
+    ...Typography.body,
+    fontSize: 14,
+  },
+  deleteActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  deleteBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  deleteBtnText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  deleteCancel: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: Spacing.xs,
+  },
+  deleteCancelText: {
+    fontSize: 14,
   },
 });

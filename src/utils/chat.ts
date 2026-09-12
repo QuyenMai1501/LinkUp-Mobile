@@ -47,10 +47,10 @@ function vnDateTime(iso: string): string {
 
 export function formatChatTime(iso: string, t: TranslationFn): string {
   const mins = diffMinutes(iso);
-  if (mins < 1) return t('post.justNow');
-  if (mins < 60) return t('post.minutesAgo', { minutes: String(mins) });
+  if (mins < 1) return t('chat.justNow');
+  if (mins < 60) return t('chat.minutesAgo', { minutes: String(mins) });
   const hours = diffHours(iso);
-  if (hours < 24) return t('post.hoursAgo', { hours: String(hours) });
+  if (hours < 24) return t('chat.hoursAgo', { hours: String(hours) });
   return vnDate(iso);
 }
 
