@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiImage } from '@/components/chat/emoji-image';
+import { MessageMedia } from '@/components/chat/message-media';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -16,9 +17,10 @@ interface Props {
   showTime?: boolean;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
+  onMediaPress?: (msg: ChatMessage) => void;
 }
 
-export function ChatBubble({ message, isMine, showTime = true, onLongPress, onReplyPress }: Props) {
+export function ChatBubble({ message, isMine, showTime = true, onLongPress, onReplyPress, onMediaPress }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
@@ -90,9 +92,19 @@ export function ChatBubble({ message, isMine, showTime = true, onLongPress, onRe
         {/* Content */}
         {singleEmoji ? (
           <EmojiImage emoji={emojiMap.get(singleEmoji)!} size={64} />
+        ) : (message.media_id || message.media_uri) ? (
+          <MessageMedia
+            message={message}
+            onPress={() => onMediaPress?.(message)}
+          />
         ) : (
           <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
         )}
+
+        {/* Caption below media */}
+        {singleEmoji ? null : (message.media_id || message.media_uri) && message.content?.trim() ? (
+          <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
+        ) : null}
 
         {showTime && (
           <ThemedText

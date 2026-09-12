@@ -12,6 +12,10 @@ export interface ChatRoom {
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
   loadMoreMessages: () => void;
+  searchMessages: (keyword: string) => void;
+  clearSearch: () => void;
+  searchResults: ChatMessage[] | null;
+  searchKeyword: string;
 }
 
 interface UseChatRoomOptions {
@@ -32,6 +36,8 @@ export function useChatRoom({
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [partnerTyping, setPartnerTyping] = useState(false);
+  const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const cursorRef = useRef<HistoryCursor | null>(null);
   const chatIdRef = useRef<string | null>(null);
   const tempSeqRef = useRef(0);
@@ -49,6 +55,8 @@ export function useChatRoom({
     setHasMore(false);
     setLoadingMore(false);
     setPartnerTyping(false);
+    setSearchResults(null);
+    setSearchKeyword('');
     cursorRef.current = null;
     setLoading(true);
 
@@ -106,6 +114,13 @@ export function useChatRoom({
               : m,
           ),
         );
+      }),
+
+      socket.subscribe('message:search_result', (payload: any) => {
+        if (payload.chat_id !== chatId) return;
+        const msgs: ChatMessage[] = payload.messages ?? [];
+        setSearchKeyword(payload.keyword ?? '');
+        setSearchResults(msgs);
       }),
     ];
 
@@ -183,6 +198,25 @@ export function useChatRoom({
     });
   }, [chatId, hasMore, loadingMore, socket]);
 
+  const searchMessages = useCallback(
+    (keyword: string) => {
+      if (!chatId || socket.status !== 'open') return;
+      const trimmed = keyword.trim();
+      if (!trimmed) {
+        setSearchResults(null);
+        setSearchKeyword('');
+        return;
+      }
+      socket.send('message:search', { chat_id: chatId, keyword: trimmed });
+    },
+    [chatId, socket],
+  );
+
+  const clearSearch = useCallback(() => {
+    setSearchResults(null);
+    setSearchKeyword('');
+  }, []);
+
   return useMemo(
     () => ({
       messages,
@@ -194,6 +228,10 @@ export function useChatRoom({
       sendTyping,
       deleteMessage,
       loadMoreMessages,
+      searchMessages,
+      clearSearch,
+      searchResults,
+      searchKeyword,
     }),
     [
       messages,
@@ -205,6 +243,10 @@ export function useChatRoom({
       sendTyping,
       deleteMessage,
       loadMoreMessages,
+      searchMessages,
+      clearSearch,
+      searchResults,
+      searchKeyword,
     ],
   );
 }
