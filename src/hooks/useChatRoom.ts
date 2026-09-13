@@ -139,7 +139,7 @@ export function useChatRoom({
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {
-      if (!chatId || !content.trim()) return;
+      if (!chatId || (!content.trim() && !opts?.mediaId && !opts?.emojiId)) return;
       tempSeqRef.current += 1;
       const tempId = `temp-${tempSeqRef.current}`;
       const optimistic: ChatMessage = {
@@ -147,6 +147,9 @@ export function useChatRoom({
         chat_id: chatId,
         sender_id: myUserId,
         content,
+        media_id: opts?.mediaId ?? null,
+        media_uri: opts?.mediaUri ?? null,
+        media_type: opts?.mediaType ?? null,
         is_anonymized: false,
         created_at: new Date().toISOString(),
       };

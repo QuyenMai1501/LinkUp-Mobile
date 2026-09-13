@@ -12,6 +12,10 @@ interface MessageMediaState {
   loading: boolean;
 }
 
+function getDownloadUrl(messageId: string): string {
+  return `${API_BASE}/chats/messages/${messageId}/download`;
+}
+
 export function useMessageMedia(message: ChatMessage): MessageMediaState {
   const cached = mediaBlobCache.get(message.id);
   const [src, setSrc] = useState<string | null>(message.media_uri ?? cached?.url ?? null);
@@ -20,7 +24,6 @@ export function useMessageMedia(message: ChatMessage): MessageMediaState {
   );
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(() => !(message.media_uri ?? cached?.url));
-  const objectUrlRef = useRef<string | null>(null);
 
   const needsDownload = !message.media_uri && !src;
 
@@ -29,22 +32,24 @@ export function useMessageMedia(message: ChatMessage): MessageMediaState {
     if (mediaBlobCache.has(message.id)) return;
     let cancelled = false;
 
-    const download = async () => {
+    const resolveMedia = async () => {
       try {
         const token = await tokenStorage.getAccessToken();
-        const res = await fetch(`${API_BASE}/chats/messages/${message.id}/download`, {
+        const url = getDownloadUrl(message.id);
+        const res = await fetch(url, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        if (cancelled) return;
-        const url = URL.createObjectURL(blob);
-        const isVideoBlob = blob.type.startsWith('video/');
-        mediaBlobCache.set(message.id, { url, isVideo: isVideoBlob });
-        objectUrlRef.current = url;
-        setSrc(url);
-        setIsVideo(isVideoBlob);
-        setLoading(false);
+        const contentType = res.headers.get('content-type') || '';
+        const isVideoType = contentType.startsWith('video/') || message.media_type?.startsWith('video/');
+        if (!cancelled) {
+          // Use the download URL directly — expo-image fetches HTTP URLs natively.
+          // Avoid URL.createObjectURL (unavailable in React Native).
+          mediaBlobCache.set(message.id, { url, isVideo: !!isVideoType });
+          setSrc(url);
+          setIsVideo(!!isVideoType);
+          setLoading(false);
+        }
       } catch {
         if (!cancelled) {
           setFailed(true);
@@ -53,14 +58,10 @@ export function useMessageMedia(message: ChatMessage): MessageMediaState {
       }
     };
 
-    download();
+    resolveMedia();
 
     return () => {
       cancelled = true;
-      if (objectUrlRef.current && mediaBlobCache.get(message.id)?.url !== objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-      objectUrlRef.current = null;
     };
   }, [message.id, message.media_uri, needsDownload]);
 

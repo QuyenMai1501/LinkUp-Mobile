@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Pressable,
@@ -80,18 +81,28 @@ export default function ChatScreen() {
   const handleSend = useCallback(
     async (text: string, attachments?: { uri: string; name: string; type: string }[]) => {
       if (attachments && attachments.length > 0 && chatId) {
-        // Upload and send attachments
-        for (const att of attachments) {
+        let caption = text;
+        try {
+          if (encryption.ready && caption) {
+            caption = await encryption.encrypt(caption);
+          }
+        } catch {
+          // Send unencrypted if encryption fails
+        }
+
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           try {
             const res = await uploadChatMedia(att, chatId);
-            room.sendMessage(text, {
+            room.sendMessage(i === 0 ? caption : '', {
               mediaId: res.data.id,
               mediaUri: res.data.file_uri,
               mediaType: res.data.file_type,
-              replyToMessageId: replyingTo?.id,
+              replyToMessageId: i === 0 ? replyingTo?.id : undefined,
             });
-          } catch {
-            // Failed to upload, skip
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            Alert.alert(t('common.error'), msg || t('chat.uploadFailed'));
           }
         }
         setReplyingTo(null);
