@@ -7,6 +7,8 @@ import type {
   FriendSuggestionsResponse,
 } from '../types/friend';
 
+import type { FriendStatusResponse } from '../types/profile';
+
 export const getFriends = (page = 1, pageSize = 20) =>
   request<FriendListResponse>(`/friends?page=${page}&page_size=${pageSize}`);
 
@@ -35,3 +37,6 @@ export const unfriend = (userId: string) =>
   request<FriendActionResponse>(`/friends/${userId}`, {
     method: 'DELETE',
   });
+
+export const getFriendStatus = (userId: string) =>
+  request<FriendStatusResponse>(`/friend-status/${userId}`);

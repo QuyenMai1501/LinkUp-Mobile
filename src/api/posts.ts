@@ -21,3 +21,27 @@ export const savePost = (postId: string) =>
   });
 
 export const getEmojis = () => request<{ data: EmojiItem[] }>('/emojis');
+
+export const getUserPosts = (userId: string, cursor: string | null, pageSize = 10) => {
+  const params = new URLSearchParams();
+  params.set('page_size', String(pageSize));
+  if (cursor) params.set('cursor', cursor);
+  return request<FeedResponse>(`/posts/user/${userId}?${params.toString()}`);
+};
+
+export const getSavedPosts = (cursor: string | null, pageSize = 10) => {
+  const params = new URLSearchParams();
+  params.set('page_size', String(pageSize));
+  if (cursor) params.set('cursor', cursor);
+  return request<FeedResponse>(`/posts/saved?${params.toString()}`);
+};
+
+export const pinPost = (postId: string) =>
+  request<{ message: string }>(`/posts/${postId}/pin`, {
+    method: 'POST',
+  });
+
+export const unpinPost = (postId: string) =>
+  request<{ message: string }>(`/posts/${postId}/pin`, {
+    method: 'DELETE',
+  });
