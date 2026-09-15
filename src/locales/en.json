@@ -424,6 +424,8 @@
     "work": "Work",
     "education": "Education",
     "website": "Website",
-    "birthday": "Birthday"
+    "birthday": "Birthday",
+    "saved": "Saved",
+    "noSavedPosts": "No saved posts yet"
   }
 }

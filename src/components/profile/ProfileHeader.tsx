@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -94,15 +95,20 @@ export function ProfileHeader({
       {/* Cover */}
       <Pressable
         onPress={isSelf ? handleChangeCover : undefined}
-        style={[styles.coverWrap, { backgroundColor: theme.border }]}>
+        style={styles.coverWrap}>
         {profile.cover_uri ? (
           <Image source={{ uri: profile.cover_uri }} style={styles.coverImg} />
         ) : (
-          <View style={[styles.coverFallback, { backgroundColor: theme.primaryLight }]} />
+          <LinearGradient
+            colors={['#12A5A1', '#0A1F44']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.coverGradient}
+          />
         )}
         {isSelf && (
-          <View style={styles.coverOverlay}>
-            <ThemedText style={styles.coverText}>📷</ThemedText>
+          <View style={styles.coverCameraBadge}>
+            <ThemedText style={styles.cameraIcon}>📷</ThemedText>
           </View>
         )}
       </Pressable>
@@ -121,8 +127,8 @@ export function ProfileHeader({
             </View>
           )}
           {isSelf && (
-            <View style={styles.avatarOverlay}>
-              <ThemedText style={styles.avatarIcon}>📷</ThemedText>
+            <View style={styles.avatarCameraBadge}>
+              <ThemedText style={styles.cameraIconSmall}>📷</ThemedText>
             </View>
           )}
         </Pressable>
@@ -217,16 +223,21 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  coverFallback: {
+  coverGradient: {
     flex: 1,
   },
-  coverOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  coverCameraBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coverText: { fontSize: 24 },
+  cameraIcon: { fontSize: 14 },
   body: {
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
@@ -252,14 +263,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  avatarOverlay: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 48,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarIcon: { fontSize: 20 },
+  cameraIconSmall: { fontSize: 12 },
   menuOverlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 99,

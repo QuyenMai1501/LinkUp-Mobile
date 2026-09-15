@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -6,13 +6,14 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
+import { getSavedPosts } from '@/api/posts';
 import type { ViewProfileResponse } from '@/types/profile';
+import type { FeedPost } from '@/types/post';
 import PostCard from '@/components/post-card';
 import { ProfileAboutTab } from './ProfileAboutTab';
-import { ProfileFriendsTab } from './ProfileFriendsTab';
 import { ProfileMediaGrid } from './ProfileMediaGrid';
 
-type ProfileTab = 'posts' | 'media' | 'friends' | 'about';
+type ProfileTab = 'posts' | 'media' | 'saved' | 'about';
 
 interface ProfileTabsProps {
   userId: string;
@@ -23,7 +24,7 @@ interface ProfileTabsProps {
 export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = React.useState<ProfileTab>('posts');
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
 
   const {
     posts,
@@ -33,12 +34,45 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
     handleSavePost,
   } = useProfilePosts(userId);
 
+  // Saved posts state
+  const [savedPosts, setSavedPosts] = useState<FeedPost[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedHasMore, setSavedHasMore] = useState(true);
+  const savedLoadingRef = useRef(false);
+  const savedCursorRef = useRef<string | null>(null);
+
+  const fetchSavedPosts = useCallback(async (reset = false) => {
+    if (savedLoadingRef.current) return;
+    savedLoadingRef.current = true;
+    setSavedLoading(true);
+    try {
+      const cursor = reset ? null : savedCursorRef.current;
+      const res = await getSavedPosts(cursor);
+      savedCursorRef.current = res.next_cursor;
+      setSavedHasMore(res.next_cursor !== null);
+      setSavedPosts((prev) => (reset ? res.data : [...prev, ...res.data]));
+    } catch {
+    } finally {
+      setSavedLoading(false);
+      savedLoadingRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'saved' && isSelf && savedPosts.length === 0) {
+      fetchSavedPosts(true);
+    }
+  }, [activeTab, isSelf, savedPosts.length, fetchSavedPosts]);
+
   const tabs: { key: ProfileTab; label: string; icon: string }[] = [
     { key: 'posts', label: t('profile.posts'), icon: '📝' },
     { key: 'media', label: t('profile.media'), icon: '🖼️' },
-    { key: 'friends', label: t('profile.friends'), icon: '👥' },
     { key: 'about', label: t('profile.about'), icon: 'ℹ️' },
   ];
+
+  if (isSelf) {
+    tabs.splice(2, 0, { key: 'saved', label: t('profile.saved'), icon: '🔖' });
+  }
 
   return (
     <View style={styles.container}>
@@ -110,9 +144,43 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
         </ScrollView>
       )}
 
-      {activeTab === 'friends' && (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <ProfileFriendsTab userId={userId} />
+      {activeTab === 'saved' && (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
+          {savedLoading && savedPosts.length === 0 ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+          ) : savedPosts.length === 0 ? (
+            <View style={styles.center}>
+              <ThemedText style={styles.emptyIcon}>🔖</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                {t('profile.noSavedPosts')}
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              {savedPosts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onLike={() => handleLike(post.id)}
+                  onSave={() => {
+                    setSavedPosts((prev) => prev.filter((p) => p.id !== post.id));
+                    handleSavePost(post.id);
+                  }}
+                />
+              ))}
+              {savedLoading && <ActivityIndicator size="small" color={theme.primary} />}
+              {!savedHasMore && savedPosts.length > 0 && (
+                <ThemedText themeColor="textSecondary" style={styles.endOfFeed}>
+                  {t('feed.endOfFeed')}
+                </ThemedText>
+              )}
+            </>
+          )}
         </ScrollView>
       )}
 

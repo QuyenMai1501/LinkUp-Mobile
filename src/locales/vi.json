@@ -424,6 +424,8 @@
     "work": "Công việc",
     "education": "Học vấn",
     "website": "Trang web",
-    "birthday": "Sinh nhật"
+    "birthday": "Sinh nhật",
+    "saved": "Đã lưu",
+    "noSavedPosts": "Chưa có bài viết đã lưu"
   }
 }
