@@ -15,12 +15,13 @@ interface Props {
   message: ChatMessage;
   isMine: boolean;
   showTime?: boolean;
+  isPinned?: boolean;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
 }
 
-export function ChatBubble({ message, isMine, showTime = true, onLongPress, onReplyPress, onMediaPress }: Props) {
+export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongPress, onReplyPress, onMediaPress }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
@@ -107,11 +108,14 @@ export function ChatBubble({ message, isMine, showTime = true, onLongPress, onRe
         ) : null}
 
         {showTime && (
-          <ThemedText
-            style={[styles.time, { color: isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
-            {formatChatTime(message.created_at, t)}
-            {message.e2e_version === 1 ? ' 🔒' : ''}
-          </ThemedText>
+          <View style={styles.timeRow}>
+            {isPinned && <ThemedText style={styles.pinIcon}>📌</ThemedText>}
+            <ThemedText
+              style={[styles.time, { color: isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
+              {formatChatTime(message.created_at, t)}
+              {message.e2e_version === 1 ? ' 🔒' : ''}
+            </ThemedText>
+          </View>
         )}
       </Pressable>
     </View>
@@ -182,6 +186,15 @@ const styles = StyleSheet.create({
   content: {
     ...Typography.body,
     fontSize: 15,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+  },
+  pinIcon: {
+    fontSize: 10,
   },
   time: {
     ...Typography.caption,

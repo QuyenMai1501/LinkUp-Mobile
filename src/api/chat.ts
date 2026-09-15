@@ -40,8 +40,12 @@ export const uploadChatMedia = async (
   chatId: string,
 ): Promise<UploadMediaResponse> => {
   const token = await tokenStorage.getAccessToken();
+
+  const fileResponse = await fetch(file.uri);
+  const blob = await fileResponse.blob();
+
   const formData = new FormData();
-  formData.append('file', file as any);
+  formData.append('file', blob, file.name);
   formData.append('chat_id', chatId);
 
   const res = await fetch(`${API_BASE}/chats/media`, {

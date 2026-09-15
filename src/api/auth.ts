@@ -44,6 +44,14 @@ export const changePassword = (oldPassword: string, newPassword: string) =>
     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
   });
 
+export interface PasswordPolicy {
+  min_length: number;
+  max_length: number;
+}
+
+export const getPasswordPolicy = () =>
+  request<PasswordPolicy>('/auth/password-policy');
+
 export function decodeToken(token: string): TokenPayload | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1])) as Partial<TokenPayload>;

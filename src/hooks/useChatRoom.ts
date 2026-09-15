@@ -2,15 +2,37 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, HistoryCursor, PinnedMessage, SendMessageOptions } from '@/types/chat';
 import type { ChatSocket } from './useChatSocket';
 
+// Ghép trang tin cũ hơn vào đầu danh sách hiện tại; tin trùng id ưu tiên bản
+// mới (vừa tải từ server).
+function prependMessages(prev: ChatMessage[], older: ChatMessage[]): ChatMessage[] {
+  if (older.length === 0) return prev;
+  const byId = new Map(older.map((m) => [m.id, m]));
+  for (const m of prev) {
+    if (!byId.has(m.id)) byId.set(m.id, m);
+  }
+  return [...byId.values()].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+}
+
+function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
+  return [...list].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+}
+
 export interface ChatRoom {
   messages: ChatMessage[];
   loading: boolean;
   hasMore: boolean;
   loadingMore: boolean;
   partnerTyping: boolean;
+  pinnedMessages: PinnedMessage[];
   sendMessage: (content: string, opts?: SendMessageOptions) => void;
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
+  pinMessage: (messageId: string) => void;
+  unpinMessage: (messageId: string) => void;
   loadMoreMessages: () => void;
   searchMessages: (keyword: string) => void;
   clearSearch: () => void;
@@ -38,7 +60,10 @@ export function useChatRoom({
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const cursorRef = useRef<HistoryCursor | null>(null);
+  const hasMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false);
   const chatIdRef = useRef<string | null>(null);
   const tempSeqRef = useRef(0);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,7 +82,10 @@ export function useChatRoom({
     setPartnerTyping(false);
     setSearchResults(null);
     setSearchKeyword('');
+    setPinnedMessages([]);
     cursorRef.current = null;
+    hasMoreRef.current = false;
+    loadingMoreRef.current = false;
     setLoading(true);
 
     const unsubs = [
@@ -66,6 +94,7 @@ export function useChatRoom({
         const msgs: ChatMessage[] = payload.messages ?? [];
         setMessages([...msgs].reverse());
         setHasMore(payload.has_more ?? false);
+        hasMoreRef.current = payload.has_more ?? false;
         cursorRef.current = payload.next_cursor ?? null;
         setLoading(false);
       }),
@@ -73,9 +102,12 @@ export function useChatRoom({
       socket.subscribe('message:history_more', (payload: any) => {
         if (payload.chat_id !== chatId) return;
         const msgs: ChatMessage[] = payload.messages ?? [];
-        setMessages((prev) => [...[...msgs].reverse(), ...prev]);
+        const older = [...msgs].reverse();
+        setMessages((prev) => prependMessages(prev, older));
         setHasMore(payload.has_more ?? false);
+        hasMoreRef.current = payload.has_more ?? false;
         cursorRef.current = payload.next_cursor ?? null;
+        loadingMoreRef.current = false;
         setLoadingMore(false);
       }),
 
@@ -122,6 +154,25 @@ export function useChatRoom({
         setSearchKeyword(payload.keyword ?? '');
         setSearchResults(msgs);
       }),
+
+      socket.subscribe('message:pinned_list', (payload: any) => {
+        setPinnedMessages(payload.pinned_messages ?? []);
+      }),
+
+      socket.subscribe('message:pinned', (payload: any) => {
+        const pin = payload as PinnedMessage;
+        if (!pin || !pin.message_id) return;
+        setPinnedMessages((prev) => {
+          const exists = prev.some((p) => p.message_id === pin.message_id);
+          if (exists) return prev;
+          return [pin, ...prev].slice(0, 2);
+        });
+      }),
+
+      socket.subscribe('message:unpinned', (payload: any) => {
+        if (!payload || !payload.message_id) return;
+        setPinnedMessages((prev) => prev.filter((p) => p.message_id !== payload.message_id));
+      }),
     ];
 
     return () => unsubs.forEach((u) => u());
@@ -139,7 +190,7 @@ export function useChatRoom({
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {
-      if (!chatId || !content.trim()) return;
+      if (!chatId || (!content.trim() && !opts?.mediaId && !opts?.emojiId)) return;
       tempSeqRef.current += 1;
       const tempId = `temp-${tempSeqRef.current}`;
       const optimistic: ChatMessage = {
@@ -147,6 +198,9 @@ export function useChatRoom({
         chat_id: chatId,
         sender_id: myUserId,
         content,
+        media_id: opts?.mediaId ?? null,
+        media_uri: opts?.mediaUri ?? null,
+        media_type: opts?.mediaType ?? null,
         is_anonymized: false,
         created_at: new Date().toISOString(),
       };
@@ -190,13 +244,30 @@ export function useChatRoom({
   );
 
   const loadMoreMessages = useCallback(() => {
-    if (!chatId || !hasMore || loadingMore || !cursorRef.current) return;
+    if (!chatId || !hasMoreRef.current || loadingMoreRef.current || !cursorRef.current) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     socket.send('chat:history:more', {
       chat_id: chatId,
       cursor: cursorRef.current,
     });
-  }, [chatId, hasMore, loadingMore, socket]);
+  }, [chatId, socket]);
+
+  const pinMessage = useCallback(
+    (messageId: string) => {
+      if (!chatId || socket.status !== 'open') return;
+      socket.send('message:pin', { chat_id: chatId, message_id: messageId });
+    },
+    [chatId, socket],
+  );
+
+  const unpinMessage = useCallback(
+    (messageId: string) => {
+      if (!chatId || socket.status !== 'open') return;
+      socket.send('message:unpin', { chat_id: chatId, message_id: messageId });
+    },
+    [chatId, socket],
+  );
 
   const searchMessages = useCallback(
     (keyword: string) => {
@@ -224,9 +295,12 @@ export function useChatRoom({
       hasMore,
       loadingMore,
       partnerTyping,
+      pinnedMessages,
       sendMessage,
       sendTyping,
       deleteMessage,
+      pinMessage,
+      unpinMessage,
       loadMoreMessages,
       searchMessages,
       clearSearch,
@@ -239,9 +313,12 @@ export function useChatRoom({
       hasMore,
       loadingMore,
       partnerTyping,
+      pinnedMessages,
       sendMessage,
       sendTyping,
       deleteMessage,
+      pinMessage,
+      unpinMessage,
       loadMoreMessages,
       searchMessages,
       clearSearch,

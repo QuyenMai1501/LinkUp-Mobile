@@ -9,12 +9,16 @@ import type { ChatMessage } from '@/types/chat';
 interface Props {
   message: ChatMessage | null;
   myUserId: string;
+  isPinned?: boolean;
+  canPin?: boolean;
   onClose: () => void;
   onReply: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
+  onPin?: (msg: ChatMessage) => void;
+  onUnpin?: (msg: ChatMessage) => void;
 }
 
-export function MessageActions({ message, myUserId, onClose, onReply, onDelete }: Props) {
+export function MessageActions({ message, myUserId, isPinned, canPin, onClose, onReply, onDelete, onPin, onUnpin }: Props) {
   const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
@@ -52,6 +56,28 @@ export function MessageActions({ message, myUserId, onClose, onReply, onDelete }
                 <ThemedText style={styles.actionIcon}>📋</ThemedText>
                 <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.copy')}</ThemedText>
               </Pressable>
+
+              {isPinned ? (
+                <Pressable
+                  style={[styles.action, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    onUnpin?.(message);
+                    onClose();
+                  }}>
+                  <ThemedText style={styles.actionIcon}>📌</ThemedText>
+                  <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.unpinMessage')}</ThemedText>
+                </Pressable>
+              ) : canPin ? (
+                <Pressable
+                  style={[styles.action, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    onPin?.(message);
+                    onClose();
+                  }}>
+                  <ThemedText style={styles.actionIcon}>📌</ThemedText>
+                  <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.pinMessage')}</ThemedText>
+                </Pressable>
+              ) : null}
             </>
           )}
 

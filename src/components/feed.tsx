@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,6 +10,7 @@ import PostCard from './post-card';
 import { getFeedPosts, reactPost, savePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
+const INITIAL_PAGE_SIZE = 2;
 const PAGE_SIZE = 10;
 
 async function ensureLikeEmojiId(): Promise<string | undefined> {
@@ -57,7 +58,7 @@ export default function Feed() {
     setError(null);
     const isFirst = cursorRef.current === null;
     try {
-      const res = await getFeedPosts(cursorRef.current, PAGE_SIZE);
+      const res = await getFeedPosts(cursorRef.current, isFirst ? INITIAL_PAGE_SIZE : PAGE_SIZE);
       setPosts((prev) => {
         const list = isFirst ? res.data : [...prev, ...res.data];
         const seen = new Set<string>();
@@ -163,14 +164,15 @@ export default function Feed() {
         />
       )}
       onEndReached={handleEndReached}
-      onEndReachedThreshold={0.5}
+      onEndReachedThreshold={1}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={5}
+      windowSize={5}
       ListFooterComponent={
         loading && !initialLoading ? (
-          <View style={styles.loadingMore}>
-            <ActivityIndicator size="small" />
-            <ThemedText themeColor="textSecondary" style={styles.loadingText}>
-              {t('common.loading')}
-            </ThemedText>
+          <View>
+            <SkeletonCard />
+            <SkeletonCard />
           </View>
         ) : !hasMore && posts.length > 0 ? (
           <ThemedText themeColor="textSecondary" style={styles.endMessage}>

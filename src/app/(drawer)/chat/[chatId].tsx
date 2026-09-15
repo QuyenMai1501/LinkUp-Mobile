@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   TextInput,
@@ -48,6 +52,12 @@ export default function ChatScreen() {
   const [lightbox, setLightbox] = useState<{ msgs: ChatMessage[]; index: number } | null>(null);
   const [searchActive, setSearchActive] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const pinToBottomRef = useRef(true);
+  const isNearBottomRef = useRef(true);
+  const programmaticScrollRef = useRef(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const prevMsgCountRef = useRef(0);
 
   // Load conversation info
   useEffect(() => {
@@ -80,18 +90,28 @@ export default function ChatScreen() {
   const handleSend = useCallback(
     async (text: string, attachments?: { uri: string; name: string; type: string }[]) => {
       if (attachments && attachments.length > 0 && chatId) {
-        // Upload and send attachments
-        for (const att of attachments) {
+        let caption = text;
+        try {
+          if (encryption.ready && caption) {
+            caption = await encryption.encrypt(caption);
+          }
+        } catch {
+          // Send unencrypted if encryption fails
+        }
+
+        for (let i = 0; i < attachments.length; i++) {
+          const att = attachments[i];
           try {
             const res = await uploadChatMedia(att, chatId);
-            room.sendMessage(text, {
+            room.sendMessage(i === 0 ? caption : '', {
               mediaId: res.data.id,
               mediaUri: res.data.file_uri,
               mediaType: res.data.file_type,
-              replyToMessageId: replyingTo?.id,
+              replyToMessageId: i === 0 ? replyingTo?.id : undefined,
             });
-          } catch {
-            // Failed to upload, skip
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            Alert.alert(t('common.error'), msg || t('chat.uploadFailed'));
           }
         }
         setReplyingTo(null);
@@ -138,6 +158,14 @@ export default function ChatScreen() {
     setDeleteTarget(msg);
   }, []);
 
+  const handlePin = useCallback((msg: ChatMessage) => {
+    room.pinMessage(msg.id);
+  }, [room]);
+
+  const handleUnpin = useCallback((msg: ChatMessage) => {
+    room.unpinMessage(msg.id);
+  }, [room]);
+
   const handleMediaPress = useCallback((msg: ChatMessage) => {
     // Find all media messages in sequence for lightbox navigation
     const mediaMsgs = room.messages.filter(
@@ -167,6 +195,16 @@ export default function ChatScreen() {
     [room.messages],
   );
 
+  const scrollToMessage = useCallback(
+    (messageId: string) => {
+      const idx = room.messages.findIndex((m) => m.id === messageId);
+      if (idx >= 0) {
+        (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
+      }
+    },
+    [room.messages],
+  );
+
   const handleDeleteChat = useCallback(async () => {
     if (!chatId) return;
     try {
@@ -177,6 +215,65 @@ export default function ChatScreen() {
       setShowDeleteChat(false);
     }
   }, [chatId, router]);
+
+  // --- Infinite scroll: load more on scroll to top ---
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      // Bỏ qua scroll do programmatic gây ra (giống Web)
+      if (programmaticScrollRef.current) {
+        programmaticScrollRef.current = false;
+        return;
+      }
+
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const atBottom =
+        layoutMeasurement.height + contentOffset.y >= contentSize.height - 40;
+      const atTop = contentOffset.y <= 48;
+
+      if (atBottom) {
+        pinToBottomRef.current = true;
+        isNearBottomRef.current = true;
+        setIsNearBottom(true);
+        setNewMessagesCount(0);
+      } else {
+        pinToBottomRef.current = false;
+        isNearBottomRef.current = false;
+        setIsNearBottom(false);
+      }
+
+      if (atTop && room.hasMore && !room.loadingMore) {
+        room.loadMoreMessages();
+      }
+    },
+    [room.hasMore, room.loadingMore, room.loadMoreMessages],
+  );
+
+  const scrollToBottom = useCallback(() => {
+    programmaticScrollRef.current = true;
+    flatListRef.current?.scrollToEnd({ animated: true });
+    pinToBottomRef.current = true;
+    isNearBottomRef.current = true;
+    setIsNearBottom(true);
+    setNewMessagesCount(0);
+  }, []);
+
+  // Track new messages + auto-scroll (gộp lại giống Web)
+  useEffect(() => {
+    const count = room.messages.length;
+    if (prevMsgCountRef.current > 0 && count > prevMsgCountRef.current && room.searchResults === null) {
+      if (pinToBottomRef.current) {
+        // Đang ở dưới → auto scroll xuống
+        programmaticScrollRef.current = true;
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: false });
+        }, 50);
+      } else {
+        // Đang cuộn lên → đếm tin mới
+        setNewMessagesCount((prev) => prev + (count - prevMsgCountRef.current));
+      }
+    }
+    prevMsgCountRef.current = count;
+  }, [room.messages.length]);
 
   const partner = conversation?.partner;
 
@@ -258,6 +355,40 @@ export default function ChatScreen() {
         </View>
       )}
 
+      {/* Pinned messages bar */}
+      {room.pinnedMessages.length > 0 && !searchActive && (
+        <View style={[styles.pinnedBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+          <View style={styles.pinnedBarHeader}>
+            <ThemedText style={[styles.pinnedBarTitle, { color: theme.primary }]}>
+              📌 {t('chat.pinnedMessages')} ({room.pinnedMessages.length})
+            </ThemedText>
+          </View>
+          {room.pinnedMessages.map((pin) => (
+            <Pressable
+              key={pin.message_id}
+              style={[styles.pinnedBarItem, { backgroundColor: theme.bgSecondary }]}
+              onPress={() => scrollToMessage(pin.message_id)}
+            >
+              <View style={styles.pinnedBarItemContent}>
+                <ThemedText style={[styles.pinnedBarItemSender, { color: theme.text }]} numberOfLines={1}>
+                  {pin.sender_name || t('chat.unknown')}
+                </ThemedText>
+                <ThemedText style={[styles.pinnedBarItemText, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {pin.content.length > 60 ? pin.content.slice(0, 60) + '...' : pin.content || t('chat.attachment')}
+                </ThemedText>
+              </View>
+              <Pressable
+                hitSlop={8}
+                onPress={() => room.unpinMessage(pin.message_id)}
+                style={styles.pinnedBarRemove}
+              >
+                <ThemedText style={{ color: theme.textSecondary, fontSize: 16 }}>×</ThemedText>
+              </Pressable>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {/* Messages */}
       <View style={[styles.messagesWrap, { backgroundColor: theme.bg }]}>
         {room.searchResults ? (
@@ -300,53 +431,83 @@ export default function ChatScreen() {
             <ThemedText themeColor="textSecondary">{t('chat.noMessages')}</ThemedText>
           </View>
         ) : (
-          <FlatList
-            ref={flatListRef}
-            data={room.messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => {
-              const prev = room.messages[index - 1];
-              const showDate =
-                !prev ||
-                formatChatDate(item.created_at, t) !==
-                  formatChatDate(prev.created_at, t);
-              const showTime =
-                !prev ||
-                prev.sender_id !== item.sender_id ||
-                new Date(item.created_at).getTime() -
-                  new Date(prev.created_at).getTime() >
-                  60000;
-              return (
-                <>
-                  {showDate && (
-                    <View style={styles.dateSep}>
-                      <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                      <ThemedText style={[styles.dateSepText, { color: theme.textSecondary }]}>
-                        {formatChatDate(item.created_at, t)}
-                      </ThemedText>
-                      <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                    </View>
-                  )}
-                  <ChatBubble
-                    message={item}
-                    isMine={item.sender_id === myUserId}
-                    showTime={showTime}
-                    onLongPress={handleLongPress}
-                    onReplyPress={handleReplyPress}
-                    onMediaPress={handleMediaPress}
-                  />
-                </>
-              );
-            }}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            contentContainerStyle={styles.messageList}
-          />
+          <>
+            {room.hasMore && (
+              <View style={styles.loadMoreRow}>
+                {room.loadingMore ? (
+                  <ActivityIndicator size="small" color={theme.primary} />
+                ) : (
+                  <ThemedText themeColor="textSecondary" style={styles.loadMoreText}>
+                    {t('chat.scrollForOlder')}
+                  </ThemedText>
+                )}
+              </View>
+            )}
+            <FlatList
+              ref={flatListRef}
+              data={room.messages}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item, index }) => {
+                const prev = room.messages[index - 1];
+                const showDate =
+                  !prev ||
+                  formatChatDate(item.created_at, t) !==
+                    formatChatDate(prev.created_at, t);
+                const showTime =
+                  !prev ||
+                  prev.sender_id !== item.sender_id ||
+                  new Date(item.created_at).getTime() -
+                    new Date(prev.created_at).getTime() >
+                    60000;
+                return (
+                  <>
+                    {showDate && (
+                      <View style={styles.dateSep}>
+                        <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
+                        <ThemedText style={[styles.dateSepText, { color: theme.textSecondary }]}>
+                          {formatChatDate(item.created_at, t)}
+                        </ThemedText>
+                        <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
+                      </View>
+                    )}
+                    <ChatBubble
+                      message={item}
+                      isMine={item.sender_id === myUserId}
+                      showTime={showTime}
+                      isPinned={room.pinnedMessages.some((p) => p.message_id === item.id)}
+                      onLongPress={handleLongPress}
+                      onReplyPress={handleReplyPress}
+                      onMediaPress={handleMediaPress}
+                    />
+                  </>
+                );
+              }}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onContentSizeChange={() => {
+                if (pinToBottomRef.current) {
+                  flatListRef.current?.scrollToEnd({ animated: false });
+                }
+              }}
+              contentContainerStyle={styles.messageList}
+            />
+          </>
         )}
 
         {room.partnerTyping && <TypingIndicator />}
       </View>
+
+      {/* New messages bar – like Web */}
+      {newMessagesCount > 0 && !isNearBottom && (
+        <Pressable
+          style={[styles.newMessagesBar, { backgroundColor: theme.primary }]}
+          onPress={scrollToBottom}
+        >
+          <ThemedText style={styles.newMessagesText}>
+            ↓ {newMessagesCount} {t('chat.scrollToLower')}
+          </ThemedText>
+        </Pressable>
+      )}
 
       {/* Composer */}
       <ChatComposer
@@ -361,9 +522,13 @@ export default function ChatScreen() {
       <MessageActions
         message={actionTarget}
         myUserId={myUserId}
+        isPinned={actionTarget ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id) : false}
+        canPin={room.pinnedMessages.length < 2}
         onClose={() => setActionTarget(null)}
         onReply={handleReply}
         onDelete={handleDeleteRequest}
+        onPin={handlePin}
+        onUnpin={handleUnpin}
       />
 
       {/* Delete conversation confirmation */}
@@ -563,6 +728,70 @@ const styles = StyleSheet.create({
   dateSepText: {
     ...Typography.caption,
     fontSize: 12,
+  },
+  loadMoreRow: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  loadMoreText: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  pinnedBar: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  pinnedBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  pinnedBarTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pinnedBarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    padding: 6,
+    borderRadius: 6,
+  },
+  pinnedBarItemContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  pinnedBarItemSender: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pinnedBarItemText: {
+    fontSize: 12,
+  },
+  pinnedBarRemove: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newMessagesBar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 6,
+    marginHorizontal: Spacing.md,
+    marginBottom: -4,
+    borderRadius: 20,
+  },
+  newMessagesText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   // Delete confirmation dialog
   deleteOverlay: {
