@@ -17,19 +17,17 @@ import FriendsListPanel from '@/components/friends-list-panel';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useAuth } from '@/contexts/auth-context';
 import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
 
-type TabKey = 'home' | 'friends' | 'notifications' | 'profile';
+type TabKey = 'home' | 'friends' | 'notifications';
 type Filter = 'all' | 'unread' | 'read';
 
 const TABS: { key: TabKey; icon: string }[] = [
   { key: 'home', icon: '🏠' },
   { key: 'friends', icon: '👥' },
   { key: 'notifications', icon: '🔔' },
-  { key: 'profile', icon: '👤' },
 ];
 
 function NotificationPanel() {
@@ -128,24 +126,6 @@ function NotificationPanel() {
   );
 }
 
-function ProfileContent() {
-  const { user } = useAuth();
-
-  return (
-    <View style={styles.centerContent}>
-      <View style={styles.avatar}>
-        <ThemedText style={styles.avatarText}>
-          {user?.username?.charAt(0)?.toUpperCase() || '?'}
-        </ThemedText>
-      </View>
-      <ThemedText style={styles.emptyTitle}>{user?.username || 'User'}</ThemedText>
-      <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-        {user?.email || ''}
-      </ThemedText>
-    </View>
-  );
-}
-
 export default function HomeScreen() {
   const navigation = useNavigation();
   const router = useRouter();
@@ -206,21 +186,19 @@ export default function HomeScreen() {
         </View>
 
         {/* Tab content */}
-        {activeTab === 'home' ? (
+        {activeTab === 'home' && (
           <View style={styles.content}>
             <Feed />
           </View>
-        ) : activeTab === 'friends' ? (
+        )}
+        {activeTab === 'friends' && (
           <View style={styles.content}>
             <FriendsListPanel />
           </View>
-        ) : activeTab === 'notifications' ? (
+        )}
+        {activeTab === 'notifications' && (
           <View style={styles.content}>
             <NotificationPanel />
-          </View>
-        ) : (
-          <View style={styles.content}>
-            <ProfileContent />
           </View>
         )}
       </SafeAreaView>
@@ -275,27 +253,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  centerContent: {
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingTop: Spacing.xl * 2,
-  },
   emptyIcon: { fontSize: 48 },
-  emptyTitle: { ...Typography.h2, textAlign: 'center' },
-  emptySubtitle: { ...Typography.body, textAlign: 'center', paddingHorizontal: Spacing.xl },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#12A5A1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   // Notification panel styles
   panelContainer: {
     flex: 1,

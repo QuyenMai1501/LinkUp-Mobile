@@ -103,6 +103,7 @@
     "friends": "Friends",
     "community": "Community",
     "saved": "Saved",
+    "profile": "Profile",
     "settings": "Settings",
     "logout": "Logout",
     "logoutConfirm": "Are you sure you want to logout?",
@@ -405,6 +406,24 @@
     "notFound": "Profile not found",
     "bio": "Bio",
     "location": "Location",
-    "joined": "Joined"
+    "joined": "Joined",
+    "about": "About",
+    "media": "Media",
+    "friends": "Friends",
+    "privateProfile": "This account is private",
+    "networkError": "Network error",
+    "viewProfile": "View Profile",
+    "sendMessage": "Send Message",
+    "addFriend": "Add Friend",
+    "acceptFriend": "Accept",
+    "unfriend": "Unfriend",
+    "cancelRequest": "Cancel Request",
+    "blockUser": "Block User",
+    "reportUser": "Report User",
+    "mutualFriends": "{{count}} mutual friends",
+    "work": "Work",
+    "education": "Education",
+    "website": "Website",
+    "birthday": "Birthday"
   }
 }

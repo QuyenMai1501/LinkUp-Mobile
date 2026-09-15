@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'friends', label: 'friends', icon: '👥', href: 'friends' },
   { key: 'communities', label: 'community', icon: '🌐', href: 'communities' },
   { key: 'saved', label: 'saved', icon: '🔖', href: 'saved' },
+  { key: 'profile', label: 'profile', icon: '👤', href: 'profile' },
   { key: 'settings', label: 'settings', icon: '⚙️', href: 'settings' },
 ];
 

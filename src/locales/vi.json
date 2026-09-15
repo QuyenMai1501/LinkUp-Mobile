@@ -103,6 +103,7 @@
     "friends": "Bạn bè",
     "community": "Cộng đồng",
     "saved": "Đã lưu",
+    "profile": "Hồ sơ",
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
     "logoutConfirm": "Bạn có chắc muốn đăng xuất?",
@@ -405,6 +406,24 @@
     "notFound": "Không tìm thấy hồ sơ",
     "bio": "Giới thiệu",
     "location": "Địa chỉ",
-    "joined": "Tham gia"
+    "joined": "Tham gia",
+    "about": "Giới thiệu",
+    "media": "Phương tiện",
+    "friends": "Bạn bè",
+    "privateProfile": "Tài khoản này là riêng tư",
+    "networkError": "Lỗi mạng",
+    "viewProfile": "Xem hồ sơ",
+    "sendMessage": "Nhắn tin",
+    "addFriend": "Thêm bạn",
+    "acceptFriend": "Chấp nhận",
+    "unfriend": "Hủy kết bạn",
+    "cancelRequest": "Thu hồi lời mời",
+    "blockUser": "Chặn người dùng",
+    "reportUser": "Báo cáo người dùng",
+    "mutualFriends": "{{count}} bạn chung",
+    "work": "Công việc",
+    "education": "Học vấn",
+    "website": "Trang web",
+    "birthday": "Sinh nhật"
   }
 }

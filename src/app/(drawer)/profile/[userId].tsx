@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -9,67 +9,66 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
-import { getMyProfile, updateProfile, uploadMedia } from '@/api/profile';
+import { getProfileByUserID } from '@/api/profile';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import type { ViewProfileResponse } from '@/types/profile';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
-import { ProfileEditModal } from '@/components/profile/ProfileEditModal';
+import { ProfileMenu } from '@/components/profile/ProfileMenu';
+import { MutualFriends } from '@/components/profile/MutualFriends';
 import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 
-export default function SelfProfileScreen() {
+export default function UserProfileScreen() {
+  const { userId } = useLocalSearchParams<{ userId: string }>();
   const theme = useTheme();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const router = useRouter();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<ViewProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [errorType, setErrorType] = useState<'private' | 'not-found' | 'network' | null>(null);
 
-  const { stats } = useFollowStats(user?.id ?? null);
+  const isSelf = user?.id === userId;
+  const { stats, following, followBusy, handleFollow } = useFollowStats(userId ?? null);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
     let cancelled = false;
 
-    getMyProfile()
+    setLoading(true);
+    setError(null);
+    setErrorType(null);
+
+    getProfileByUserID(userId)
       .then((data) => {
         if (!cancelled) setProfile(data);
       })
-      .catch((err) => {
-        if (!cancelled) setError(err?.message || 'Failed to load profile');
+      .catch((err: any) => {
+        if (!cancelled) {
+          if (err?.message?.includes('PRIVATE') || err?.status === 403) {
+            setErrorType('private');
+            setError(t('profile.notFound'));
+          } else if (err?.status === 404) {
+            setErrorType('not-found');
+            setError(t('profile.notFound'));
+          } else {
+            setErrorType('network');
+            setError(err?.message || 'Network error');
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [userId, t]);
 
-  const handleAvatarChange = async (uri: string) => {
-    if (!profile) return;
-    try {
-      const res = await uploadMedia(uri, 'avatar.jpg', 'image/jpeg');
-      await updateProfile({ avatar_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, avatar_uri: res.url || uri } : prev);
-    } catch {
-    }
-  };
-
-  const handleCoverChange = async (uri: string) => {
-    if (!profile) return;
-    try {
-      const res = await uploadMedia(uri, 'cover.jpg', 'image/jpeg');
-      await updateProfile({ cover_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, cover_uri: res.url || uri } : prev);
-    } catch {
-    }
-  };
-
-  const handleSaved = (updated: ViewProfileResponse) => {
-    setProfile(updated);
-    setShowEditModal(false);
+  const handleMessage = () => {
+    if (!userId) return;
+    (router as any).push(`/(drawer)/chat/${userId}`);
   };
 
   if (loading) {
@@ -86,8 +85,13 @@ export default function SelfProfileScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <ThemedText style={styles.headerTitle}>{t('profile.title')}</ThemedText>
+          </View>
           <View style={styles.center}>
-            <ThemedText style={styles.errorIcon}>⚠️</ThemedText>
+            <ThemedText style={styles.errorIcon}>
+              {errorType === 'private' ? '🔒' : errorType === 'not-found' ? '👤' : '⚠️'}
+            </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}
             </ThemedText>
@@ -107,7 +111,7 @@ export default function SelfProfileScreen() {
             onPress={() => (navigation as any).openDrawer?.()}>
             <ThemedText style={[styles.headerBtnIcon, { color: theme.text }]}>☰</ThemedText>
           </Pressable>
-          <ThemedText style={styles.headerTitle}>{t('profile.title')}</ThemedText>
+          <ThemedText style={styles.headerTitle}>{profile.display_name}</ThemedText>
           <View style={styles.headerBtn} />
         </View>
 
@@ -115,25 +119,20 @@ export default function SelfProfileScreen() {
           <ProfileHeader
             profile={profile}
             stats={stats}
-            isSelf
-            onEdit={() => setShowEditModal(true)}
-            onAvatarChange={handleAvatarChange}
-            onCoverChange={handleCoverChange}
+            isSelf={isSelf}
+            isFollowing={following}
+            followBusy={followBusy}
+            onFollow={handleFollow}
+            onMessage={!isSelf ? handleMessage : undefined}
+            menuSlot={!isSelf ? <ProfileMenu userId={userId!} isSelf={false} /> : undefined}
           />
+          {!isSelf && <MutualFriends userId={userId!} />}
           <ProfileTabs
-            userId={user?.id ?? ''}
-            isSelf
+            userId={userId!}
+            isSelf={isSelf}
             profile={profile}
           />
         </ScrollView>
-
-        {showEditModal && (
-          <ProfileEditModal
-            profile={profile}
-            onClose={() => setShowEditModal(false)}
-            onSaved={handleSaved}
-          />
-        )}
       </SafeAreaView>
     </ThemedView>
   );
