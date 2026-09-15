@@ -13,6 +13,7 @@ import { changePassword } from '@/api/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePasswordPolicy } from '@/hooks/usePasswordPolicy';
 
 interface FieldErrors {
   oldPassword?: string;
@@ -23,6 +24,7 @@ interface FieldErrors {
 export default function ChangePasswordForm() {
   const colors = useTheme();
   const { t } = useTranslation();
+  const { min_length: passwordMin, max_length: passwordMax } = usePasswordPolicy();
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -42,9 +44,9 @@ export default function ChangePasswordForm() {
 
     if (!newPassword) {
       errors.newPassword = t('settings.changePassword.validation.newRequired');
-    } else if (newPassword.length < 8) {
+    } else if (newPassword.length < passwordMin) {
       errors.newPassword = t('settings.changePassword.validation.newMin');
-    } else if (newPassword.length > 50) {
+    } else if (newPassword.length > passwordMax) {
       errors.newPassword = t('settings.changePassword.validation.newMax');
     } else if (
       !/[A-Z]/.test(newPassword) ||

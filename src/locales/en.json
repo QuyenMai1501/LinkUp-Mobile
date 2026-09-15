@@ -65,7 +65,7 @@
         "emailRequired": "Email is required",
         "emailInvalid": "Invalid email address",
         "passwordRequired": "Password is required",
-        "passwordMin": "Password must be at least 6 characters",
+        "passwordMin": "Password must be at least 8 characters",
         "passwordMax": "Password must be at most 50 characters",
         "passwordPattern": "Password must contain uppercase, lowercase, number and special character",
         "confirmRequired": "Please confirm your password",

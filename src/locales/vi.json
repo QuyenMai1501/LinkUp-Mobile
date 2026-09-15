@@ -65,7 +65,7 @@
         "emailRequired": "Vui lòng nhập email",
         "emailInvalid": "Email không hợp lệ",
         "passwordRequired": "Vui lòng nhập mật khẩu",
-        "passwordMin": "Mật khẩu phải có ít nhất 6 ký tự",
+        "passwordMin": "Mật khẩu phải có ít nhất 8 ký tự",
         "passwordMax": "Mật khẩu không được quá 50 ký tự",
         "passwordPattern": "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt",
         "confirmRequired": "Vui lòng xác nhận mật khẩu",

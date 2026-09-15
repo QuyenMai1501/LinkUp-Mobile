@@ -20,6 +20,7 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePasswordPolicy } from '@/hooks/usePasswordPolicy';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -35,6 +36,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
   const { t } = useTranslation();
+  const { min_length: passwordMin, max_length: passwordMax } = usePasswordPolicy();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -62,9 +64,9 @@ export default function RegisterScreen() {
 
     if (!password) {
       errors.password = t('auth.register.validation.passwordRequired');
-    } else if (password.length < 8) {
+    } else if (password.length < passwordMin) {
       errors.password = t('auth.register.validation.passwordMin');
-    } else if (password.length > 50) {
+    } else if (password.length > passwordMax) {
       errors.password = t('auth.register.validation.passwordMax');
     } else if (
       !/[A-Z]/.test(password) ||
