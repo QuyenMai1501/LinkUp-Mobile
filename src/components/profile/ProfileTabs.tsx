@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl * 2,
     gap: Spacing.md,
   },
-  emptyIcon: { fontSize: 48 },
+  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
   endOfFeed: {
     textAlign: 'center',

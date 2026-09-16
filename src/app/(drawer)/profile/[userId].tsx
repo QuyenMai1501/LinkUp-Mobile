@@ -167,6 +167,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     padding: Spacing.xl,
   },
-  errorIcon: { fontSize: 48 },
+  errorIcon: { fontSize: 48, lineHeight: 60 },
   errorText: { ...Typography.body, textAlign: 'center' },
 });

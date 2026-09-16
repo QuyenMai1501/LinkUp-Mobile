@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
   infoLabel: { ...Typography.caption },
   infoValue: { ...Typography.body },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', padding: Spacing.xl * 2, gap: Spacing.md },
-  emptyIcon: { fontSize: 48 },
+  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
 });

@@ -117,7 +117,7 @@ export function ProfileHeader({
       <View style={styles.body}>
         {/* Avatar */}
         <Pressable onPress={handleAvatarPress} style={styles.avatarWrap}>
-          {profile.avatar_uri ? (
+          {profile.avatar_uri?.trim() ? (
             <Image source={{ uri: profile.avatar_uri }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primary }]}>
