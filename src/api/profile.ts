@@ -1,4 +1,5 @@
-import { request } from './client';
+import { API_BASE, request } from './client';
+import { tokenStorage } from './token-storage';
 
 import type {
   ViewProfileResponse,
@@ -19,20 +20,25 @@ export const updateProfile = (input: UpdateProfileInput) =>
   });
 
 export const uploadMedia = async (fileUri: string, fileName: string, mimeType: string) => {
-  const formData = new FormData();
-  formData.append('file', {
-    uri: fileUri,
-    name: fileName,
-    type: mimeType,
-  } as any);
+  const token = await tokenStorage.getAccessToken();
 
-  const res = await fetch(`${request.toString()}/media/upload`, {
+  const fileResponse = await fetch(fileUri);
+  const blob = await fileResponse.blob();
+
+  const formData = new FormData();
+  formData.append('file', blob, fileName);
+
+  const res = await fetch(`${API_BASE}/media/upload`, {
     method: 'POST',
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
 
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
+  }
+
   return res.json();
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 
@@ -47,23 +47,31 @@ export default function SelfProfileScreen() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const handleAvatarChange = async (uri: string) => {
+  const handleAvatarChange = async (uri: string, mimeType: string) => {
     if (!profile) return;
     try {
-      const res = await uploadMedia(uri, 'avatar.jpg', 'image/jpeg');
-      await updateProfile({ avatar_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, avatar_uri: res.url || uri } : prev);
-    } catch {
+      const ext = mimeType.split('/')[1] || 'jpeg';
+      const res = await uploadMedia(uri, `avatar.${ext}`, mimeType);
+      const fileUri = res.data?.file_uri || uri;
+      await updateProfile({ avatar_uri: fileUri });
+      setProfile((prev) => prev ? { ...prev, avatar_uri: fileUri } : prev);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
-  const handleCoverChange = async (uri: string) => {
+  const handleCoverChange = async (uri: string, mimeType: string) => {
     if (!profile) return;
     try {
-      const res = await uploadMedia(uri, 'cover.jpg', 'image/jpeg');
-      await updateProfile({ cover_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, cover_uri: res.url || uri } : prev);
-    } catch {
+      const ext = mimeType.split('/')[1] || 'jpeg';
+      const res = await uploadMedia(uri, `cover.${ext}`, mimeType);
+      const fileUri = res.data?.file_uri || uri;
+      await updateProfile({ cover_uri: fileUri });
+      setProfile((prev) => prev ? { ...prev, cover_uri: fileUri } : prev);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
