@@ -158,23 +158,28 @@ export function useChatRoom({
   // Effect 1: Subscribe to events + reset state on chatId change.
   useEffect(() => {
     if (!chatId) return;
-    if (chatIdRef.current === chatId) return;
-    chatIdRef.current = chatId;
-    activeChatIdRef.current = chatId;
 
-    setMessages([]);
-    setHasMore(false);
-    setLoadingMore(false);
-    setPartnerTyping(false);
-    setSearchResults(null);
-    setSearchKeyword('');
-    setPinnedMessages([]);
-    cursorRef.current = null;
-    hasMoreRef.current = false;
-    loadingMoreRef.current = false;
-    e2eReadyChatRef.current = null;
-    setLoading(true);
+    // Chỉ reset state khi chatId THỰC SỰ thay đổi (lần đầu hoặc chuyển chat)
+    if (chatIdRef.current !== chatId) {
+      chatIdRef.current = chatId;
+      activeChatIdRef.current = chatId;
 
+      setMessages([]);
+      setHasMore(false);
+      setLoadingMore(false);
+      setPartnerTyping(false);
+      setSearchResults(null);
+      setSearchKeyword('');
+      setPinnedMessages([]);
+      cursorRef.current = null;
+      hasMoreRef.current = false;
+      loadingMoreRef.current = false;
+      e2eReadyChatRef.current = null;
+      setLoading(true);
+    }
+
+    // Luôn (re-) đăng ký sự kiện — kể cả khi chatId không đổi
+    // nhưng decryptIncoming hoặc myUserId thay đổi
     const unsubs = [
       socket.subscribe('message:history', (payload: any) => {
         if (payload.chat_id !== chatId) return;

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
@@ -11,6 +11,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getProfileByUserID } from '@/api/profile';
 import { useFollowStats } from '@/hooks/useFollowStats';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import type { ViewProfileResponse } from '@/types/profile';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
@@ -33,38 +34,39 @@ export default function UserProfileScreen() {
   const isSelf = user?.id === userId;
   const { stats, following, followBusy, handleFollow } = useFollowStats(userId ?? null);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!userId) return;
-    let cancelled = false;
-
     setLoading(true);
     setError(null);
     setErrorType(null);
-
-    getProfileByUserID(userId)
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch((err: any) => {
-        if (!cancelled) {
-          if (err?.message?.includes('PRIVATE') || err?.status === 403) {
-            setErrorType('private');
-            setError(t('profile.notFound'));
-          } else if (err?.status === 404) {
-            setErrorType('not-found');
-            setError(t('profile.notFound'));
-          } else {
-            setErrorType('network');
-            setError(err?.message || 'Network error');
-          }
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
+    try {
+      const data = await getProfileByUserID(userId);
+      setProfile(data);
+    } catch (err: any) {
+      if (err?.message?.includes('PRIVATE') || err?.status === 403) {
+        setErrorType('private');
+        setError(t('profile.notFound'));
+      } else if (err?.status === 404) {
+        setErrorType('not-found');
+        setError(t('profile.notFound'));
+      } else {
+        setErrorType('network');
+        setError(err?.message || 'Network error');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [userId, t]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchProfile();
+  }, [fetchProfile]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
   const handleMessage = () => {
     if (!userId) return;
@@ -115,7 +117,18 @@ export default function UserProfileScreen() {
           <View style={styles.headerBtn} />
         </View>
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
+        >
           <ProfileHeader
             profile={profile}
             stats={stats}

@@ -107,6 +107,7 @@ export function useChatSocket(): ChatSocket {
   useEffect(() => {
     connect();
     return () => {
+      closedByUserRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       wsRef.current?.close();
     };

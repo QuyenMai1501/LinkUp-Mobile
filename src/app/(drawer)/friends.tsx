@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
@@ -18,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import {
   acceptFriendRequest,
   getFriendRequests,
@@ -180,6 +182,28 @@ export default function FriendsScreen() {
     return () => cancelAnimationFrame(id);
   }, [mainTab, loadFriends]);
 
+  // ============ PULL-TO-REFRESH ============
+
+  const refreshRequests = useCallback(async () => {
+    await loadRequests();
+  }, [loadRequests]);
+
+  const refreshSuggestions = useCallback(async () => {
+    suggestionsPageRef.current = 0;
+    setSuggestions([]);
+    await loadSuggestions();
+  }, [loadSuggestions]);
+
+  const refreshFriends = useCallback(async () => {
+    friendsPageRef.current = 0;
+    setFriends([]);
+    await loadFriends();
+  }, [loadFriends]);
+
+  const requestsRefresh = usePullToRefresh(refreshRequests);
+  const suggestionsRefresh = usePullToRefresh(refreshSuggestions);
+  const friendsRefresh = usePullToRefresh(refreshFriends);
+
   // ============ ACTION HANDLERS ============
 
   const runAction = useCallback(
@@ -338,6 +362,14 @@ export default function FriendsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={requestsRefresh.refreshing}
+            onRefresh={requestsRefresh.onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       />
     );
   };
@@ -419,6 +451,14 @@ export default function FriendsScreen() {
           if (suggestionsHasMore && !suggestionsLoadingRef.current) loadSuggestions();
         }}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={suggestionsRefresh.refreshing}
+            onRefresh={suggestionsRefresh.onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
         ListFooterComponent={
           suggestionsLoading ? (
             <View style={styles.loadingMore}>
@@ -499,6 +539,14 @@ export default function FriendsScreen() {
           if (friendsHasMore && !friendsLoadingRef.current) loadFriends();
         }}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={friendsRefresh.refreshing}
+            onRefresh={friendsRefresh.onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
         ListFooterComponent={
           friendsLoading ? (
             <View style={styles.loadingMore}>

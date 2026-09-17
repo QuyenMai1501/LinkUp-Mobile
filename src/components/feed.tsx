@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
 import { getFeedPosts, reactPost, savePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
@@ -42,6 +44,7 @@ function SkeletonCard() {
 }
 
 export default function Feed() {
+  const theme = useTheme();
   const { t } = useTranslation();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,6 +81,14 @@ export default function Feed() {
   useEffect(() => {
     fetchNext();
   }, [fetchNext]);
+
+  const handleRefresh = useCallback(async () => {
+    cursorRef.current = null;
+    setError(null);
+    await fetchNext();
+  }, [fetchNext]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
   const handleLike = async (postId: string) => {
     const emojiId = await ensureLikeEmojiId();
@@ -168,6 +179,14 @@ export default function Feed() {
       removeClippedSubviews={true}
       maxToRenderPerBatch={5}
       windowSize={5}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.primary}
+          colors={[theme.primary]}
+        />
+      }
       ListFooterComponent={
         loading && !initialLoading ? (
           <View>
