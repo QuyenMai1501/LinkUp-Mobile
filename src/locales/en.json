@@ -426,6 +426,14 @@
     "website": "Website",
     "birthday": "Birthday",
     "saved": "Saved",
-    "noSavedPosts": "No saved posts yet"
+    "noSavedPosts": "No saved posts yet",
+    "validation": {
+      "displayNameRequired": "Display name is required",
+      "displayNameMin": "Display name must be at least 3 characters",
+      "displayNameMax": "Display name must be at most 55 characters",
+      "displayNameInvalid": "Display name can only contain letters, digits and spaces",
+      "bioMax": "Bio must be at most 200 characters",
+      "fieldMax": "This field must be at most 255 characters"
+    }
   }
 }

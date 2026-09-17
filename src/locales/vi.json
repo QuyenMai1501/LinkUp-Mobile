@@ -426,6 +426,14 @@
     "website": "Trang web",
     "birthday": "Sinh nhật",
     "saved": "Đã lưu",
-    "noSavedPosts": "Chưa có bài viết đã lưu"
+    "noSavedPosts": "Chưa có bài viết đã lưu",
+    "validation": {
+      "displayNameRequired": "Vui lòng nhập họ tên",
+      "displayNameMin": "Họ tên phải có ít nhất 3 ký tự",
+      "displayNameMax": "Họ tên không được quá 55 ký tự",
+      "displayNameInvalid": "Họ tên chỉ được chứa chữ cái, chữ số và khoảng trắng",
+      "bioMax": "Giới thiệu không được quá 200 ký tự",
+      "fieldMax": "Trường này không được quá 255 ký tự"
+    }
   }
 }
