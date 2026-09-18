@@ -164,56 +164,54 @@ export default function MediaViewer({
 
   return (
     <Modal visible={visible} transparent>
-      <Animated.View style={[styles.container, containerStyle]}>
-        <StatusBar hidden />
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={[styles.container, containerStyle]}>
+          <StatusBar hidden />
 
-        {/* Close button — with pan gesture for dismiss */}
-        <GestureDetector gesture={panGesture}>
+          {/* Close button */}
           <Pressable style={styles.closeBtn} onPress={handleClose}>
             <ThemedText style={styles.closeIcon}>✕</ThemedText>
           </Pressable>
-        </GestureDetector>
 
-        {/* Counter */}
-        {media.length > 1 && (
-          <View style={[styles.counter, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-            <ThemedText style={styles.counterText}>
-              {safeIndex + 1} / {media.length}
-            </ThemedText>
-          </View>
-        )}
-
-        {/* Media — FlatList handles its own horizontal scrolling */}
-        <FlatList
-          data={media}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={initialIndex}
-          onMomentumScrollEnd={(e) => {
-            const idx = Math.round(
-              e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
-            );
-            setCurrentIndex(idx);
-          }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item: m }) => (
-            <View style={[styles.mediaStage, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]}>
-              {isVideo(m.file_type) ? (
-                <VideoPlayer uri={m.file_uri} />
-              ) : (
-                <Image
-                  source={{ uri: m.file_uri }}
-                  style={styles.mediaImage}
-                  contentFit="contain"
-                />
-              )}
+          {/* Counter */}
+          {media.length > 1 && (
+            <View style={[styles.counter, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
+              <ThemedText style={styles.counterText}>
+                {safeIndex + 1} / {media.length}
+              </ThemedText>
             </View>
           )}
-        />
 
-        {/* Info overlay — always at bottom, expands upward via maxHeight */}
-        <GestureDetector gesture={panGesture}>
+          {/* Media — FlatList handles its own horizontal scrolling */}
+          <FlatList
+            data={media}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialIndex}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(
+                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
+              );
+              setCurrentIndex(idx);
+            }}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item: m }) => (
+              <View style={[styles.mediaStage, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]}>
+                {isVideo(m.file_type) ? (
+                  <VideoPlayer uri={m.file_uri} />
+                ) : (
+                  <Image
+                    source={{ uri: m.file_uri }}
+                    style={styles.mediaImage}
+                    contentFit="contain"
+                  />
+                )}
+              </View>
+            )}
+          />
+
+          {/* Info overlay — always at bottom, expands upward via maxHeight */}
           <Animated.View style={[styles.infoOverlay, infoOverlayStyle]}>
             <Pressable onPress={handleToggleInfo} style={styles.infoPressable}>
               {/* Gradient background */}
@@ -265,8 +263,8 @@ export default function MediaViewer({
               </View>
             </Pressable>
           </Animated.View>
-        </GestureDetector>
-      </Animated.View>
+        </Animated.View>
+      </GestureDetector>
     </Modal>
   );
 }

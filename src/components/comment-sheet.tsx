@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FlatList,
@@ -71,6 +72,7 @@ export default function CommentSheet({
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentSort] = useState<CommentSort>('newest');
   const flatListRef = useRef<FlatList>(null);
+  const scrollOffsetY = useRef(0);
 
   const translateY = useSharedValue(400);
 
@@ -91,13 +93,16 @@ export default function CommentSheet({
   const panGesture = Gesture.Pan()
     .activeOffsetY(10)
     .onUpdate((e) => {
-      if (e.translationY > 0) {
+      if (e.translationY > 0 && scrollOffsetY.current <= 0) {
         // eslint-disable-next-line react-hooks/immutability
         translateY.value = e.translationY;
       }
     })
     .onEnd((e) => {
-      if (e.translationY > DISMISS_THRESHOLD || e.velocityY > 500) {
+      if (
+        (e.translationY > DISMISS_THRESHOLD && scrollOffsetY.current <= 0) ||
+        (e.velocityY > 500 && scrollOffsetY.current <= 0)
+      ) {
         dismissWorklet();
       } else {
         // eslint-disable-next-line react-hooks/immutability
@@ -213,6 +218,10 @@ export default function CommentSheet({
 
   const commentTree = buildCommentTree(comments, commentSort);
 
+  const handleScroll = useCallback((e: any) => {
+    scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
   if (!visible) return null;
 
   return (
@@ -224,68 +233,69 @@ export default function CommentSheet({
       <KeyboardAvoidingView
         style={styles.sheetContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.card },
-            animatedStyle,
-          ]}
-        >
-          {/* Drag handle — with pan gesture for dismiss */}
-          <GestureDetector gesture={panGesture}>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              { backgroundColor: theme.card },
+              animatedStyle,
+            ]}
+          >
+            {/* Drag handle */}
             <View style={styles.handleRow}>
               <View style={[styles.handle, { backgroundColor: theme.border }]} />
             </View>
-          </GestureDetector>
 
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <ThemedText style={styles.headerTitle}>{t('postDetail.comments')}</ThemedText>
-          </View>
+            {/* Header */}
+            <View style={[styles.header, { borderBottomColor: theme.border }]}>
+              <ThemedText style={styles.headerTitle}>{t('postDetail.comments')}</ThemedText>
+            </View>
 
-          {/* Comments list — FlatList handles its own scrolling */}
-          <FlatList
-            ref={flatListRef}
-            data={commentTree}
-            keyExtractor={(item) => item.comment.id}
-            renderItem={({ item }) => (
-              <CommentItem
-                node={item}
-                postUserId={postUserId}
-                allComments={comments}
-                onLike={handleToggleCommentLike}
-                onReply={setReplyingTo}
-              />
-            )}
-            onEndReached={loadMoreComments}
-            onEndReachedThreshold={0.5}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              !commentsLoading ? (
-                <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                  {t('postDetail.noComments')}
-                </ThemedText>
-              ) : null
-            }
-            ListFooterComponent={
-              commentsLoading ? (
-                <View style={styles.loadingMore}>
-                  <ThemedText themeColor="textSecondary">⏳</ThemedText>
-                </View>
-              ) : null
-            }
-          />
+            {/* Comments list — FlatList handles its own scrolling */}
+            <FlatList
+              ref={flatListRef}
+              data={commentTree}
+              keyExtractor={(item) => item.comment.id}
+              renderItem={({ item }) => (
+                <CommentItem
+                  node={item}
+                  postUserId={postUserId}
+                  allComments={comments}
+                  onLike={handleToggleCommentLike}
+                  onReply={setReplyingTo}
+                />
+              )}
+              onScroll={handleScroll}
+              onEndReached={loadMoreComments}
+              onEndReachedThreshold={0.5}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                !commentsLoading ? (
+                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                    {t('postDetail.noComments')}
+                  </ThemedText>
+                ) : null
+              }
+              ListFooterComponent={
+                commentsLoading ? (
+                  <View style={styles.loadingMore}>
+                    <ThemedText themeColor="textSecondary">⏳</ThemedText>
+                  </View>
+                ) : null
+              }
+            />
 
-          {/* Comment input */}
-          <CommentInput
-            value={commentText}
-            onChangeText={setCommentText}
-            onSubmit={handleSubmitComment}
-            replyingTo={replyingTo}
-            onCancelReply={() => setReplyingTo(null)}
-            submitting={submittingComment}
-          />
-        </Animated.View>
+            {/* Comment input */}
+            <CommentInput
+              value={commentText}
+              onChangeText={setCommentText}
+              onSubmit={handleSubmitComment}
+              replyingTo={replyingTo}
+              onCancelReply={() => setReplyingTo(null)}
+              submitting={submittingComment}
+            />
+          </Animated.View>
+        </GestureDetector>
       </KeyboardAvoidingView>
     </Modal>
   );
