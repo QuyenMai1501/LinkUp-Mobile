@@ -70,7 +70,15 @@ export function ProfileFriendsTab({ userId }: ProfileFriendsTabProps) {
             key={friend.user_id}
             style={styles.friendCard}
             onPress={() => (router as any).push(`/(drawer)/profile/${friend.user_id}`)}>
-            <Image source={{ uri: friend.avatar_uri }} style={styles.avatar} />
+            {friend.avatar_uri ? (
+              <Image source={{ uri: friend.avatar_uri }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primary }]}>
+                <ThemedText style={styles.avatarFallbackText}>
+                  {friend.display_name?.charAt(0)?.toUpperCase() || '?'}
+                </ThemedText>
+              </View>
+            )}
             <ThemedText style={styles.friendName} numberOfLines={1}>
               {friend.display_name}
             </ThemedText>
@@ -109,6 +117,15 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   avatar: { width: 80, height: 80, borderRadius: 40 },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   friendName: { ...Typography.caption, textAlign: 'center', fontWeight: 500 },
   loadMore: {
     paddingVertical: Spacing.md,
@@ -121,6 +138,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xl * 2,
     gap: Spacing.md,
   },
-  emptyIcon: { fontSize: 48 },
+  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
 });

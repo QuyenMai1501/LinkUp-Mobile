@@ -5,9 +5,10 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 interface VideoPlayerProps {
   uri: string;
   style?: object;
+  interactive?: boolean;
 }
 
-export default function VideoPlayer({ uri, style }: VideoPlayerProps) {
+export default function VideoPlayer({ uri, style, interactive = true }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(true);
 
@@ -29,8 +30,8 @@ export default function VideoPlayer({ uri, style }: VideoPlayerProps) {
     }
   }, [playing, player]);
 
-  return (
-    <Pressable style={[styles.container, style]} onPress={togglePlay}>
+  const content = (
+    <>
       <VideoView
         player={player}
         style={styles.video}
@@ -44,6 +45,16 @@ export default function VideoPlayer({ uri, style }: VideoPlayerProps) {
           </View>
         </View>
       )}
+    </>
+  );
+
+  if (!interactive) {
+    return <View style={[styles.container, style]}>{content}</View>;
+  }
+
+  return (
+    <Pressable style={[styles.container, style]} onPress={togglePlay}>
+      {content}
     </Pressable>
   );
 }

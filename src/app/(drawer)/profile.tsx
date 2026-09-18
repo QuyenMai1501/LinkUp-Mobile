@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 
@@ -11,6 +11,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getMyProfile, updateProfile, uploadMedia } from '@/api/profile';
 import { useFollowStats } from '@/hooks/useFollowStats';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import type { ViewProfileResponse } from '@/types/profile';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs } from '@/components/profile/ProfileTabs';
@@ -29,41 +30,56 @@ export default function SelfProfileScreen() {
 
   const { stats } = useFollowStats(user?.id ?? null);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!user?.id) return;
-    let cancelled = false;
-
-    getMyProfile()
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err?.message || 'Failed to load profile');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
+    setLoading(true);
+    try {
+      const data = await getMyProfile();
+      setProfile(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
 
-  const handleAvatarChange = async (uri: string) => {
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchProfile();
+  }, [user?.id, fetchProfile]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchProfile();
+  }, [fetchProfile]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
+
+  const handleAvatarChange = async (uri: string, mimeType: string) => {
     if (!profile) return;
     try {
-      const res = await uploadMedia(uri, 'avatar.jpg', 'image/jpeg');
-      await updateProfile({ avatar_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, avatar_uri: res.url || uri } : prev);
-    } catch {
+      const ext = mimeType.split('/')[1] || 'jpeg';
+      const res = await uploadMedia(uri, `avatar.${ext}`, mimeType);
+      const fileUri = res.data?.file_uri || uri;
+      await updateProfile({ avatar_uri: fileUri });
+      setProfile((prev) => prev ? { ...prev, avatar_uri: fileUri } : prev);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
-  const handleCoverChange = async (uri: string) => {
+  const handleCoverChange = async (uri: string, mimeType: string) => {
     if (!profile) return;
     try {
-      const res = await uploadMedia(uri, 'cover.jpg', 'image/jpeg');
-      await updateProfile({ cover_uri: res.url || uri });
-      setProfile((prev) => prev ? { ...prev, cover_uri: res.url || uri } : prev);
-    } catch {
+      const ext = mimeType.split('/')[1] || 'jpeg';
+      const res = await uploadMedia(uri, `cover.${ext}`, mimeType);
+      const fileUri = res.data?.file_uri || uri;
+      await updateProfile({ cover_uri: fileUri });
+      setProfile((prev) => prev ? { ...prev, cover_uri: fileUri } : prev);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
@@ -111,7 +127,18 @@ export default function SelfProfileScreen() {
           <View style={styles.headerBtn} />
         </View>
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
+        >
           <ProfileHeader
             profile={profile}
             stats={stats}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { useChatSocket } from '@/hooks/useChatSocket';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { listChats, createDirectChat } from '@/api/chat';
 import { Spacing, Typography } from '@/constants/theme';
 import type { ChatConversation } from '@/types/chat';
@@ -73,11 +74,16 @@ export default function MessagesScreen() {
       )
     : conversations;
 
-  const refreshList = useCallback(() => {
-    listChats()
-      .then((res) => setConversations(res.data))
-      .catch(() => {});
+  const refreshList = useCallback(async () => {
+    try {
+      const res = await listChats();
+      setConversations(res.data);
+    } catch {
+      // silent
+    }
   }, []);
+
+  const { refreshing, onRefresh } = usePullToRefresh(refreshList);
 
   const handlePickUser = useCallback(
     async (user: { user_id: string }) => {
@@ -159,6 +165,14 @@ export default function MessagesScreen() {
           ItemSeparatorComponent={() => (
             <View style={[styles.separator, { backgroundColor: theme.border }]} />
           )}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         />
       )}
       </SafeAreaView>

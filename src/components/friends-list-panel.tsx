@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { getFriends, unfriend } from '@/api/friends';
 import type { FriendUser } from '@/types/friend';
 
@@ -68,6 +70,13 @@ export default function FriendsListPanel() {
     });
     return () => cancelAnimationFrame(id);
   }, [loadFriends]);
+
+  const handleRefresh = useCallback(async () => {
+    pageRef.current = 0;
+    await loadFriends();
+  }, [loadFriends]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
   const handleUnfriend = (user: FriendUser) => {
     setUnfriendTarget(user);
@@ -150,6 +159,14 @@ export default function FriendsListPanel() {
           if (hasMore && !loadingRef.current) loadFriends();
         }}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
         ListFooterComponent={
           loading ? (
             <View style={styles.loadingMore}>

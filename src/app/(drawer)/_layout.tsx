@@ -29,6 +29,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="profile" />
       <Drawer.Screen name="profile/[userId]" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="chat/[chatId]" options={{ headerShown: false, swipeEnabled: false }} />
+      <Drawer.Screen name="post/[postId]" options={{ headerShown: false, swipeEnabled: false }} />
     </Drawer>
   );
 }

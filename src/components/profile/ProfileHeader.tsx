@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -23,8 +23,8 @@ interface ProfileHeaderProps {
   onEdit?: () => void;
   onOpenFollowers?: () => void;
   onOpenFollowing?: () => void;
-  onAvatarChange?: (uri: string) => void;
-  onCoverChange?: (uri: string) => void;
+  onAvatarChange?: (uri: string, mimeType: string) => void;
+  onCoverChange?: (uri: string, mimeType: string) => void;
   onViewAvatar?: () => void;
   menuSlot?: React.ReactNode;
 }
@@ -67,6 +67,11 @@ export function ProfileHeader({
 
   const handleChangeAvatar = async () => {
     setAvatarMenuVisible(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi avatar.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -74,11 +79,17 @@ export function ProfileHeader({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      onAvatarChange?.(result.assets[0].uri);
+      const asset = result.assets[0];
+      onAvatarChange?.(asset.uri, asset.mimeType || 'image/jpeg');
     }
   };
 
   const handleChangeCover = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi ảnh bìa.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -86,7 +97,8 @@ export function ProfileHeader({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      onCoverChange?.(result.assets[0].uri);
+      const asset = result.assets[0];
+      onCoverChange?.(asset.uri, asset.mimeType || 'image/jpeg');
     }
   };
 
@@ -117,7 +129,7 @@ export function ProfileHeader({
       <View style={styles.body}>
         {/* Avatar */}
         <Pressable onPress={handleAvatarPress} style={styles.avatarWrap}>
-          {profile.avatar_uri ? (
+          {profile.avatar_uri?.trim() ? (
             <Image source={{ uri: profile.avatar_uri }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primary }]}>

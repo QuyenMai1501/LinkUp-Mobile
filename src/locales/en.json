@@ -140,7 +140,43 @@
   },
   "post": {
     "readMore": "Read more",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "like": "Like",
+    "comment": "Comment",
+    "share": "Share",
+    "save": "Save",
+    "saved": "Saved",
+    "liked": "Liked",
+    "shareToFriend": "Send to friends",
+    "justNow": "just now",
+    "minutesAgo": "{minutes}m ago",
+    "hoursAgo": "{hours}h ago",
+    "daysAgo": "{days}d ago"
+  },
+  "postDetail": {
+    "title": "Post",
+    "comments": "Comments",
+    "viewCount": "{count} views",
+    "commentCount": "{count} comments",
+    "loadMore": "View more comments",
+    "noComments": "No comments yet.",
+    "commentPlaceholder": "Write a comment...",
+    "commentButton": "Post comment",
+    "reply": "Reply",
+    "postAuthorBadge": "Author",
+    "replyingTo": "Replying to @{username}",
+    "cancelReply": "Cancel reply",
+    "sharePlaceholder": "Add a caption (optional)...",
+    "shareButton": "Share",
+    "cancel": "Cancel",
+    "delete": "Delete post",
+    "deleteConfirm": "Are you sure you want to delete this post?",
+    "deleted": "Post deleted",
+    "shared": "Post shared successfully!",
+    "commentPosted": "Comment posted successfully!",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "sortRelevant": "Most relevant"
   },
   "friends": {
     "title": "Friends",
@@ -426,6 +462,14 @@
     "website": "Website",
     "birthday": "Birthday",
     "saved": "Saved",
-    "noSavedPosts": "No saved posts yet"
+    "noSavedPosts": "No saved posts yet",
+    "validation": {
+      "displayNameRequired": "Display name is required",
+      "displayNameMin": "Display name must be at least 3 characters",
+      "displayNameMax": "Display name must be at most 55 characters",
+      "displayNameInvalid": "Display name can only contain letters, digits and spaces",
+      "bioMax": "Bio must be at most 200 characters",
+      "fieldMax": "This field must be at most 255 characters"
+    }
   }
 }

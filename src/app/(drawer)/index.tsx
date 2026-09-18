@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
@@ -20,6 +21,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type TabKey = 'home' | 'friends' | 'notifications';
 type Filter = 'all' | 'unread' | 'read';
@@ -32,9 +34,15 @@ const TABS: { key: TabKey; icon: string }[] = [
 
 function NotificationPanel() {
   const theme = useTheme();
-  const { unreadCount, notifications, loading, markAsRead, markAllAsRead } = useNotification();
+  const { unreadCount, notifications, loading, markAsRead, markAllAsRead, fetchNotifications, refreshUnreadCount } = useNotification();
   const { t } = useTranslation();
   const [filter, setFilter] = React.useState<Filter>('all');
+
+  const handleRefresh = React.useCallback(async () => {
+    await Promise.all([fetchNotifications(), refreshUnreadCount()]);
+  }, [fetchNotifications, refreshUnreadCount]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
   const filtered = React.useMemo(() => {
     if (filter === 'unread') return notifications.filter((n) => !n.is_read);
@@ -120,6 +128,14 @@ function NotificationPanel() {
           ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
         />
       )}
     </View>
@@ -188,7 +204,7 @@ export default function HomeScreen() {
         {/* Tab content */}
         {activeTab === 'home' && (
           <View style={styles.content}>
-            <Feed />
+            <Feed onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)} />
           </View>
         )}
         {activeTab === 'friends' && (

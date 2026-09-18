@@ -18,7 +18,8 @@
         "foregroundImage": "./assets/images/S-Logo-Rmbg.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",

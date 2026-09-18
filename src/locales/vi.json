@@ -140,7 +140,43 @@
   },
   "post": {
     "readMore": "Xem thêm",
-    "collapse": "Thu gọn"
+    "collapse": "Thu gọn",
+    "like": "Thích",
+    "comment": "Bình luận",
+    "share": "Chia sẻ",
+    "save": "Lưu",
+    "saved": "Đã lưu",
+    "liked": "Đã thích",
+    "shareToFriend": "Gửi cho bạn bè",
+    "justNow": "vừa xong",
+    "minutesAgo": "{minutes} phút trước",
+    "hoursAgo": "{hours} giờ trước",
+    "daysAgo": "{days} ngày trước"
+  },
+  "postDetail": {
+    "title": "Bài viết",
+    "comments": "Bình luận",
+    "viewCount": "{count} lượt xem",
+    "commentCount": "{count} bình luận",
+    "loadMore": "Xem thêm bình luận",
+    "noComments": "Chưa có bình luận nào.",
+    "commentPlaceholder": "Viết bình luận...",
+    "commentButton": "Đăng bình luận",
+    "reply": "Trả lời",
+    "postAuthorBadge": "Tác giả",
+    "replyingTo": "Đang trả lời @{username}",
+    "cancelReply": "Hủy trả lời",
+    "sharePlaceholder": "Viết mô tả (tùy chọn)...",
+    "shareButton": "Chia sẻ",
+    "cancel": "Hủy",
+    "delete": "Xóa bài viết",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa bài viết này?",
+    "deleted": "Đã xóa bài viết",
+    "shared": "Chia sẻ bài viết thành công!",
+    "commentPosted": "Đăng bình luận thành công!",
+    "sortNewest": "Mới nhất",
+    "sortOldest": "Cũ nhất",
+    "sortRelevant": "Phù hợp nhất"
   },
   "friends": {
     "title": "Bạn bè",
@@ -426,6 +462,14 @@
     "website": "Trang web",
     "birthday": "Sinh nhật",
     "saved": "Đã lưu",
-    "noSavedPosts": "Chưa có bài viết đã lưu"
+    "noSavedPosts": "Chưa có bài viết đã lưu",
+    "validation": {
+      "displayNameRequired": "Vui lòng nhập họ tên",
+      "displayNameMin": "Họ tên phải có ít nhất 3 ký tự",
+      "displayNameMax": "Họ tên không được quá 55 ký tự",
+      "displayNameInvalid": "Họ tên chỉ được chứa chữ cái, chữ số và khoảng trắng",
+      "bioMax": "Giới thiệu không được quá 200 ký tự",
+      "fieldMax": "Trường này không được quá 255 ký tự"
+    }
   }
 }

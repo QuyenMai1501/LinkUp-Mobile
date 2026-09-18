@@ -93,6 +93,7 @@ export interface SendMessageOptions {
   gifUrl?: string;
   sharedPostId?: string;
   replyToMessageId?: string;
+  e2eEncrypted?: boolean;
 }
 
 export interface UserSearchResult {

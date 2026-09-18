@@ -85,15 +85,18 @@ export default function ChatScreen() {
     chatId: chatId ?? null,
     myUserId,
     socket,
+    encryption,
   });
 
   const handleSend = useCallback(
     async (text: string, attachments?: { uri: string; name: string; type: string }[]) => {
       if (attachments && attachments.length > 0 && chatId) {
         let caption = text;
+        let captionEncrypted = false;
         try {
           if (encryption.ready && caption) {
             caption = await encryption.encrypt(caption);
+            captionEncrypted = true;
           }
         } catch {
           // Send unencrypted if encryption fails
@@ -108,6 +111,7 @@ export default function ChatScreen() {
               mediaUri: res.data.file_uri,
               mediaType: res.data.file_type,
               replyToMessageId: i === 0 ? replyingTo?.id : undefined,
+              e2eEncrypted: i === 0 ? captionEncrypted : false,
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -123,14 +127,19 @@ export default function ChatScreen() {
 
       // Text-only message
       let content = text;
+      let encrypted = false;
       try {
         if (encryption.ready) {
           content = await encryption.encrypt(text);
+          encrypted = true;
         }
       } catch {
         // Send unencrypted if encryption fails
       }
-      room.sendMessage(content, { replyToMessageId: replyingTo?.id });
+      room.sendMessage(content, {
+        replyToMessageId: replyingTo?.id,
+        e2eEncrypted: encrypted,
+      });
       setReplyingTo(null);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
