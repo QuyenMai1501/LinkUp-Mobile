@@ -39,7 +39,12 @@ function isVideo(fileType: string): boolean {
   return fileType.startsWith('video/');
 }
 
-function MediaGrid({ media }: { media: FeedMedia[] }) {
+interface MediaGridProps {
+  media: FeedMedia[];
+  onPress?: (index: number) => void;
+}
+
+function MediaGrid({ media, onPress }: MediaGridProps) {
   if (media.length === 0) return null;
 
   const count = Math.min(media.length, 4);
@@ -47,8 +52,9 @@ function MediaGrid({ media }: { media: FeedMedia[] }) {
   return (
     <View style={styles.mediaGrid}>
       {media.slice(0, 4).map((m, idx) => (
-        <View
+        <Pressable
           key={m.id}
+          onPress={() => onPress?.(idx)}
           style={[
             styles.mediaItem,
             count === 1 && styles.mediaSingle,
@@ -58,7 +64,7 @@ function MediaGrid({ media }: { media: FeedMedia[] }) {
             count === 4 && styles.mediaQuarter,
           ]}>
           {isVideo(m.file_type) ? (
-            <VideoPlayer uri={m.file_uri} />
+            <VideoPlayer uri={m.file_uri} interactive={false} />
           ) : (
             <Image
               source={{ uri: m.file_uri }}
@@ -66,7 +72,7 @@ function MediaGrid({ media }: { media: FeedMedia[] }) {
               contentFit="cover"
             />
           )}
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -74,12 +80,25 @@ function MediaGrid({ media }: { media: FeedMedia[] }) {
 
 interface PostCardProps {
   post: FeedPost;
+  onPress?: (postId: string) => void;
+  onContentPress?: () => void;
+  onMediaPress?: (index: number) => void;
   onLike?: (postId: string) => void;
   onSave?: (postId: string) => void;
-  onComment?: (postId: string) => void;
+  onCommentPress?: () => void;
+  onSharePress?: () => void;
 }
 
-export default function PostCard({ post, onLike, onSave, onComment }: PostCardProps) {
+export default function PostCard({
+  post,
+  onPress,
+  onContentPress,
+  onMediaPress,
+  onLike,
+  onSave,
+  onCommentPress,
+  onSharePress,
+}: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
 
@@ -89,10 +108,17 @@ export default function PostCard({ post, onLike, onSave, onComment }: PostCardPr
       ? post.content.slice(0, CONTENT_TRUNCATE_LENGTH) + '...'
       : post.content;
 
+  const handleContentPress = () => {
+    if (needsTruncation) {
+      setExpanded((v) => !v);
+    }
+    onContentPress?.();
+  };
+
   return (
     <ThemedView style={styles.card}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Zone 1: Header — navigate to post detail */}
+      <Pressable style={styles.header} onPress={() => onPress?.(post.id)}>
         <View style={styles.avatarContainer}>
           {post.avatar_uri ? (
             <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
@@ -110,29 +136,29 @@ export default function PostCard({ post, onLike, onSave, onComment }: PostCardPr
             @{post.username} · {formatRelativeTime(post.created_at, t)}
           </ThemedText>
         </View>
-      </View>
+      </Pressable>
 
-      {/* Body */}
-      <View style={styles.body}>
+      {/* Zone 2: Content — toggle read more / collapse */}
+      <Pressable style={styles.body} onPress={handleContentPress}>
         {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
         {post.content ? (
           <View>
             <ThemedText style={styles.content}>{displayContent}</ThemedText>
             {needsTruncation && (
-              <Pressable onPress={() => setExpanded((v) => !v)}>
-                <ThemedText style={styles.toggleBtn}>
-                  {expanded ? t('post.collapse') : t('post.readMore')}
-                </ThemedText>
-              </Pressable>
+              <ThemedText style={styles.toggleBtn}>
+                {expanded ? t('post.collapse') : t('post.readMore')}
+              </ThemedText>
             )}
           </View>
         ) : null}
-      </View>
+      </Pressable>
 
-      {/* Media */}
-      {!post.shared_from_post_id && <MediaGrid media={post.media} />}
+      {/* Zone 3: Media — open media modal */}
+      {!post.shared_from_post_id && (
+        <MediaGrid media={post.media} onPress={onMediaPress} />
+      )}
 
-      {/* Action bar */}
+      {/* Zone 4: Action bar */}
       <View style={styles.actionBar}>
         <Pressable
           style={styles.actionBtn}
@@ -147,14 +173,16 @@ export default function PostCard({ post, onLike, onSave, onComment }: PostCardPr
 
         <Pressable
           style={styles.actionBtn}
-          onPress={() => onComment?.(post.id)}>
+          onPress={onCommentPress}>
           <ThemedText style={styles.actionIcon}>💬</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.comments_count)}
           </ThemedText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={onSharePress}>
           <ThemedText style={styles.actionIcon}>↗️</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.shares_count)}

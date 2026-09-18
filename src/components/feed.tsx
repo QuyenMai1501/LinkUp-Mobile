@@ -9,11 +9,16 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
+import MediaViewer from './media-viewer';
+import CommentSheet from './comment-sheet';
 import { getFeedPosts, reactPost, savePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
 const INITIAL_PAGE_SIZE = 2;
 const PAGE_SIZE = 10;
+
+// Module-level cache: feed posts keyed by ID, for passing to detail screen
+export const feedPostCache = new Map<string, FeedPost>();
 
 async function ensureLikeEmojiId(): Promise<string | undefined> {
   try {
@@ -43,7 +48,11 @@ function SkeletonCard() {
   );
 }
 
-export default function Feed() {
+interface FeedProps {
+  onPostPress?: (postId: string) => void;
+}
+
+export default function Feed({ onPostPress }: FeedProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -53,6 +62,15 @@ export default function Feed() {
   const [hasMore, setHasMore] = useState(true);
   const cursorRef = useRef<string | null>(null);
   const loadingRef = useRef(false);
+
+  // Media modal state
+  const [mediaModalVisible, setMediaModalVisible] = useState(false);
+  const [mediaModalPost, setMediaModalPost] = useState<FeedPost | null>(null);
+  const [mediaModalIndex, setMediaModalIndex] = useState(0);
+
+  // Comment sheet state
+  const [commentSheetVisible, setCommentSheetVisible] = useState(false);
+  const [commentSheetPost, setCommentSheetPost] = useState<FeedPost | null>(null);
 
   const fetchNext = useCallback(async () => {
     if (loadingRef.current) return;
@@ -67,6 +85,10 @@ export default function Feed() {
         const seen = new Set<string>();
         return list.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
       });
+      // Populate cache for detail screen
+      for (const p of res.data) {
+        feedPostCache.set(p.id, p);
+      }
       cursorRef.current = res.next_cursor;
       setHasMore(res.next_cursor !== null);
     } catch (err) {
@@ -90,7 +112,7 @@ export default function Feed() {
 
   const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
-  const handleLike = async (postId: string) => {
+  const handleLike = useCallback(async (postId: string) => {
     const emojiId = await ensureLikeEmojiId();
     if (!emojiId) return;
 
@@ -113,9 +135,9 @@ export default function Feed() {
         ),
       );
     }
-  };
+  }, []);
 
-  const handleSave = async (postId: string) => {
+  const handleSave = useCallback(async (postId: string) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, is_saved: !p.is_saved } : p)),
     );
@@ -127,13 +149,62 @@ export default function Feed() {
         prev.map((p) => (p.id === postId ? { ...p, is_saved: !p.is_saved } : p)),
       );
     }
-  };
+  }, []);
 
   const handleEndReached = () => {
     if (hasMore && !loadingRef.current) {
       fetchNext();
     }
   };
+
+  // Media modal handlers
+  const handleOpenMedia = useCallback((post: FeedPost, index: number) => {
+    setMediaModalPost(post);
+    setMediaModalIndex(index);
+    setMediaModalVisible(true);
+  }, []);
+
+  const handleCloseMedia = useCallback(() => {
+    setMediaModalVisible(false);
+    setMediaModalPost(null);
+    setMediaModalIndex(0);
+  }, []);
+
+  // Comment sheet handlers
+  const handleOpenComments = useCallback((post: FeedPost) => {
+    setCommentSheetPost(post);
+    setCommentSheetVisible(true);
+  }, []);
+
+  const handleCloseComments = useCallback(() => {
+    setCommentSheetVisible(false);
+    setCommentSheetPost(null);
+  }, []);
+
+  // Media modal like/save handlers
+  const handleMediaLike = useCallback(() => {
+    if (mediaModalPost) handleLike(mediaModalPost.id);
+  }, [mediaModalPost, handleLike]);
+
+  const handleMediaSave = useCallback(() => {
+    if (mediaModalPost) handleSave(mediaModalPost.id);
+  }, [mediaModalPost, handleSave]);
+
+  const handleMediaCommentPress = useCallback(() => {
+    setMediaModalVisible(false);
+    if (mediaModalPost) {
+      setCommentSheetPost(mediaModalPost);
+      setCommentSheetVisible(true);
+    }
+  }, [mediaModalPost]);
+
+  const handleMediaSharePress = useCallback(() => {
+    setMediaModalVisible(false);
+    if (mediaModalPost) {
+      setCommentSheetPost(mediaModalPost);
+      setCommentSheetVisible(true);
+    }
+  }, [mediaModalPost]);
 
   if (initialLoading) {
     return (
@@ -163,59 +234,90 @@ export default function Feed() {
   }
 
   return (
-    <FlatList
-      data={posts}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <PostCard
-          post={item}
-          onLike={handleLike}
-          onSave={handleSave}
-          onComment={() => {}}
+    <View style={styles.flex}>
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onPress={onPostPress}
+            onLike={handleLike}
+            onSave={handleSave}
+            onMediaPress={(index) => handleOpenMedia(item, index)}
+            onCommentPress={() => handleOpenComments(item)}
+            onSharePress={() => handleOpenComments(item)}
+          />
+        )}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={1}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+        ListFooterComponent={
+          loading && !initialLoading ? (
+            <View>
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : !hasMore && posts.length > 0 ? (
+            <ThemedText themeColor="textSecondary" style={styles.endMessage}>
+              {t('feed.endOfFeed')}
+            </ThemedText>
+          ) : null
+        }
+        ListEmptyComponent={
+          !initialLoading && !error ? (
+            <View style={styles.centerContent}>
+              <ThemedText style={styles.emptyIcon}>📰</ThemedText>
+              <ThemedText style={styles.emptyTitle}>{t('feed.emptyTitle')}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
+                {t('feed.emptySubtitle')}
+              </ThemedText>
+            </View>
+          ) : null
+        }
+        contentContainerStyle={styles.listContent}
+      />
+
+      {/* Media Viewer Modal */}
+      {mediaModalPost && (
+        <MediaViewer
+          visible={mediaModalVisible}
+          media={mediaModalPost.media}
+          post={mediaModalPost}
+          initialIndex={mediaModalIndex}
+          onClose={handleCloseMedia}
+          onLike={handleMediaLike}
+          onSave={handleMediaSave}
+          onCommentPress={handleMediaCommentPress}
+          onSharePress={handleMediaSharePress}
         />
       )}
-      onEndReached={handleEndReached}
-      onEndReachedThreshold={1}
-      removeClippedSubviews={true}
-      maxToRenderPerBatch={5}
-      windowSize={5}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={theme.primary}
-          colors={[theme.primary]}
+
+      {/* Comment Sheet */}
+      {commentSheetPost && (
+        <CommentSheet
+          visible={commentSheetVisible}
+          postId={commentSheetPost.id}
+          postUserId={commentSheetPost.user_id}
+          onClose={handleCloseComments}
         />
-      }
-      ListFooterComponent={
-        loading && !initialLoading ? (
-          <View>
-            <SkeletonCard />
-            <SkeletonCard />
-          </View>
-        ) : !hasMore && posts.length > 0 ? (
-          <ThemedText themeColor="textSecondary" style={styles.endMessage}>
-            {t('feed.endOfFeed')}
-          </ThemedText>
-        ) : null
-      }
-      ListEmptyComponent={
-        !initialLoading && !error ? (
-          <View style={styles.centerContent}>
-            <ThemedText style={styles.emptyIcon}>📰</ThemedText>
-            <ThemedText style={styles.emptyTitle}>{t('feed.emptyTitle')}</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-              {t('feed.emptySubtitle')}
-            </ThemedText>
-          </View>
-        ) : null
-      }
-      contentContainerStyle={styles.listContent}
-    />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: {
     flex: 1,
     padding: Spacing.md,

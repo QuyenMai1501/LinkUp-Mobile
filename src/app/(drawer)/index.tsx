@@ -204,7 +204,7 @@ export default function HomeScreen() {
         {/* Tab content */}
         {activeTab === 'home' && (
           <View style={styles.content}>
-            <Feed />
+            <Feed onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)} />
           </View>
         )}
         {activeTab === 'friends' && (

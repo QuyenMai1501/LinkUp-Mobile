@@ -1,5 +1,12 @@
 import { request } from './client';
-import type { FeedResponse, EmojiItem } from '../types/post';
+import type {
+  FeedPost,
+  FeedResponse,
+  EmojiItem,
+  CommentListResponse,
+  CreateCommentResponse,
+  CommentSort,
+} from '../types/post';
 
 export const getFeedPosts = (cursor: string | null, pageSize = 10, filter?: string) => {
   const params = new URLSearchParams();
@@ -43,5 +50,41 @@ export const pinPost = (postId: string) =>
 
 export const unpinPost = (postId: string) =>
   request<{ message: string }>(`/posts/${postId}/pin`, {
+    method: 'DELETE',
+  });
+
+export const getPostDetail = (postId: string) =>
+  request<{ data: FeedPost }>(`/posts/${postId}`);
+
+export const getComments = (
+  postId: string,
+  page: number,
+  pageSize: number,
+  sort: CommentSort = 'newest',
+) =>
+  request<CommentListResponse>(
+    `/posts/${postId}/comments?page=${page}&page_size=${pageSize}&sort=${sort}`,
+  );
+
+export const createComment = (postId: string, content: string, parentId?: string) =>
+  request<CreateCommentResponse>(`/posts/${postId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content, parent_id: parentId }),
+  });
+
+export const toggleCommentReaction = (commentId: string, emojiId: string) =>
+  request<{ action: string }>(`/posts/comments/${commentId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji_id: emojiId }),
+  });
+
+export const sharePost = (postId: string, content?: string) =>
+  request<{ message: string }>(`/posts/${postId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({ content: content ?? '' }),
+  });
+
+export const deletePost = (postId: string) =>
+  request<{ message: string }>(`/posts/${postId}`, {
     method: 'DELETE',
   });

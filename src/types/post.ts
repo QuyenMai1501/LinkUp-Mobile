@@ -49,3 +49,33 @@ export interface EmojiItem {
   code: string;
   image_uri: string;
 }
+
+export interface CommentItem {
+  id: string;
+  user_id: string;
+  post_id: string;
+  parent_id?: string;
+  username: string;
+  display_name: string;
+  avatar_uri: string;
+  content: string;
+  status: string;
+  likes_count: number;
+  is_liked: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CommentListResponse {
+  page: number;
+  page_size: number;
+  total: number;
+  data: CommentItem[];
+}
+
+export interface CreateCommentResponse {
+  message: string;
+  data: CommentItem[];
+}
+
+export type CommentSort = 'newest' | 'oldest' | 'relevant';
