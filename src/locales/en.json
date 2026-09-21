@@ -492,5 +492,22 @@
     "confirmTitle": "Publish post?",
     "confirmMessage": "Are you sure you want to publish this post?",
     "success": "Post created successfully!"
+  },
+  "search": {
+    "title": "Search results for \"{{keyword}}\"",
+    "placeholder": "Search people, posts, hashtags...",
+    "tabAll": "All",
+    "tabUsers": "People",
+    "tabPosts": "Posts",
+    "tabHashtags": "Hashtags",
+    "tabCommunities": "Communities",
+    "peopleSection": "People ({{count}})",
+    "postsSection": "Posts ({{count}})",
+    "hashtagsSection": "Hashtags ({{count}})",
+    "communitiesSection": "Communities ({{count}})",
+    "noResults": "No results found for",
+    "emptyHint": "Search for people, posts, hashtags or communities",
+    "posts": "posts",
+    "members": "members"
   }
 }

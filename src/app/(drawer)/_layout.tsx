@@ -25,6 +25,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="friends" />
       <Drawer.Screen name="communities" />
       <Drawer.Screen name="saved" />
+      <Drawer.Screen name="search" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="settings" />
       <Drawer.Screen name="profile" />
       <Drawer.Screen name="profile/[userId]" options={{ headerShown: false, swipeEnabled: false }} />

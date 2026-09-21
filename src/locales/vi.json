@@ -492,5 +492,22 @@
     "confirmTitle": "Đăng bài viết?",
     "confirmMessage": "Bạn có chắc muốn đăng bài viết này?",
     "success": "Đăng bài thành công!"
+  },
+  "search": {
+    "title": "Kết quả tìm kiếm cho \"{{keyword}}\"",
+    "placeholder": "Tìm kiếm người, bài viết, hashtag...",
+    "tabAll": "Tất cả",
+    "tabUsers": "Người dùng",
+    "tabPosts": "Bài viết",
+    "tabHashtags": "Hashtag",
+    "tabCommunities": "Cộng đồng",
+    "peopleSection": "Người dùng ({{count}})",
+    "postsSection": "Bài viết ({{count}})",
+    "hashtagsSection": "Hashtag ({{count}})",
+    "communitiesSection": "Cộng đồng ({{count}})",
+    "noResults": "Không tìm thấy kết quả cho",
+    "emptyHint": "Tìm kiếm người, bài viết, hashtag hoặc cộng đồng",
+    "posts": "bài viết",
+    "members": "thành viên"
   }
 }

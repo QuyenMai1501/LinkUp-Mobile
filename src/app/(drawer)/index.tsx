@@ -177,7 +177,7 @@ export default function HomeScreen() {
             <Pressable style={styles.actionBtn} onPress={() => setComposerVisible(true)}>
               <ThemedText style={[styles.actionIcon, { color: colors.text }]}>➕</ThemedText>
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => {}}>
+            <Pressable style={styles.actionBtn} onPress={() => (router as any).push('/(drawer)/search')}>
               <ThemedText style={[styles.actionIcon, { color: colors.text }]}>🔍</ThemedText>
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={() => (router as any).push('/(drawer)/messages')}>
