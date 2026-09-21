@@ -1,10 +1,13 @@
-import { request } from './client';
+import { API_BASE, request } from './client';
+import { tokenStorage } from './token-storage';
 import type {
   FeedPost,
   FeedResponse,
   EmojiItem,
   CommentListResponse,
   CreateCommentResponse,
+  CreatePostInput,
+  CreatePostResponse,
   CommentSort,
 } from '../types/post';
 
@@ -88,3 +91,33 @@ export const deletePost = (postId: string) =>
   request<{ message: string }>(`/posts/${postId}`, {
     method: 'DELETE',
   });
+
+export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId }: CreatePostInput): Promise<CreatePostResponse> => {
+  const token = await tokenStorage.getAccessToken();
+  const formData = new FormData();
+
+  if (title) formData.append('title', title);
+  if (content) formData.append('content', content);
+  if (status) formData.append('status', status);
+  if (gifUrl) formData.append('gif_url', gifUrl);
+  if (communityId) formData.append('community_id', communityId);
+
+  for (const file of mediaUris) {
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    formData.append('media', blob, file.name);
+  }
+
+  const res = await fetch(`${API_BASE}/posts`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
+  }
+
+  return (await res.json()) as CreatePostResponse;
+};

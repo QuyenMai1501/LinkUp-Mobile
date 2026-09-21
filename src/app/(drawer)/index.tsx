@@ -14,6 +14,7 @@ import NotificationItem from '@/components/notification-item';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import Feed from '@/components/feed';
+import PostComposer from '@/components/post-composer';
 import FriendsListPanel from '@/components/friends-list-panel';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -22,6 +23,7 @@ import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import type { FeedPost } from '@/types/post';
 
 type TabKey = 'home' | 'friends' | 'notifications';
 type Filter = 'all' | 'unread' | 'read';
@@ -148,10 +150,17 @@ export default function HomeScreen() {
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
+  const [composerVisible, setComposerVisible] = React.useState(false);
+  const [feedKey, setFeedKey] = React.useState(0);
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
   };
+
+  const handlePostCreated = React.useCallback((post: FeedPost) => {
+    setComposerVisible(false);
+    setFeedKey((k) => k + 1);
+  }, []);
 
   return (
     <ThemedView style={styles.container}>
@@ -165,7 +174,7 @@ export default function HomeScreen() {
           </Pressable>
           <ThemedText style={[styles.brandName, { color: colors.primary }]}>LinkUp</ThemedText>
           <View style={styles.headerActions}>
-            <Pressable style={styles.actionBtn} onPress={() => {}}>
+            <Pressable style={styles.actionBtn} onPress={() => setComposerVisible(true)}>
               <ThemedText style={[styles.actionIcon, { color: colors.text }]}>➕</ThemedText>
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={() => {}}>
@@ -204,7 +213,7 @@ export default function HomeScreen() {
         {/* Tab content */}
         {activeTab === 'home' && (
           <View style={styles.content}>
-            <Feed onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)} />
+            <Feed key={feedKey} onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)} onOpenComposer={() => setComposerVisible(true)} />
           </View>
         )}
         {activeTab === 'friends' && (
@@ -218,6 +227,13 @@ export default function HomeScreen() {
           </View>
         )}
       </SafeAreaView>
+
+      {/* Post Composer Modal */}
+      <PostComposer
+        visible={composerVisible}
+        onClose={() => setComposerVisible(false)}
+        onPosted={handlePostCreated}
+      />
     </ThemedView>
   );
 }

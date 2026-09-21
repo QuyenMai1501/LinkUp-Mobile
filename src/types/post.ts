@@ -79,3 +79,18 @@ export interface CreateCommentResponse {
 }
 
 export type CommentSort = 'newest' | 'oldest' | 'relevant';
+
+export type PostStatus = 'public' | 'friend' | 'private' | 'hidden';
+
+export interface CreatePostInput {
+  title: string;
+  content: string;
+  status: PostStatus;
+  mediaUris?: { uri: string; type: string; name: string }[];
+  gifUrl?: string;
+  communityId?: string;
+}
+
+export interface CreatePostResponse {
+  data: FeedPost;
+}

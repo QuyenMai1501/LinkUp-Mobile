@@ -5,7 +5,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { Colors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
+import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
@@ -50,10 +52,13 @@ function SkeletonCard() {
 
 interface FeedProps {
   onPostPress?: (postId: string) => void;
+  onOpenComposer?: () => void;
 }
 
-export default function Feed({ onPostPress }: FeedProps) {
+export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   const theme = useTheme();
+  const { scheme } = useThemeMode();
+  const colors = Colors[scheme];
   const { t } = useTranslation();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -249,6 +254,15 @@ export default function Feed({ onPostPress }: FeedProps) {
             onSharePress={() => handleOpenComments(item)}
           />
         )}
+        ListHeaderComponent={
+          <Pressable
+            style={[styles.composerTrigger, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={onOpenComposer}>
+            <ThemedText themeColor="textSecondary" style={styles.composerPlaceholder}>
+              {t('composer.placeholder')}
+            </ThemedText>
+          </Pressable>
+        }
         onEndReached={handleEndReached}
         onEndReachedThreshold={1}
         removeClippedSubviews={true}
@@ -358,6 +372,19 @@ const styles = StyleSheet.create({
   endMessage: {
     textAlign: 'center',
     paddingVertical: Spacing.lg,
+    fontSize: 14,
+  },
+  composerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  composerPlaceholder: {
+    ...Typography.body,
     fontSize: 14,
   },
   skeleton: {

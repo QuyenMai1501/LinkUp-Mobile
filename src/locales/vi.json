@@ -88,7 +88,7 @@
       "subtitle": "Kiểm tra email của bạn",
       "message": "Chúng tôi đã gửi mã xác minh đến",
       "resendCode": "Gửi lại mã",
-      "resendCountdown": "Gửi lại sau {{seconds}}s",
+      "resendCountdown": "Gửi lại sau {seconds}s",
       "verifyButton": "Xác minh",
       "codeRequired": "Vui lòng nhập mã xác minh",
       "invalidCode": "Mã xác minh không hợp lệ",
@@ -107,7 +107,7 @@
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
     "logoutConfirm": "Bạn có chắc muốn đăng xuất?",
-    "version": "Phiên bản {{version}}"
+    "version": "Phiên bản {version}"
   },
   "home": {
     "tagline": "Mạng xã hội kết nối cộng đồng Việt",
@@ -206,8 +206,8 @@
       "sentRequest": "đã gửi lời mời"
     },
     "mutual": {
-      "count": "{{count}} bạn chung",
-      "more": "và {{count}} người khác"
+      "count": "{count} bạn chung",
+      "more": "và {count} người khác"
     },
     "empty": {
       "noFriends": "Chưa có bạn bè",
@@ -221,9 +221,9 @@
       "offline": "Ngoại tuyến"
     },
     "confirm": {
-      "removeFriend": "Bạn có chắc muốn hủy kết bạn với {{name}}?",
-      "blockUser": "Bạn có chắc muốn chặn {{name}}?",
-      "unblockUser": "Bạn có chắc muốn bỏ chặn {{name}}?"
+      "removeFriend": "Bạn có chắc muốn hủy kết bạn với {name}?",
+      "blockUser": "Bạn có chắc muốn chặn {name}?",
+      "unblockUser": "Bạn có chắc muốn bỏ chặn {name}?"
     }
   },
   "notifications": {
@@ -244,11 +244,11 @@
     },
     "time": {
       "justNow": "vừa xong",
-      "minutesAgo": "{{count}} phút trước",
-      "hoursAgo": "{{count}} giờ trước",
-      "daysAgo": "{{count}} ngày trước",
-      "weeksAgo": "{{count}} tuần trước",
-      "monthsAgo": "{{count}} tháng trước"
+      "minutesAgo": "{count} phút trước",
+      "hoursAgo": "{count} giờ trước",
+      "daysAgo": "{count} ngày trước",
+      "weeksAgo": "{count} tuần trước",
+      "monthsAgo": "{count} tháng trước"
     }
   },
   "chat": {
@@ -258,7 +258,7 @@
     "typing": "đang nhập...",
     "online": "Trực tuyến",
     "offline": "Ngoại tuyến",
-    "lastSeen": "Hoạt động {{time}}",
+    "lastSeen": "Hoạt động {time}",
     "noMessages": "Chưa có tin nhắn",
     "noChats": "Chưa có cuộc trò chuyện",
     "noConversations": "Chưa có cuộc trò chuyện nào",
@@ -471,5 +471,26 @@
       "bioMax": "Giới thiệu không được quá 200 ký tự",
       "fieldMax": "Trường này không được quá 255 ký tự"
     }
+  },
+  "composer": {
+    "placeholder": "Bạn đang nghĩ gì thế?",
+    "titlePlaceholder": "Tiêu đề bài viết...",
+    "contentPlaceholder": "Chia sẻ điều gì đó với mọi người...",
+    "post": "Đăng bài",
+    "cancel": "Hủy",
+    "media": "Ảnh/video",
+    "emoji": "Biểu tượng cảm xúc",
+    "privacy": {
+      "public": "Công khai",
+      "friend": "Bạn bè",
+      "private": "Riêng tư"
+    },
+    "charCount": "{count}/{max}",
+    "errorTitleLength": "Tiêu đề phải từ 5 đến 150 ký tự",
+    "errorContentRequired": "Vui lòng nhập nội dung bài viết",
+    "errorMaxLength": "Nội dung không được vượt quá 5000 ký tự",
+    "confirmTitle": "Đăng bài viết?",
+    "confirmMessage": "Bạn có chắc muốn đăng bài viết này?",
+    "success": "Đăng bài thành công!"
   }
 }

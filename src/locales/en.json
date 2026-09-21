@@ -471,5 +471,26 @@
       "bioMax": "Bio must be at most 200 characters",
       "fieldMax": "This field must be at most 255 characters"
     }
+  },
+  "composer": {
+    "placeholder": "What's on your mind?",
+    "titlePlaceholder": "Post title...",
+    "contentPlaceholder": "Share something with everyone...",
+    "post": "Post",
+    "cancel": "Cancel",
+    "media": "Photo/Video",
+    "emoji": "Emoji",
+    "privacy": {
+      "public": "Public",
+      "friend": "Friends",
+      "private": "Private"
+    },
+    "charCount": "{count}/{max}",
+    "errorTitleLength": "Title must be between 5 and 150 characters",
+    "errorContentRequired": "Please enter post content",
+    "errorMaxLength": "Content cannot exceed 5000 characters",
+    "confirmTitle": "Publish post?",
+    "confirmMessage": "Are you sure you want to publish this post?",
+    "success": "Post created successfully!"
   }
 }
