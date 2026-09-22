@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
@@ -14,7 +14,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
 import MediaViewer from './media-viewer';
 import CommentSheet from './comment-sheet';
-import { getFeedPosts, reactPost, savePost, getEmojis } from '../api/posts';
+import { getFeedPosts, reactPost, savePost, sharePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
 const INITIAL_PAGE_SIZE = 2;
@@ -187,6 +187,16 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     setCommentSheetPost(null);
   }, []);
 
+  // Share handler
+  const handleShare = useCallback(async (post: FeedPost) => {
+    try {
+      await sharePost(post.id);
+      Alert.alert(t('postDetail.shared'));
+    } catch {
+      Alert.alert(t('common.error'), t('common.error'));
+    }
+  }, [t]);
+
   // Media modal like/save handlers
   const handleMediaLike = useCallback(() => {
     if (mediaModalPost) handleLike(mediaModalPost.id);
@@ -207,10 +217,9 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   const handleMediaSharePress = useCallback(() => {
     setMediaModalVisible(false);
     if (mediaModalPost) {
-      setCommentSheetPost(mediaModalPost);
-      setCommentSheetVisible(true);
+      handleShare(mediaModalPost);
     }
-  }, [mediaModalPost]);
+  }, [mediaModalPost, handleShare]);
 
   if (initialLoading) {
     return (
@@ -252,7 +261,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
             onSave={handleSave}
             onMediaPress={(index) => handleOpenMedia(item, index)}
             onCommentPress={() => handleOpenComments(item)}
-            onSharePress={() => handleOpenComments(item)}
+            onSharePress={() => handleShare(item)}
           />
         )}
         ListHeaderComponent={
@@ -264,7 +273,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
             </ThemedText>
           </Pressable>
         }
-        onEndReached={handleEndReached}
+        onEndReached={commentSheetVisible ? undefined : handleEndReached}
         onEndReachedThreshold={1}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
