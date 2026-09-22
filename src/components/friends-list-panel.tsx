@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import FriendCard from '@/components/friend-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -111,7 +112,7 @@ export default function FriendsListPanel() {
   if (error && friends.length === 0) {
     return (
       <View style={styles.center}>
-        <ThemedText style={styles.emptyIcon}>⚠️</ThemedText>
+        <Icon name="warning" size={48} color="#FB8C00" />
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
           {error}
         </ThemedText>
@@ -130,7 +131,7 @@ export default function FriendsListPanel() {
   if (friends.length === 0) {
     return (
       <View style={styles.center}>
-        <ThemedText style={styles.emptyIcon}>👥</ThemedText>
+        <Icon name="people" size={48} color={theme.textSecondary} />
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
           {t('friends.empty.noFriends')}
         </ThemedText>
@@ -148,7 +149,7 @@ export default function FriendsListPanel() {
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
             actionLabel={t('friends.actions.removeFriend')}
-            actionIcon="✕"
+            actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
           />
@@ -259,10 +260,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...Typography.body,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    lineHeight: 56,
   },
   emptyText: {
     ...Typography.body,

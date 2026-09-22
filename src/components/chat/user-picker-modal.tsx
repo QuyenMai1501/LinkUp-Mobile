@@ -3,6 +3,7 @@ import { FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-n
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -116,7 +117,7 @@ export function UserPickerModal({ visible, onClose, onPick }: Props) {
         </View>
 
         <View style={[styles.searchWrap, { backgroundColor: theme.bgSecondary }]}>
-          <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+          <Icon name="search" size={14} color={theme.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
             value={keyword}
@@ -127,7 +128,7 @@ export function UserPickerModal({ visible, onClose, onPick }: Props) {
           />
           {keyword.length > 0 && (
             <Pressable onPress={() => handleChangeText('')} hitSlop={8}>
-              <ThemedText style={styles.clearIcon}>✕</ThemedText>
+              <Icon name="close" size={14} color={theme.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -191,18 +192,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: Spacing.xs,
   },
-  searchIcon: {
-    fontSize: 14,
-  },
   searchInput: {
     flex: 1,
     ...Typography.body,
     paddingVertical: Spacing.sm,
     fontSize: 14,
-  },
-  clearIcon: {
-    fontSize: 14,
-    opacity: 0.5,
   },
   center: {
     flex: 1,

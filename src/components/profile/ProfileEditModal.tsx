@@ -12,6 +12,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -106,7 +107,7 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
       <ThemedView style={[styles.modal, { backgroundColor: theme.background, borderColor: theme.border }]}>
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.closeBtn}>
-              <ThemedText style={styles.closeIcon}>✕</ThemedText>
+              <Icon name="close" size={18} />
             </Pressable>
             <ThemedText style={styles.title}>{t('profile.editProfile')}</ThemedText>
             <View style={{ width: 32 }} />
@@ -235,7 +236,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   closeBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  closeIcon: { fontSize: 18, fontWeight: '700' },
   title: { ...Typography.h2, fontSize: 16 },
   keyboardView: { flex: 1 },
   scroll: { padding: Spacing.md },

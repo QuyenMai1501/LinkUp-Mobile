@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
@@ -14,17 +16,17 @@ import { useTranslation } from '@/hooks/useTranslation';
 type NavItem = {
   key: string;
   label: string;
-  icon: string;
+  icon: IconName;
   href: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'home', icon: '🏠', href: 'index' },
-  { key: 'friends', label: 'friends', icon: '👥', href: 'friends' },
-  { key: 'communities', label: 'community', icon: '🌐', href: 'communities' },
-  { key: 'saved', label: 'saved', icon: '🔖', href: 'saved' },
-  { key: 'profile', label: 'profile', icon: '👤', href: 'profile' },
-  { key: 'settings', label: 'settings', icon: '⚙️', href: 'settings' },
+  { key: 'home', label: 'home', icon: 'home', href: 'index' },
+  { key: 'friends', label: 'friends', icon: 'people', href: 'friends' },
+  { key: 'communities', label: 'community', icon: 'globe', href: 'communities' },
+  { key: 'saved', label: 'saved', icon: 'bookmark', href: 'saved' },
+  { key: 'profile', label: 'profile', icon: 'person', href: 'profile' },
+  { key: 'settings', label: 'settings', icon: 'settings', href: 'settings' },
 ];
 
 interface DrawerContentProps {
@@ -72,7 +74,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
                     active && { backgroundColor: colors.primaryLight },
                     pressed && { opacity: 0.7 },
                   ]}>
-                  <ThemedText style={styles.navIcon}>{item.icon}</ThemedText>
+                  <Icon name={item.icon} size={20} color={active ? colors.primary : colors.text} />
                   <ThemedText
                     style={[styles.navLabel, active && { color: colors.primary, fontWeight: '700' }]}>
                     {t(`sidebar.${item.label}`)}
@@ -122,7 +124,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
               { backgroundColor: colors.danger },
               pressed && { opacity: 0.7 },
             ]}>
-            <ThemedText style={styles.logoutIcon}>🚪</ThemedText>
+            <Icon name="logout" size={20} color="#FFFFFF" />
             <ThemedText style={styles.logoutLabel}>{t('sidebar.logout')}</ThemedText>
           </Pressable>
         </View>
@@ -171,11 +173,6 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.sm,
     borderRadius: Radius.md,
   },
-  navIcon: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
-  },
   navLabel: {
     ...Typography.body,
     fontSize: 15,
@@ -223,11 +220,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     marginTop: Spacing.md,
     borderRadius: Radius.md,
-  },
-  logoutIcon: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
   },
   logoutLabel: {
     ...Typography.body,

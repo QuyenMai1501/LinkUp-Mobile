@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { EmojiImage } from '@/components/chat/emoji-image';
 import { MessageMedia } from '@/components/chat/message-media';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -48,7 +49,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
       <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
         <View style={[styles.bubble, { backgroundColor: theme.bgSecondary }]}>
           <ThemedText themeColor="textSecondary" style={styles.deletedText}>
-            🔒 {t('chat.undecryptable')}
+            {t('chat.undecryptable')}
           </ThemedText>
         </View>
       </View>
@@ -109,11 +110,10 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
 
         {showTime && (
           <View style={styles.timeRow}>
-            {isPinned && <ThemedText style={styles.pinIcon}>📌</ThemedText>}
+            {isPinned && <Icon name="pin" size={10} color={isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary} />}
             <ThemedText
               style={[styles.time, { color: isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
               {formatChatTime(message.created_at, t)}
-              {message.e2e_version === 1 ? ' 🔒' : ''}
             </ThemedText>
           </View>
         )}
@@ -192,9 +192,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 4,
-  },
-  pinIcon: {
-    fontSize: 10,
   },
   time: {
     ...Typography.caption,

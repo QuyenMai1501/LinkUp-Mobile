@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -29,23 +31,23 @@ function formatRelativeTime(dateStr: string, t: (key: string, params?: Record<st
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-function getIconEmoji(type: NotificationType): string {
+function getNotificationIcon(type: NotificationType): IconName {
   switch (type) {
     case 'like':
-      return '❤️';
+      return 'heartFilled';
     case 'comment':
-      return '💬';
+      return 'chat';
     case 'share':
-      return '↗️';
+      return 'share';
     case 'follow':
-      return '👤';
+      return 'person';
     case 'message':
-      return '📨';
+      return 'mailOpen';
     case 'friend_request':
     case 'friend_accepted':
-      return '👥';
+      return 'people';
     case 'voice_call':
-      return '📞';
+      return 'call';
     case 'community_join_request':
     case 'community_join_approved':
     case 'community_join_rejected':
@@ -56,15 +58,15 @@ function getIconEmoji(type: NotificationType): string {
     case 'community_invite_code_used':
     case 'community_invitation_received':
     case 'community_invitation_accepted':
-      return '🌐';
+      return 'globe';
     case 'media_approved':
-      return '✅';
+      return 'checkCircle';
     case 'media_rejected':
-      return '❌';
+      return 'xCircle';
     case 'media_flagged':
-      return '⚠️';
+      return 'warning';
     default:
-      return '🔔';
+      return 'bell';
   }
 }
 
@@ -99,7 +101,7 @@ function getIconColor(type: NotificationType): string {
 export default function NotificationItem({ item, onPress }: NotificationItemProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const iconEmoji = getIconEmoji(item.type);
+  const iconEmoji = getNotificationIcon(item.type);
   const iconColor = getIconColor(item.type);
 
   return (
@@ -121,7 +123,7 @@ export default function NotificationItem({ item, onPress }: NotificationItemProp
             contentFit="cover"
           />
         ) : (
-          <ThemedText style={styles.iconEmoji}>{iconEmoji}</ThemedText>
+          <Icon name={iconEmoji} size={18} color={iconColor} />
         )}
       </View>
 
@@ -176,9 +178,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-  },
-  iconEmoji: {
-    fontSize: 18,
   },
   body: {
     flex: 1,

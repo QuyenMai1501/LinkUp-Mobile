@@ -16,6 +16,7 @@ import { useChatSocket } from '@/hooks/useChatSocket';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { listChats, createDirectChat } from '@/api/chat';
 import { Spacing, Typography } from '@/constants/theme';
+import { Icon } from '@/components/ui/icon';
 import type { ChatConversation } from '@/types/chat';
 
 export default function MessagesScreen() {
@@ -112,17 +113,17 @@ export default function MessagesScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Pressable onPress={openDrawer} style={styles.actionBtn}>
-            <ThemedText style={[styles.actionIcon, { color: colors.text }]}>☰</ThemedText>
+            <Icon name="menu" size={20} color={colors.text} />
           </Pressable>
           <ThemedText style={[styles.title, { color: colors.text }]}>{t('chat.title')}</ThemedText>
           <Pressable onPress={() => setPickerOpen(true)} style={[styles.newChatBtn, { backgroundColor: colors.primary }]}>
-            <ThemedText style={styles.newChatIcon}>+</ThemedText>
+            <Icon name="add" size={20} color="#FFF" />
           </Pressable>
         </View>
 
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: theme.bgSecondary }]}>
-        <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+        <Icon name="search" size={16} color={theme.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
           value={filter}
@@ -132,7 +133,7 @@ export default function MessagesScreen() {
         />
         {filter.length > 0 && (
           <Pressable onPress={() => setFilter('')} hitSlop={8}>
-            <ThemedText style={styles.clearIcon}>✕</ThemedText>
+            <Icon name="close" size={16} color={theme.textSecondary} />
           </Pressable>
         )}
       </View>
@@ -144,7 +145,7 @@ export default function MessagesScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>💬</ThemedText>
+          <Icon name="chat" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary">
             {filter ? t('chat.noResults') : t('chat.noConversations')}
           </ThemedText>
@@ -207,9 +208,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionIcon: {
-    fontSize: 18,
-  },
   title: {
     ...Typography.h2,
     flex: 1,
@@ -221,12 +219,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newChatIcon: {
-    fontSize: 20,
-    color: '#FFF',
-    fontWeight: '600',
-    lineHeight: 22,
-  },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,27 +228,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: Spacing.xs,
   },
-  searchIcon: {
-    fontSize: 14,
-  },
   searchInput: {
     flex: 1,
     ...Typography.body,
     paddingVertical: Spacing.sm,
     fontSize: 14,
   },
-  clearIcon: {
-    fontSize: 14,
-    opacity: 0.5,
-  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-  },
-  emptyIcon: {
-    fontSize: 48,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

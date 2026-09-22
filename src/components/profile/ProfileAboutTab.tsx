@@ -2,7 +2,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ViewProfileResponse } from '@/types/profile';
 
@@ -27,6 +29,7 @@ interface InfoItem {
 }
 
 export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
+  const theme = useTheme();
   const { t } = useTranslation();
 
   const infoItems: InfoItem[] = [];
@@ -50,7 +53,7 @@ export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
   if (!profile.bio && infoItems.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <ThemedText style={styles.emptyIcon}>📝</ThemedText>
+        <Icon name="document" size={48} color={theme.textSecondary} />
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
           {t('profile.notFound')}
         </ThemedText>
@@ -103,6 +106,5 @@ const styles = StyleSheet.create({
   infoLabel: { ...Typography.caption },
   infoValue: { ...Typography.body },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', padding: Spacing.xl * 2, gap: Spacing.md },
-  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
 });

@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -120,7 +121,7 @@ export function ProfileHeader({
         )}
         {isSelf && (
           <View style={styles.coverCameraBadge}>
-            <ThemedText style={styles.cameraIcon}>📷</ThemedText>
+            <Icon name="camera" size={14} color="#FFFFFF" />
           </View>
         )}
       </Pressable>
@@ -140,7 +141,7 @@ export function ProfileHeader({
           )}
           {isSelf && (
             <View style={styles.avatarCameraBadge}>
-              <ThemedText style={styles.cameraIconSmall}>📷</ThemedText>
+              <Icon name="camera" size={12} color="#FFFFFF" />
             </View>
           )}
         </Pressable>
@@ -249,7 +250,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraIcon: { fontSize: 14 },
   body: {
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
@@ -286,7 +286,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraIconSmall: { fontSize: 12 },
   menuOverlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 99,

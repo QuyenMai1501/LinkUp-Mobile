@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -42,7 +43,7 @@ export function MessageMedia({ message, onPress }: Props) {
     return (
       <Pressable onPress={onPress} style={styles.videoWrap}>
         <View style={[styles.videoPlaceholder, { backgroundColor: theme.bgSecondary }]}>
-          <ThemedText style={[styles.videoIcon, { color: theme.textSecondary }]}>▶</ThemedText>
+          <Icon name="play" size={40} color={theme.textSecondary} />
         </View>
       </Pressable>
     );
@@ -95,9 +96,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  videoIcon: {
-    fontSize: 40,
   },
   imageWrap: {
     borderRadius: Radius.md,

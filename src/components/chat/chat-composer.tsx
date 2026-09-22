@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiPicker } from '@/components/chat/emoji-picker';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -82,7 +83,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
         <View style={[styles.replyBar, { backgroundColor: theme.bgSecondary, borderLeftColor: theme.primary }]}>
           <View style={styles.replyContent}>
             <View style={styles.replyLabel}>
-              <ThemedText style={[styles.replyIcon]}>↩️</ThemedText>
+              <Icon name="reply" size={12} color={theme.textSecondary} />
               <ThemedText style={[styles.replyName, { color: theme.primary }]} numberOfLines={1}>
                 {replyingTo.sender_name || t('chat.unknown')}
               </ThemedText>
@@ -92,7 +93,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
             </ThemedText>
           </View>
           <Pressable onPress={onClearReply} hitSlop={8} style={styles.replyCancel}>
-            <ThemedText style={[styles.replyCancelIcon, { color: theme.textSecondary }]}>✕</ThemedText>
+            <Icon name="close" size={14} color={theme.textSecondary} />
           </Pressable>
         </View>
       )}
@@ -104,7 +105,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
             <View key={index} style={styles.attachmentThumb}>
               {att.type.startsWith('video/') ? (
                 <View style={[styles.videoThumb, { backgroundColor: theme.bg }]}>
-                  <ThemedText style={[styles.videoThumbIcon, { color: theme.textSecondary }]}>▶</ThemedText>
+                  <Icon name="play" size={20} color={theme.textSecondary} />
                 </View>
               ) : (
                 <Image source={{ uri: att.uri }} style={styles.attachmentImage} />
@@ -112,7 +113,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
               <Pressable
                 style={[styles.attachmentRemove, { backgroundColor: theme.danger }]}
                 onPress={() => handleRemoveAttachment(index)}>
-                <ThemedText style={styles.attachmentRemoveIcon}>✕</ThemedText>
+                <Icon name="close" size={10} color="#FFF" />
               </Pressable>
             </View>
           ))}
@@ -124,14 +125,14 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
         <Pressable
           onPress={handlePickImage}
           style={styles.emojiBtn}>
-          <ThemedText style={styles.emojiBtnIcon}>📎</ThemedText>
+          <Icon name="attach" size={20} color={theme.textSecondary} />
         </Pressable>
 
         {/* Emoji button */}
         <Pressable
           onPress={() => setEmojiOpen((prev) => !prev)}
           style={[styles.emojiBtn, emojiOpen && { backgroundColor: theme.bgSecondary }]}>
-          <ThemedText style={styles.emojiBtnIcon}>😊</ThemedText>
+          <Icon name="smile" size={20} color={theme.textSecondary} />
         </Pressable>
 
         <TextInput
@@ -186,9 +187,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  replyIcon: {
-    fontSize: 12,
-  },
   replyName: {
     fontSize: 12,
     fontWeight: '600',
@@ -198,9 +196,6 @@ const styles = StyleSheet.create({
   },
   replyCancel: {
     padding: Spacing.xs,
-  },
-  replyCancelIcon: {
-    fontSize: 14,
   },
   inputRow: {
     flexDirection: 'row',
@@ -215,9 +210,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emojiBtnIcon: {
-    fontSize: 20,
   },
   input: {
     flex: 1,
@@ -270,9 +262,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  videoThumbIcon: {
-    fontSize: 20,
-  },
   attachmentRemove: {
     position: 'absolute',
     top: 2,
@@ -282,10 +271,5 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  attachmentRemoveIcon: {
-    fontSize: 10,
-    color: '#FFF',
-    fontWeight: '600',
   },
 });

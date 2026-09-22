@@ -3,6 +3,7 @@ import { TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } fro
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { deactivateAccount } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/auth-context';
@@ -51,7 +52,7 @@ export default function DeactivateAccount() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.warningBox, { backgroundColor: colors.dangerLight }]}>
-        <ThemedText style={styles.warningIcon}>⚠️</ThemedText>
+        <Icon name="warning" size={20} color="#FB8C00" />
         <ThemedText style={styles.warningText}>
           {t('settings.deactivate.warning')}
         </ThemedText>
@@ -96,7 +97,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     alignItems: 'flex-start',
   },
-  warningIcon: { fontSize: 20 },
   warningText: { flex: 1, fontSize: 14, lineHeight: 20 },
   field: { gap: Spacing.xs },
   label: { fontSize: 14, fontWeight: '600' },

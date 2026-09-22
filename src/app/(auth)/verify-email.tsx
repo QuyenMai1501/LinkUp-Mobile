@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { verifyEmail, resendVerification, decodeToken } from '@/api/auth';
 import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -151,7 +152,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'verifying' && (
                 <>
-                  <ThemedText style={styles.icon}>⏳</ThemedText>
+                  <View style={styles.iconWrap}><Icon name="hourglass" size={48} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.title')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {t('common.loading')}
@@ -161,7 +162,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'pending' && (
                 <>
-                  <ThemedText style={styles.icon}>📧</ThemedText>
+                  <View style={styles.iconWrap}><Icon name="mail" size={48} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.title')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {t('auth.verifyEmail.message')}{' '}
@@ -200,7 +201,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'success' && (
                 <>
-                  <ThemedText style={styles.icon}>✅</ThemedText>
+                  <View style={styles.iconWrap}><Icon name="checkCircle" size={48} color="#43A047" /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifySuccess')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.verifySuccess')}
@@ -210,7 +211,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'error' && (
                 <>
-                  <ThemedText style={styles.icon}>❌</ThemedText>
+                  <View style={styles.iconWrap}><Icon name="xCircle" size={48} color="#E53935" /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifyFailed')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.invalidCode')}
@@ -282,9 +283,9 @@ const styles = StyleSheet.create({
   logoText: {
     ...Typography.h2,
   },
-  icon: {
-    fontSize: 48,
-    textAlign: 'center',
+  iconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   title: {

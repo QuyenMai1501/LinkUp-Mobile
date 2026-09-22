@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import CommentItem, { buildCommentTree } from '@/components/comment-item';
 import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
@@ -302,7 +303,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   if (loading) {
     return (
       <ThemedView style={styles.center}>
-        <ThemedText style={styles.loadingIcon}>⏳</ThemedText>
+        <Icon name="hourglass" size={32} color={theme.textSecondary} />
         <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
       </ThemedView>
     );
@@ -311,7 +312,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   if (error || !post) {
     return (
       <ThemedView style={styles.center}>
-        <ThemedText style={styles.loadingIcon}>⚠️</ThemedText>
+        <Icon name="warning" size={32} color="#FB8C00" />
         <ThemedText themeColor="textSecondary">{error ?? t('common.error')}</ThemedText>
         <Pressable onPress={onBack} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
           <ThemedText style={styles.retryText}>{t('common.back')}</ThemedText>
@@ -333,12 +334,12 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <Pressable onPress={onBack} style={styles.backBtn}>
-            <ThemedText style={[styles.backIcon, { color: theme.text }]}>✕</ThemedText>
+            <Icon name="close" size={20} color={theme.text} />
           </Pressable>
           <ThemedText style={styles.headerTitle}>{t('postDetail.title')}</ThemedText>
           {isOwner && (
             <Pressable onPress={handleDelete} style={styles.backBtn}>
-              <ThemedText style={[styles.backIcon, { color: '#E53935' }]}>🗑</ThemedText>
+              <Icon name="trash" size={20} color="#E53935" />
             </Pressable>
           )}
         </View>
@@ -438,42 +439,36 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
               {/* Action bar */}
               <View style={[styles.actionBar, { borderTopColor: theme.border }]}>
-                <Pressable style={styles.actionBtn} onPress={handleLike}>
-                  <ThemedText style={[styles.actionIcon, post.is_liked && { color: '#E53935' }]}>
-                    {post.is_liked ? '❤️' : '🤍'}
-                  </ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.actionCount}>
-                    {formatCount(post.likes_count)}
-                  </ThemedText>
-                </Pressable>
+              <Pressable style={styles.actionBtn} onPress={handleLike}>
+                <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? '#E53935' : undefined} />
+                <ThemedText themeColor="textSecondary" style={styles.actionCount}>
+                  {formatCount(post.likes_count)}
+                </ThemedText>
+              </Pressable>
 
-                <Pressable style={styles.actionBtn}>
-                  <ThemedText style={styles.actionIcon}>💬</ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.actionCount}>
-                    {formatCount(post.comments_count)}
-                  </ThemedText>
-                </Pressable>
+              <Pressable style={styles.actionBtn}>
+                <Icon name="chat" size={18} />
+                <ThemedText themeColor="textSecondary" style={styles.actionCount}>
+                  {formatCount(post.comments_count)}
+                </ThemedText>
+              </Pressable>
 
-                <Pressable
-                  style={styles.actionBtn}
-                  onPress={handleShare}
-                  disabled={isOwner || post.is_shared}>
-                  <ThemedText style={[styles.actionIcon, (isOwner || post.is_shared) && { opacity: 0.4 }]}>
-                    ↗️
-                  </ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.actionCount}>
-                    {formatCount(post.shares_count)}
-                  </ThemedText>
-                </Pressable>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={handleShare}
+                disabled={isOwner || post.is_shared}>
+                <Icon name="share" size={18} color={(isOwner || post.is_shared) ? '#00000040' : undefined} />
+                <ThemedText themeColor="textSecondary" style={styles.actionCount}>
+                  {formatCount(post.shares_count)}
+                </ThemedText>
+              </Pressable>
 
-                <Pressable
-                  style={styles.actionBtn}
-                  onPress={handleSave}
-                  disabled={isOwner}>
-                  <ThemedText style={[styles.actionIcon, post.is_saved && { color: '#FBBC04' }, isOwner && { opacity: 0.4 }]}>
-                    {post.is_saved ? '🔖' : '📑'}
-                  </ThemedText>
-                </Pressable>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={handleSave}
+                disabled={isOwner}>
+                <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : isOwner ? '#00000040' : undefined} />
+              </Pressable>
               </View>
 
               {/* Comment sort */}
@@ -526,7 +521,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               )}
               {commentsLoading && (
                 <View style={styles.loadingMore}>
-                  <ThemedText themeColor="textSecondary">⏳</ThemedText>
+                  <Icon name="hourglass" size={16} color={theme.textSecondary} />
                 </View>
               )}
             </View>
@@ -582,9 +577,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 20,
   },
   headerTitle: {
     ...Typography.h2,

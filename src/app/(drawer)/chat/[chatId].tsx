@@ -28,6 +28,7 @@ import { useChatSocket } from '@/hooks/useChatSocket';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useChatE2E } from '@/hooks/useChatE2E';
 import { listChats, deleteChat, uploadChatMedia } from '@/api/chat';
+import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { formatChatDate } from '@/utils/chat';
 import type { ChatConversation, ChatMessage } from '@/types/chat';
@@ -313,7 +314,9 @@ export default function ChatScreen() {
             {partner?.display_name || t('chat.unknown')}
           </ThemedText>
           {encryption.ready && (
-            <ThemedText style={styles.e2eBadge}>🔒 {t('chat.e2eBadge')}</ThemedText>
+            <ThemedText style={styles.e2eBadge}>
+            <Icon name="lock" size={12} /> {t('chat.e2eBadge')}
+          </ThemedText>
           )}
         </View>
 
@@ -327,18 +330,18 @@ export default function ChatScreen() {
           }}
           hitSlop={8}
           style={[styles.headerAction, searchActive && { backgroundColor: theme.bgSecondary }]}>
-          <ThemedText style={[styles.headerActionIcon, { color: searchActive ? theme.primary : theme.textSecondary }]}>🔍</ThemedText>
+          <Icon name="search" size={18} color={searchActive ? theme.primary : theme.textSecondary} />
         </Pressable>
 
         <Pressable onPress={() => setShowDeleteChat(true)} hitSlop={8} style={styles.headerAction}>
-          <ThemedText style={[styles.headerActionIcon, { color: theme.textSecondary }]}>🗑️</ThemedText>
+          <Icon name="trash" size={18} color={theme.textSecondary} />
         </Pressable>
       </View>
 
       {/* Search bar */}
       {searchActive && (
         <View style={[styles.searchBar, { backgroundColor: theme.bgSecondary, borderBottomColor: theme.border }]}>
-          <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+          <Icon name="search" size={14} color={theme.textSecondary} />
           <View style={styles.searchInputWrap}>
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -357,7 +360,7 @@ export default function ChatScreen() {
             />
             {searchInput.length > 0 && (
               <Pressable onPress={() => { setSearchInput(''); room.clearSearch(); }} hitSlop={8}>
-                <ThemedText style={[styles.searchClear, { color: theme.textSecondary }]}>✕</ThemedText>
+                <Icon name="close" size={14} color={theme.textSecondary} />
               </Pressable>
             )}
           </View>
@@ -369,7 +372,7 @@ export default function ChatScreen() {
         <View style={[styles.pinnedBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
           <View style={styles.pinnedBarHeader}>
             <ThemedText style={[styles.pinnedBarTitle, { color: theme.primary }]}>
-              📌 {t('chat.pinnedMessages')} ({room.pinnedMessages.length})
+              <Icon name="pin" size={12} color={theme.primary} /> {t('chat.pinnedMessages')} ({room.pinnedMessages.length})
             </ThemedText>
           </View>
           {room.pinnedMessages.map((pin) => (
@@ -407,7 +410,7 @@ export default function ChatScreen() {
                 {t('chat.searchResults', { keyword: room.searchKeyword })}
               </ThemedText>
               <Pressable onPress={() => { setSearchInput(''); room.clearSearch(); }} hitSlop={8}>
-                <ThemedText style={[styles.searchClear, { color: theme.textSecondary }]}>✕</ThemedText>
+                <Icon name="close" size={14} color={theme.textSecondary} />
               </Pressable>
             </View>
             {room.searchResults.length === 0 ? (
@@ -654,9 +657,6 @@ const styles = StyleSheet.create({
   headerAction: {
     padding: Spacing.xs,
   },
-  headerActionIcon: {
-    fontSize: 18,
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -664,9 +664,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: Spacing.sm,
-  },
-  searchIcon: {
-    fontSize: 14,
   },
   searchInputWrap: {
     flex: 1,
@@ -677,10 +674,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...Typography.body,
     fontSize: 14,
-  },
-  searchClear: {
-    fontSize: 14,
-    padding: Spacing.xs,
   },
   searchResults: {
     flex: 1,

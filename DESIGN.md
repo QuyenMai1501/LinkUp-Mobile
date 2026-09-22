@@ -124,6 +124,108 @@ Defined per mode in `Shadows` (`colors.ts`). These are **raw CSS values for refe
 
 ---
 
+## Layout Patterns
+
+> All screens share `headerShown: false` from root/drawer/auth Stack navigators. **Every screen must manage its own header and safe area.**
+
+### Screen Layout (Drawer screens)
+
+Standard pattern:
+
+```
+ThemedView (flex: 1)
+  SafeAreaView (edges={['top']})      // bottom handled by Tab/Drawer
+    ThemedView (header)               // paddingHorizontal: md, paddingVertical: sm, borderBottomWidth: 1
+    Content (FlatList / ScrollView)   // padding: Spacing.md
+```
+
+- Root: `ThemedView` with `flex: 1`
+- Safe area: `SafeAreaView` from `react-native-safe-area-context`
+  - Drawer screens: `edges={['top']}` — bottom is managed by drawer/tab navigation
+  - Settings sub-pages (no bottom chrome): default edges (all)
+  - Auth screens: default edges (all)
+- Header: `ThemedView` or `View` with `paddingHorizontal: Spacing.md`, `paddingVertical: Spacing.sm`, `borderBottomWidth: 1`
+- Content padding: `Spacing.md` (16)
+- No explicit `StatusBar` — rely on system default
+- Colors: use `useTheme()` (`theme.X`) consistently
+
+### Full-Screen Modal Layout
+
+Pattern for modals that cover the entire screen (PostComposer, future forms):
+
+```
+<Modal animationType="slide">
+  <ThemedView (flex: 1)>
+    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+      <ThemedView (header with borderBottom) />
+      <KeyboardAvoidingView behavior={...} style={{ flex: 1 }}>
+        <ScrollView> ...content... </ScrollView>
+        <ThemedView (toolbar/footer, borderTopWidth: 1) />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  </ThemedView>
+</Modal>
+```
+
+- `SafeAreaView` with `edges={['top']}` — handles notch; bottom is managed by fixed toolbar
+- `KeyboardAvoidingView` wrapping scroll content + toolbar
+  - iOS: `behavior="padding"`
+  - Android: `behavior="height"`
+- Header: same pattern as screen headers
+- Toolbar/footer: fixed at bottom, `borderTopWidth: 1`
+- Colors: `useTheme()` only — never mix `Colors[scheme]` with `useTheme()`
+
+### Bottom Sheet Modal Layout
+
+Pattern for partial-screen overlays (CommentSheet, EmojiPicker):
+
+```
+<Modal transparent statusBarTranslucent>
+  <Pressable (overlay bg, onPress=close)>
+    <KeyboardAvoidingView>
+      <Animated.View (sheet bg, borderTopLeftRadius, borderTopRightRadius)>
+        [Drag handle pill: 40×4, bg=#CCC, centered]
+        [Header with title + borderBottom]
+        [Content]
+      </Animated.View>
+    </KeyboardAvoidingView>
+  </Pressable>
+</Modal>
+```
+
+- `<Modal transparent statusBarTranslucent>` — ensures sheet doesn't push under status bar
+- `KeyboardAvoidingView` wrapping the sheet for keyboard handling
+- No `SafeAreaView` — bottom sheet only covers lower portion
+- Colors: `useTheme()` for sheet bg, text, borders
+
+### SafeAreaView Edge Guidelines
+
+| Screen type | `edges` prop | Reason |
+|-------------|-------------|--------|
+| Drawer screens (header + content) | `['top']` | Drawer nav handles bottom |
+| Full-screen modal (fixed toolbar) | `['top']` | Fixed toolbar at bottom |
+| Auth screens (no header chrome) | default (all edges) | No bottom nav/header |
+| Settings sub-pages | default (all edges) | Full-screen content |
+| Bottom sheet modal | None (no SafeAreaView) | Sheet covers partial screen |
+| Immersive (media viewer) | None | `<StatusBar hidden />` |
+
+### KeyboardAvoidingView Checklist
+
+| Screen | Has TextInput? | Has KBAvoid? |
+|--------|---------------|-------------|
+| login.tsx | Yes | Yes |
+| register.tsx | Yes | Yes |
+| forgot-password.tsx | Yes | Yes |
+| change-password.tsx | Yes | Yes (inside ScrollView) |
+| comment-sheet.tsx | Yes | Yes |
+| post-composer.tsx | Yes | Yes |
+| Media viewer | No | No |
+| Friends list | No | No |
+
+**Rule:** Every screen/modal with a `TextInput` must wrap its scrollable content in `KeyboardAvoidingView`.
+
+---
+
 ## Do's and Don'ts
 
 ### Do

@@ -16,6 +16,8 @@ import FriendCard from '@/components/friend-card';
 import FriendRequestCard from '@/components/friend-request-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -291,10 +293,10 @@ export default function FriendsScreen() {
 
   // ============ TAB CONFIG ============
 
-  const MAIN_TABS: { key: MainTab; labelKey: string; icon: string }[] = [
-    { key: 'requests', labelKey: 'friends.tabs.pending', icon: '📩' },
-    { key: 'suggestions', labelKey: 'friends.tabs.all', icon: '👤' },
-    { key: 'list', labelKey: 'friends.title', icon: '👥' },
+  const MAIN_TABS: { key: MainTab; labelKey: string; iconName: IconName }[] = [
+    { key: 'requests', labelKey: 'friends.tabs.pending', iconName: 'mailOpen' },
+    { key: 'suggestions', labelKey: 'friends.tabs.all', iconName: 'person' },
+    { key: 'list', labelKey: 'friends.title', iconName: 'people' },
   ];
 
   const SUB_TABS: { key: SubTab; labelKey: string }[] = [
@@ -321,7 +323,7 @@ export default function FriendsScreen() {
     if (requestsError && items.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>⚠️</ThemedText>
+          <Icon name="warning" size={48} color="#FB8C00" />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {requestsError}
           </ThemedText>
@@ -335,9 +337,11 @@ export default function FriendsScreen() {
     if (items.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>
-            {subTab === 'received' ? '📩' : '📤'}
-          </ThemedText>
+          <Icon
+            name={subTab === 'received' ? 'mailOpen' : 'send'}
+            size={48}
+            color={theme.textSecondary}
+          />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {subTab === 'received' ? t('friends.empty.noPending') : t('friends.empty.noPending')}
           </ThemedText>
@@ -391,7 +395,7 @@ export default function FriendsScreen() {
     if (suggestionsError && suggestions.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>⚠️</ThemedText>
+          <Icon name="warning" size={48} color="#FB8C00" />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {suggestionsError}
           </ThemedText>
@@ -410,7 +414,7 @@ export default function FriendsScreen() {
     if (suggestions.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>👤</ThemedText>
+          <Icon name="person" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {t('friends.empty.noFriends')}
           </ThemedText>
@@ -436,7 +440,7 @@ export default function FriendsScreen() {
               displayName={item.display_name}
               subtitle={subtitle}
               actionLabel={item._friendStatus === 'sent' ? t('common.done') : t('friends.actions.addFriend')}
-              actionIcon={item._friendStatus === 'sent' ? '✓' : '👤+'}
+              actionIcon={item._friendStatus === 'sent' ? <Icon name="check" size={14} color="#43A047" /> : undefined}
               onAction={() => {
                 if (item._friendStatus !== 'sent') handleAddFriend(item);
               }}
@@ -492,7 +496,7 @@ export default function FriendsScreen() {
     if (friendsError && friends.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>⚠️</ThemedText>
+          <Icon name="warning" size={48} color="#FB8C00" />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {friendsError}
           </ThemedText>
@@ -511,7 +515,7 @@ export default function FriendsScreen() {
     if (friends.length === 0) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>👥</ThemedText>
+          <Icon name="people" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {t('friends.empty.noFriends')}
           </ThemedText>
@@ -528,7 +532,7 @@ export default function FriendsScreen() {
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
             actionLabel={t('friends.actions.removeFriend')}
-            actionIcon="✕"
+            actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
           />
@@ -573,7 +577,7 @@ export default function FriendsScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <Pressable style={styles.backBtn} onPress={openDrawer}>
-            <ThemedText style={[styles.backIcon, { color: theme.text }]}>☰</ThemedText>
+            <Icon name="menu" size={20} color={theme.text} />
           </Pressable>
           <ThemedText style={styles.headerTitle}>{t('friends.title')}</ThemedText>
         </View>
@@ -590,13 +594,11 @@ export default function FriendsScreen() {
                   styles.tabItem,
                   isActive && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
                 ]}>
-                <ThemedText
-                  style={[
-                    styles.tabIcon,
-                    { color: isActive ? theme.primary : theme.textSecondary },
-                  ]}>
-                  {tab.icon}
-                </ThemedText>
+                <Icon
+                  name={tab.iconName}
+                  size={18}
+                  color={isActive ? theme.primary : theme.textSecondary}
+                />
                 <ThemedText
                   style={[
                     styles.tabLabel,
@@ -733,9 +735,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 18,
-  },
   headerTitle: {
     ...Typography.h1,
     fontSize: 22,
@@ -755,10 +754,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
     gap: Spacing.xs,
-  },
-  tabIcon: {
-    fontSize: 18,
-    lineHeight: 24,
   },
   tabLabel: {
     ...Typography.body,
@@ -816,10 +811,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...Typography.body,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    lineHeight: 56,
   },
   emptyText: {
     ...Typography.body,

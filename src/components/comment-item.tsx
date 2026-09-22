@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -141,9 +142,11 @@ export default function CommentItem({
             <Pressable
               style={styles.actionBtn}
               onPress={() => onLike(comment.id)}>
-              <ThemedText style={[styles.actionIcon, comment.is_liked && { color: '#E53935' }]}>
-                {comment.is_liked ? '❤️' : '🤍'}
-              </ThemedText>
+              {comment.is_liked ? (
+                <Icon name="heartFilled" size={14} color="#E53935" />
+              ) : (
+                <Icon name="heart" size={14} />
+              )}
               {comment.likes_count > 0 && (
                 <ThemedText themeColor="textSecondary" style={styles.actionCount}>
                   {comment.likes_count}
@@ -264,9 +267,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  actionIcon: {
-    fontSize: 14,
   },
   actionCount: {
     fontSize: 12,
