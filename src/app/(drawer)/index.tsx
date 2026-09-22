@@ -13,6 +13,8 @@ import { useNavigation, useRouter } from 'expo-router';
 import NotificationItem from '@/components/notification-item';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import Feed from '@/components/feed';
 import PostComposer from '@/components/post-composer';
 import FriendsListPanel from '@/components/friends-list-panel';
@@ -28,10 +30,10 @@ import type { FeedPost } from '@/types/post';
 type TabKey = 'home' | 'friends' | 'notifications';
 type Filter = 'all' | 'unread' | 'read';
 
-const TABS: { key: TabKey; icon: string }[] = [
-  { key: 'home', icon: '🏠' },
-  { key: 'friends', icon: '👥' },
-  { key: 'notifications', icon: '🔔' },
+const TABS: { key: TabKey; icon: IconName }[] = [
+  { key: 'home', icon: 'home' },
+  { key: 'friends', icon: 'people' },
+  { key: 'notifications', icon: 'bell' },
 ];
 
 function NotificationPanel() {
@@ -108,7 +110,7 @@ function NotificationPanel() {
       {/* Notification list */}
       {filtered.length === 0 ? (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>🔔</ThemedText>
+          <Icon name="bell" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {filter === 'unread'
               ? t('notifications.empty')
@@ -170,18 +172,18 @@ export default function HomeScreen() {
           <Pressable
             style={styles.actionBtn}
             onPress={openDrawer}>
-            <ThemedText style={[styles.actionIcon, { color: colors.text }]}>☰</ThemedText>
+            <Icon name="menu" size={20} color={colors.text} />
           </Pressable>
           <ThemedText style={[styles.brandName, { color: colors.primary }]}>LinkUp</ThemedText>
           <View style={styles.headerActions}>
             <Pressable style={styles.actionBtn} onPress={() => setComposerVisible(true)}>
-              <ThemedText style={[styles.actionIcon, { color: colors.text }]}>➕</ThemedText>
+              <Icon name="add" size={20} color={colors.text} />
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={() => (router as any).push('/(drawer)/search')}>
-              <ThemedText style={[styles.actionIcon, { color: colors.text }]}>🔍</ThemedText>
+              <Icon name="search" size={20} color={colors.text} />
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={() => (router as any).push('/(drawer)/messages')}>
-              <ThemedText style={[styles.actionIcon, { color: colors.text }]}>💬</ThemedText>
+              <Icon name="chat" size={20} color={colors.text} />
             </Pressable>
           </View>
         </View>
@@ -198,13 +200,11 @@ export default function HomeScreen() {
                   styles.tabItem,
                   isActive && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
                 ]}>
-                <ThemedText
-                  style={[
-                    styles.tabIcon,
-                    { color: isActive ? colors.primary : colors.textSecondary },
-                  ]}>
-                  {tab.icon}
-                </ThemedText>
+                <Icon
+                  name={tab.icon}
+                  size={20}
+                  color={isActive ? colors.primary : colors.textSecondary}
+                />
               </Pressable>
             );
           })}
@@ -265,9 +265,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionIcon: {
-    fontSize: 18,
-  },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -279,14 +276,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabIcon: {
-    fontSize: 20,
-  },
   content: {
     flex: 1,
   },
-  emptyIcon: { fontSize: 48 },
-  // Notification panel styles
   panelContainer: {
     flex: 1,
   },

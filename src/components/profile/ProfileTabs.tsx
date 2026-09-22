@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -64,14 +66,14 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
     }
   }, [activeTab, isSelf, savedPosts.length, fetchSavedPosts]);
 
-  const tabs: { key: ProfileTab; label: string; icon: string }[] = [
-    { key: 'posts', label: t('profile.posts'), icon: '📝' },
-    { key: 'media', label: t('profile.media'), icon: '🖼️' },
-    { key: 'about', label: t('profile.about'), icon: 'ℹ️' },
+  const tabs: { key: ProfileTab; label: string; icon: IconName }[] = [
+    { key: 'posts', label: t('profile.posts'), icon: 'document' },
+    { key: 'media', label: t('profile.media'), icon: 'images' },
+    { key: 'about', label: t('profile.about'), icon: 'info' },
   ];
 
   if (isSelf) {
-    tabs.splice(2, 0, { key: 'saved', label: t('profile.saved'), icon: '🔖' });
+    tabs.splice(2, 0, { key: 'saved', label: t('profile.saved'), icon: 'bookmarkFilled' });
   }
 
   return (
@@ -88,13 +90,16 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
                 styles.tabItem,
                 isActive && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
               ]}>
-              <ThemedText
-                style={[
-                  styles.tabLabel,
-                  { color: isActive ? theme.primary : theme.textSecondary },
-                ]}>
-                {tab.icon} {tab.label}
-              </ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Icon name={tab.icon} size={16} color={isActive ? theme.primary : theme.textSecondary} />
+                <ThemedText
+                  style={[
+                    styles.tabLabel,
+                    { color: isActive ? theme.primary : theme.textSecondary },
+                  ]}>
+                  {tab.label}
+                </ThemedText>
+              </View>
             </Pressable>
           );
         })}
@@ -112,7 +117,7 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
             </View>
           ) : posts.length === 0 ? (
             <View style={styles.center}>
-              <ThemedText style={styles.emptyIcon}>📝</ThemedText>
+              <Icon name="document" size={48} color={theme.textSecondary} />
               <ThemedText themeColor="textSecondary" style={styles.emptyText}>
                 {t('feed.emptyTitle')}
               </ThemedText>
@@ -155,7 +160,7 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
             </View>
           ) : savedPosts.length === 0 ? (
             <View style={styles.center}>
-              <ThemedText style={styles.emptyIcon}>🔖</ThemedText>
+              <Icon name="bookmarkFilled" size={48} color={theme.textSecondary} />
               <ThemedText themeColor="textSecondary" style={styles.emptyText}>
                 {t('profile.noSavedPosts')}
               </ThemedText>
@@ -216,7 +221,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xl * 2,
     gap: Spacing.md,
   },
-  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
   endOfFeed: {
     textAlign: 'center',

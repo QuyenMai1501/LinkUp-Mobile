@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import type { MediaItem } from '@/types/profile';
 
@@ -21,7 +22,7 @@ export function MediaLightbox({ items, initialIndex, onClose, onNavigate }: Medi
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.content}>
         <Pressable style={styles.closeBtn} onPress={onClose}>
-          <ThemedText style={styles.closeIcon}>✕</ThemedText>
+          <Icon name="close" size={20} color="#FFFFFF" />
         </Pressable>
 
         <Image source={{ uri: item.file_uri }} style={styles.media} resizeMode="contain" />
@@ -78,7 +79,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  closeIcon: { fontSize: 20, color: '#FFFFFF', fontWeight: '700' },
   media: { width: '90%', height: '70%' },
   footer: {
     position: 'absolute',

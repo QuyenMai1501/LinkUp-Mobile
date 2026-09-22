@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
@@ -224,7 +225,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   if (error && posts.length === 0) {
     return (
       <View style={styles.centerContent}>
-        <ThemedText style={styles.emptyIcon}>⚠️</ThemedText>
+        <Icon name="warning" size={48} color="#FB8C00" />
         <ThemedText style={styles.emptyTitle}>{error}</ThemedText>
         <Pressable
           onPress={() => {
@@ -291,7 +292,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
         ListEmptyComponent={
           !initialLoading && !error ? (
             <View style={styles.centerContent}>
-              <ThemedText style={styles.emptyIcon}>📰</ThemedText>
+              <Icon name="newspaper" size={48} />
               <ThemedText style={styles.emptyTitle}>{t('feed.emptyTitle')}</ThemedText>
               <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
                 {t('feed.emptySubtitle')}
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl * 2,
     paddingHorizontal: Spacing.xl,
   },
-  emptyIcon: { fontSize: 48 },
+
   emptyTitle: { ...Typography.h2, textAlign: 'center' },
   emptySubtitle: { ...Typography.body, textAlign: 'center' },
   retryBtn: {

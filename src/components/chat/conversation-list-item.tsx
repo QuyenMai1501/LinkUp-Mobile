@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -66,7 +67,7 @@ export function ConversationListItem({
         </View>
         <View style={styles.previewRow}>
           {is_encrypted && (
-            <ThemedText style={styles.lockIcon}>🔒</ThemedText>
+            <Icon name="lock" size={12} color={theme.textSecondary} />
           )}
           <ThemedText themeColor="textSecondary" style={styles.preview} numberOfLines={1}>
             {last_message
@@ -136,9 +137,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-  },
-  lockIcon: {
-    fontSize: 12,
   },
   preview: {
     ...Typography.caption,

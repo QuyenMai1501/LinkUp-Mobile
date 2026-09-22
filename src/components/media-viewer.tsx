@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import type { FeedPost, FeedMedia } from '../types/post';
 import VideoPlayer from './video-player';
 
@@ -170,7 +171,7 @@ export default function MediaViewer({
 
           {/* Close button */}
           <Pressable style={styles.closeBtn} onPress={handleClose}>
-            <ThemedText style={styles.closeIcon}>✕</ThemedText>
+            <Icon name="close" size={20} color="#fff" />
           </Pressable>
 
           {/* Counter */}
@@ -238,26 +239,30 @@ export default function MediaViewer({
                 {/* Action icons */}
                 <View style={styles.actions}>
                   <Pressable style={styles.actionBtn} onPress={onLike}>
-                    <ThemedText style={[styles.actionIcon, post.is_liked && { color: '#E53935' }]}>
-                      {post.is_liked ? '❤️' : '🤍'}
-                    </ThemedText>
+                    {post.is_liked ? (
+                      <Icon name="heartFilled" size={18} color="#E53935" />
+                    ) : (
+                      <Icon name="heart" size={18} />
+                    )}
                     <ThemedText style={styles.actionCount}>{formatCount(post.likes_count)}</ThemedText>
                   </Pressable>
 
                   <Pressable style={styles.actionBtn} onPress={handleOpenComments}>
-                    <ThemedText style={styles.actionIcon}>💬</ThemedText>
+                    <Icon name="chat" size={18} />
                     <ThemedText style={styles.actionCount}>{formatCount(post.comments_count)}</ThemedText>
                   </Pressable>
 
                   <Pressable style={styles.actionBtn} onPress={onSharePress}>
-                    <ThemedText style={styles.actionIcon}>↗️</ThemedText>
+                    <Icon name="share" size={18} />
                     <ThemedText style={styles.actionCount}>{formatCount(post.shares_count)}</ThemedText>
                   </Pressable>
 
                   <Pressable style={styles.actionBtn} onPress={onSave}>
-                    <ThemedText style={[styles.actionIcon, post.is_saved && { color: '#FBBC04' }]}>
-                      {post.is_saved ? '🔖' : '📑'}
-                    </ThemedText>
+                    {post.is_saved ? (
+                      <Icon name="bookmarkFilled" size={18} color="#FBBC04" />
+                    ) : (
+                      <Icon name="bookmark" size={18} />
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -285,11 +290,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeIcon: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
   },
   counter: {
     position: 'absolute',
@@ -378,9 +378,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  actionIcon: {
-    fontSize: 18,
   },
   actionCount: {
     color: 'rgba(255,255,255,0.8)',

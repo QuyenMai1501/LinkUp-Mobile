@@ -9,6 +9,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { changePassword } from '@/api/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
@@ -104,7 +105,7 @@ export default function ChangePasswordForm() {
             autoCapitalize="none"
           />
           <TouchableOpacity onPress={() => setShowOld(!showOld)} style={styles.eyeBtn}>
-            <ThemedText>{showOld ? '🙈' : '👁️'}</ThemedText>
+            <Icon name={showOld ? "eyeOff" : "eye"} size={20} />
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.oldPassword && (
@@ -125,7 +126,7 @@ export default function ChangePasswordForm() {
             autoCapitalize="none"
           />
           <TouchableOpacity onPress={() => setShowNew(!showNew)} style={styles.eyeBtn}>
-            <ThemedText>{showNew ? '🙈' : '👁️'}</ThemedText>
+            <Icon name={showNew ? "eyeOff" : "eye"} size={20} />
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.newPassword && (
@@ -146,7 +147,7 @@ export default function ChangePasswordForm() {
             autoCapitalize="none"
           />
           <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
-            <ThemedText>{showConfirm ? '🙈' : '👁️'}</ThemedText>
+            <Icon name={showConfirm ? "eyeOff" : "eye"} size={20} />
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.confirmPassword && (

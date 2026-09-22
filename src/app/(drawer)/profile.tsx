@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -103,7 +104,7 @@ export default function SelfProfileScreen() {
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <ThemedText style={styles.errorIcon}>⚠️</ThemedText>
+            <Icon name="warning" size={32} color="#FB8C00" />
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}
             </ThemedText>
@@ -121,7 +122,7 @@ export default function SelfProfileScreen() {
           <Pressable
             style={styles.headerBtn}
             onPress={() => (navigation as any).openDrawer?.()}>
-            <ThemedText style={[styles.headerBtnIcon, { color: theme.text }]}>☰</ThemedText>
+            <Icon name="menu" size={20} color={theme.text} />
           </Pressable>
           <ThemedText style={styles.headerTitle}>{t('profile.title')}</ThemedText>
           <View style={styles.headerBtn} />
@@ -183,9 +184,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerBtnIcon: {
-    fontSize: 18,
-  },
   headerTitle: { ...Typography.h2, fontSize: 16 },
   scroll: { flex: 1 },
   center: {
@@ -195,6 +193,5 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     padding: Spacing.xl,
   },
-  errorIcon: { fontSize: 48 },
   errorText: { ...Typography.body, textAlign: 'center' },
 });

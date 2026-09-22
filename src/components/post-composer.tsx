@@ -16,6 +16,8 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
+import { type IconName } from '@/constants/icon-map';
 import EmojiPicker from '@/components/post-composer-emoji-picker';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -41,10 +43,10 @@ interface PostComposerProps {
   onPosted: (post: FeedPost) => void;
 }
 
-const PRIVACY_OPTIONS: { value: PostStatus; icon: string; labelKey: string }[] = [
-  { value: 'public', icon: '🌐', labelKey: 'composer.privacy.public' },
-  { value: 'friend', icon: '👥', labelKey: 'composer.privacy.friend' },
-  { value: 'private', icon: '🔒', labelKey: 'composer.privacy.private' },
+const PRIVACY_OPTIONS: { value: PostStatus; iconName: IconName; labelKey: string }[] = [
+  { value: 'public', iconName: 'globe', labelKey: 'composer.privacy.public' },
+  { value: 'friend', iconName: 'people', labelKey: 'composer.privacy.friend' },
+  { value: 'private', iconName: 'lock', labelKey: 'composer.privacy.private' },
 ];
 
 export default function PostComposer({ visible, onClose, onPosted }: PostComposerProps) {
@@ -249,7 +251,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                     <View key={m.uri} style={styles.mediaPreview}>
                       {m.type.startsWith('video/') ? (
                         <View style={[styles.mediaThumb, { backgroundColor: theme.bgSecondary }]}>
-                          <ThemedText style={styles.videoIcon}>🎬</ThemedText>
+                          <Icon name="video" size={32} />
                         </View>
                       ) : (
                         <Image source={{ uri: m.uri }} style={styles.mediaThumb} contentFit="cover" />
@@ -268,22 +270,22 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
             {/* Toolbar */}
             <ThemedView style={[styles.toolbar, { borderTopColor: theme.border }]}>
               <Pressable style={styles.toolBtn} onPress={handlePickImage}>
-                <ThemedText style={styles.toolIcon}>📷</ThemedText>
+                <Icon name="camera" size={20} />
               </Pressable>
               <Pressable style={styles.toolBtn} onPress={handlePickVideo}>
-                <ThemedText style={styles.toolIcon}>🎬</ThemedText>
+                <Icon name="video" size={20} />
               </Pressable>
               <Pressable
                 style={styles.toolBtn}
                 onPress={() => setEmojiPickerVisible(true)}>
-                <ThemedText style={styles.toolIcon}>😊</ThemedText>
+                <Icon name="smile" size={20} />
               </Pressable>
 
               {/* Privacy selector */}
               <Pressable
                 style={styles.privacyBtn}
                 onPress={() => setPrivacyMenuVisible(!privacyMenuVisible)}>
-                <ThemedText style={styles.privacyIcon}>{currentPrivacy.icon}</ThemedText>
+                <Icon name={currentPrivacy.iconName} size={14} />
                 <ThemedText themeColor="textSecondary" style={styles.privacyLabel}>
                   {t(currentPrivacy.labelKey)}
                 </ThemedText>
@@ -307,7 +309,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                 key={opt.value}
                 style={[styles.privacyItem, opt.value === privacy && { backgroundColor: theme.primaryLight }]}
                 onPress={() => { setPrivacy(opt.value); setPrivacyMenuVisible(false); }}>
-                <ThemedText style={styles.privacyItemIcon}>{opt.icon}</ThemedText>
+                <Icon name={opt.iconName} size={18} />
                 <ThemedText style={[styles.privacyItemLabel, { color: theme.text }]}>{t(opt.labelKey)}</ThemedText>
                 {opt.value === privacy && <ThemedText style={{ color: theme.primary }}>✓</ThemedText>}
               </Pressable>
@@ -426,11 +428,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  videoIcon: {
-    fontSize: 32,
-    textAlign: 'center',
-    lineHeight: 120,
-  },
+
   removeBtn: {
     position: 'absolute',
     top: 4,
@@ -461,9 +459,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolIcon: {
-    fontSize: 20,
-  },
+
   privacyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -473,9 +469,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     marginLeft: 'auto',
   },
-  privacyIcon: {
-    fontSize: 14,
-  },
+
   privacyLabel: {
     fontSize: 12,
     fontWeight: '500',
@@ -500,9 +494,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.md,
   },
-  privacyItemIcon: {
-    fontSize: 18,
-  },
+
   privacyItemLabel: {
     ...Typography.body,
     fontSize: 14,

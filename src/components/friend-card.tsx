@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -10,7 +11,7 @@ type FriendCardProps = {
   displayName: string;
   subtitle?: string;
   actionLabel: string;
-  actionIcon?: string;
+  actionIcon?: ReactNode;
   onAction: () => void;
   actionLoading?: boolean;
   actionVariant?: 'primary' | 'danger' | 'ghost';
@@ -92,7 +93,15 @@ export default function FriendCard({
           <ActivityIndicator color={actionTextColor} size="small" />
         ) : (
           <ThemedText style={[styles.actionLabel, { color: actionTextColor }]}>
-            {actionIcon ? `${actionIcon} ${actionLabel}` : actionLabel}
+            {actionIcon ? (
+              <>
+                {actionIcon}
+                {' '}
+                {actionLabel}
+              </>
+            ) : (
+              actionLabel
+            )}
           </ThemedText>
         )}
       </Pressable>

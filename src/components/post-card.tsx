@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -163,9 +164,7 @@ export default function PostCard({
         <Pressable
           style={styles.actionBtn}
           onPress={() => onLike?.(post.id)}>
-          <ThemedText style={[styles.actionIcon, post.is_liked && { color: '#E53935' }]}>
-            {post.is_liked ? '❤️' : '🤍'}
-          </ThemedText>
+          <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? '#E53935' : undefined} />
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.likes_count)}
           </ThemedText>
@@ -174,7 +173,7 @@ export default function PostCard({
         <Pressable
           style={styles.actionBtn}
           onPress={onCommentPress}>
-          <ThemedText style={styles.actionIcon}>💬</ThemedText>
+          <Icon name="chat" size={18} />
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.comments_count)}
           </ThemedText>
@@ -183,7 +182,7 @@ export default function PostCard({
         <Pressable
           style={styles.actionBtn}
           onPress={onSharePress}>
-          <ThemedText style={styles.actionIcon}>↗️</ThemedText>
+          <Icon name="share" size={18} />
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.shares_count)}
           </ThemedText>
@@ -192,9 +191,7 @@ export default function PostCard({
         <Pressable
           style={styles.actionBtn}
           onPress={() => onSave?.(post.id)}>
-          <ThemedText style={[styles.actionIcon, post.is_saved && { color: '#FBBC04' }]}>
-            {post.is_saved ? '🔖' : '📑'}
-          </ThemedText>
+          <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : undefined} />
         </Pressable>
       </View>
     </ThemedView>
@@ -311,9 +308,6 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
-  },
-  actionIcon: {
-    fontSize: 16,
   },
   actionCount: {
     fontSize: 12,

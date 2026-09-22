@@ -1,6 +1,7 @@
 import { Clipboard, Modal, Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Colors } from '@/constants/colors';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -43,7 +44,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                   onReply(message);
                   onClose();
                 }}>
-                <ThemedText style={styles.actionIcon}>↩️</ThemedText>
+                <Icon name="reply" size={18} color={colors.text} />
                 <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.reply')}</ThemedText>
               </Pressable>
 
@@ -53,7 +54,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                   Clipboard.setString(message.content);
                   onClose();
                 }}>
-                <ThemedText style={styles.actionIcon}>📋</ThemedText>
+                <Icon name="copy" size={18} color={colors.text} />
                 <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.copy')}</ThemedText>
               </Pressable>
 
@@ -64,7 +65,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                     onUnpin?.(message);
                     onClose();
                   }}>
-                  <ThemedText style={styles.actionIcon}>📌</ThemedText>
+                  <Icon name="pin" size={18} color={colors.text} />
                   <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.unpinMessage')}</ThemedText>
                 </Pressable>
               ) : canPin ? (
@@ -74,7 +75,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                     onPin?.(message);
                     onClose();
                   }}>
-                  <ThemedText style={styles.actionIcon}>📌</ThemedText>
+                  <Icon name="pin" size={18} color={colors.text} />
                   <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.pinMessage')}</ThemedText>
                 </Pressable>
               ) : null}
@@ -88,7 +89,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                 onDelete(message);
                 onClose();
               }}>
-              <ThemedText style={styles.actionIcon}>🗑️</ThemedText>
+              <Icon name="trash" size={18} color={colors.danger} />
               <ThemedText style={[styles.actionLabel, { color: colors.danger }]}>
                 {t('chat.deleteForMe')}
               </ThemedText>
@@ -102,7 +103,7 @@ export function MessageActions({ message, myUserId, isPinned, canPin, onClose, o
                 onDelete(message);
                 onClose();
               }}>
-              <ThemedText style={styles.actionIcon}>🗑️</ThemedText>
+              <Icon name="trash" size={18} color={colors.danger} />
               <ThemedText style={[styles.actionLabel, { color: colors.danger }]}>
                 {t('chat.deleteForAll')}
               </ThemedText>
@@ -141,9 +142,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  actionIcon: {
-    fontSize: 18,
   },
   actionLabel: {
     fontSize: 15,

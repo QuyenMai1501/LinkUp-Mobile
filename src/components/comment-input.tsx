@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -35,7 +36,7 @@ export default function CommentInput({
             {t('postDetail.replyingTo', { username: replyingTo.username })}
           </ThemedText>
           <Pressable onPress={onCancelReply} style={styles.cancelBtn}>
-            <ThemedText style={styles.cancelIcon}>✕</ThemedText>
+            <Icon name="close" size={14} color="#999" />
           </Pressable>
         </View>
       )}
@@ -58,9 +59,7 @@ export default function CommentInput({
           ]}
           onPress={onSubmit}
           disabled={!value.trim() || submitting}>
-          <ThemedText style={styles.sendIcon}>
-            {submitting ? '⏳' : '➤'}
-          </ThemedText>
+          <Icon name={submitting ? "hourglass" : "send"} size={16} color="#fff" />
         </Pressable>
       </View>
     </View>
@@ -90,10 +89,6 @@ const styles = StyleSheet.create({
   cancelBtn: {
     padding: 4,
   },
-  cancelIcon: {
-    fontSize: 14,
-    color: '#999',
-  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -113,9 +108,5 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendIcon: {
-    fontSize: 16,
-    color: '#fff',
   },
 });

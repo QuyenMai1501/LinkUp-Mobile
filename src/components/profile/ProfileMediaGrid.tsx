@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getUserMedia } from '@/api/profile';
@@ -57,7 +58,7 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
   if (media.length === 0) {
     return (
       <View style={styles.center}>
-        <ThemedText style={styles.emptyIcon}>🖼️</ThemedText>
+        <Icon name="images" size={48} color={theme.textSecondary} />
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>No media</ThemedText>
       </View>
     );
@@ -100,6 +101,5 @@ const styles = StyleSheet.create({
     padding: Spacing.xl * 2,
     gap: Spacing.md,
   },
-  emptyIcon: { fontSize: 48, lineHeight: 60 },
   emptyText: { ...Typography.body },
 });

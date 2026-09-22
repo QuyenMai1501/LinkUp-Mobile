@@ -18,6 +18,7 @@ import { ProfileTabs } from '@/components/profile/ProfileTabs';
 import { ProfileMenu } from '@/components/profile/ProfileMenu';
 import { MutualFriends } from '@/components/profile/MutualFriends';
 import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
+import { Icon } from '@/components/ui/icon';
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -91,9 +92,13 @@ export default function UserProfileScreen() {
             <ThemedText style={styles.headerTitle}>{t('profile.title')}</ThemedText>
           </View>
           <View style={styles.center}>
-            <ThemedText style={styles.errorIcon}>
-              {errorType === 'private' ? '🔒' : errorType === 'not-found' ? '👤' : '⚠️'}
-            </ThemedText>
+            {errorType === 'private' ? (
+              <Icon name="lock" size={32} />
+            ) : errorType === 'not-found' ? (
+              <Icon name="person" size={32} />
+            ) : (
+              <Icon name="warning" size={32} color="#FB8C00" />
+            )}
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}
             </ThemedText>
@@ -111,7 +116,7 @@ export default function UserProfileScreen() {
           <Pressable
             style={styles.headerBtn}
             onPress={() => (navigation as any).openDrawer?.()}>
-            <ThemedText style={[styles.headerBtnIcon, { color: theme.text }]}>☰</ThemedText>
+            <Icon name="menu" size={20} color={theme.text} />
           </Pressable>
           <ThemedText style={styles.headerTitle}>{profile.display_name}</ThemedText>
           <View style={styles.headerBtn} />
@@ -168,9 +173,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerBtnIcon: {
-    fontSize: 18,
-  },
   headerTitle: { ...Typography.h2, fontSize: 16 },
   scroll: { flex: 1 },
   center: {
@@ -180,6 +182,5 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     padding: Spacing.xl,
   },
-  errorIcon: { fontSize: 48, lineHeight: 60 },
   errorText: { ...Typography.body, textAlign: 'center' },
 });

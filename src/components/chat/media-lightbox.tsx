@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-nat
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatMessage } from '@/types/chat';
@@ -24,7 +25,7 @@ export function MediaLightbox({ visible, messages, initialIndex, onClose }: Prop
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={styles.closeBtn} onPress={onClose}>
-          <ThemedText style={styles.closeIcon}>✕</ThemedText>
+          <Icon name="close" size={18} color="#FFF" />
         </Pressable>
 
         <View style={styles.content}>
@@ -107,11 +108,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeIcon: {
-    fontSize: 18,
-    color: '#FFF',
-    fontWeight: '600',
   },
   content: {
     flex: 1,

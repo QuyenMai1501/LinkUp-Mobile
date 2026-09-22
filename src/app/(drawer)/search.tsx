@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
+import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -190,7 +191,7 @@ export default function SearchScreen() {
       style={({ pressed }) => [styles.itemRow, pressed && { backgroundColor: theme.bgHover }]}
       onPress={() => navigateToPost(item.id)}>
       <View style={[styles.iconBox, { backgroundColor: theme.bgHover }]}>
-        <ThemedText style={[styles.iconBoxText, { color: theme.textSecondary }]}>📄</ThemedText>
+        <Icon name="document" size={16} color={theme.textSecondary} />
       </View>
       <View style={styles.itemMeta}>
         <ThemedText style={styles.itemName} numberOfLines={1}>
@@ -229,7 +230,7 @@ export default function SearchScreen() {
         {item.avatar_uri ? (
           <Image source={{ uri: item.avatar_uri }} style={styles.avatarImg} contentFit="cover" />
         ) : (
-          <ThemedText style={[styles.avatarFallback, { color: theme.textSecondary }]}>🌐</ThemedText>
+          <Icon name="globe" size={16} color={theme.textSecondary} />
         )}
       </View>
       <View style={styles.itemMeta}>
@@ -283,7 +284,7 @@ export default function SearchScreen() {
     if (!hasSearched) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>🔍</ThemedText>
+          <Icon name="search" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {t('search.emptyHint')}
           </ThemedText>
@@ -294,7 +295,7 @@ export default function SearchScreen() {
     if (!hasResults) {
       return (
         <View style={styles.center}>
-          <ThemedText style={styles.emptyIcon}>🔍</ThemedText>
+          <Icon name="search" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {t('search.noResults')}{' '}
             <ThemedText style={{ fontWeight: '600', color: theme.text }}>&ldquo;{query}&rdquo;</ThemedText>
@@ -374,7 +375,7 @@ export default function SearchScreen() {
             <ThemedText style={[styles.backIcon, { color: theme.text }]}>←</ThemedText>
           </Pressable>
           <View style={[styles.searchInputWrapper, { backgroundColor: theme.bgSecondary, borderColor: theme.border }]}>
-            <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+            <Icon name="search" size={14} color={theme.textSecondary} />
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
               value={query}
@@ -456,7 +457,6 @@ const styles = StyleSheet.create({
     height: 40,
     gap: Spacing.xs,
   },
-  searchIcon: { fontSize: 14 },
   searchInput: {
     flex: 1,
     ...Typography.body,
@@ -542,7 +542,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBoxText: { fontSize: 16 },
   iconBoxHash: {
     ...Typography.body,
     fontWeight: '700',
@@ -570,7 +569,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   loadingText: { ...Typography.body },
-  emptyIcon: { fontSize: 48, lineHeight: 56 },
   emptyText: {
     ...Typography.body,
     textAlign: 'center',
