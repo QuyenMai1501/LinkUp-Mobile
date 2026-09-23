@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth } from '@/contexts/auth-context';
 import VideoPlayer from './video-player';
 import type { FeedPost, FeedMedia } from '../types/post';
 
@@ -43,15 +44,16 @@ function isVideo(fileType: string): boolean {
 interface MediaGridProps {
   media: FeedMedia[];
   onPress?: (index: number) => void;
+  embedded?: boolean;
 }
 
-function MediaGrid({ media, onPress }: MediaGridProps) {
+function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
   if (media.length === 0) return null;
 
   const count = Math.min(media.length, 4);
 
   return (
-    <View style={styles.mediaGrid}>
+    <View style={[styles.mediaGrid, embedded && styles.mediaGridEmbedded]}>
       {media.slice(0, 4).map((m, idx) => (
         <Pressable
           key={m.id}
@@ -83,7 +85,7 @@ interface PostCardProps {
   post: FeedPost;
   onPress?: (postId: string) => void;
   onContentPress?: () => void;
-  onMediaPress?: (index: number) => void;
+  onMediaPress?: (index: number, targetPost?: FeedPost) => void;
   onLike?: (postId: string) => void;
   onSave?: (postId: string) => void;
   onCommentPress?: () => void;
@@ -102,6 +104,10 @@ export default function PostCard({
 }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isOwner = user?.id != null && post.user_id === user.id;
+  const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
+  const isRepost = Boolean(sharedPost);
 
   const needsTruncation = post.content.length > CONTENT_TRUNCATE_LENGTH;
   const displayContent =
@@ -109,7 +115,17 @@ export default function PostCard({
       ? post.content.slice(0, CONTENT_TRUNCATE_LENGTH) + '...'
       : post.content;
 
+  const sharedContent = sharedPost?.content ?? '';
+  const sharedNeedsTruncation = sharedContent.length > CONTENT_TRUNCATE_LENGTH;
+  const displaySharedContent = sharedNeedsTruncation
+    ? sharedContent.slice(0, CONTENT_TRUNCATE_LENGTH) + '...'
+    : sharedContent;
+
   const handleContentPress = () => {
+    if (isRepost) {
+      onContentPress?.();
+      return;
+    }
     if (needsTruncation) {
       setExpanded((v) => !v);
     }
@@ -132,31 +148,74 @@ export default function PostCard({
           )}
         </View>
         <View style={styles.authorMeta}>
-          <ThemedText style={styles.displayName}>{post.display_name}</ThemedText>
+          <ThemedText style={styles.displayName}>
+            {post.display_name}
+            {isRepost ? ` · ${t('post.sharedPost')}` : ''}
+          </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
             @{post.username} · {formatRelativeTime(post.created_at, t)}
           </ThemedText>
         </View>
       </Pressable>
 
-      {/* Zone 2: Content — toggle read more / collapse */}
+      {/* Zone 2: Content — normal post or repost embed */}
       <Pressable style={styles.body} onPress={handleContentPress}>
-        {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
-        {post.content ? (
+        {isRepost && sharedPost ? (
           <View>
-            <ThemedText style={styles.content}>{displayContent}</ThemedText>
-            {needsTruncation && (
-              <ThemedText style={styles.toggleBtn}>
-                {expanded ? t('post.collapse') : t('post.readMore')}
-              </ThemedText>
-            )}
+            {post.share_content ? (
+              <ThemedText style={styles.shareContent}>{post.share_content}</ThemedText>
+            ) : null}
+            <View style={styles.embeddedPost}>
+              <View style={styles.embeddedAuthor}>
+                <View style={styles.embeddedAvatar}>
+                  {sharedPost.avatar_uri ? (
+                    <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
+                  ) : (
+                    <ThemedText style={styles.embeddedAvatarInitial}>
+                      {sharedPost.display_name?.charAt(0)?.toUpperCase() || '?'}
+                    </ThemedText>
+                  )}
+                </View>
+                <View style={styles.embeddedAuthorMeta}>
+                  <ThemedText style={styles.embeddedName}>{sharedPost.display_name}</ThemedText>
+                  <ThemedText themeColor="textSecondary" style={styles.embeddedUsername}>
+                    @{sharedPost.username}
+                  </ThemedText>
+                </View>
+              </View>
+              {sharedPost.title ? (
+                <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
+              ) : null}
+              {displaySharedContent ? (
+                <ThemedText style={styles.embeddedContent}>{displaySharedContent}</ThemedText>
+              ) : null}
+              <MediaGrid
+                media={sharedPost.media}
+                embedded
+                onPress={(index) => onMediaPress?.(index, sharedPost)}
+              />
+            </View>
           </View>
-        ) : null}
+        ) : (
+          <>
+            {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
+            {post.content ? (
+              <View>
+                <ThemedText style={styles.content}>{displayContent}</ThemedText>
+                {needsTruncation && (
+                  <ThemedText style={styles.toggleBtn}>
+                    {expanded ? t('post.collapse') : t('post.readMore')}
+                  </ThemedText>
+                )}
+              </View>
+            ) : null}
+          </>
+        )}
       </Pressable>
 
-      {/* Zone 3: Media — open media modal */}
-      {!post.shared_from_post_id && (
-        <MediaGrid media={post.media} onPress={onMediaPress} />
+      {/* Zone 3: Media — outer media only for non-reposts (repost media is embedded above) */}
+      {!isRepost && (
+        <MediaGrid media={post.media} onPress={(index) => onMediaPress?.(index, post)} />
       )}
 
       {/* Zone 4: Action bar */}
@@ -181,8 +240,9 @@ export default function PostCard({
 
         <Pressable
           style={styles.actionBtn}
-          onPress={onSharePress}>
-          <Icon name="share" size={18} />
+          onPress={onSharePress}
+          disabled={isOwner || post.is_shared}>
+          <Icon name="share" size={18} color={isOwner || post.is_shared ? '#00000040' : undefined} />
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.shares_count)}
           </ThemedText>
@@ -190,8 +250,9 @@ export default function PostCard({
 
         <Pressable
           style={styles.actionBtn}
-          onPress={() => onSave?.(post.id)}>
-          <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : undefined} />
+          onPress={() => onSave?.(post.id)}
+          disabled={isOwner}>
+          <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : isOwner ? '#00000040' : undefined} />
         </Pressable>
       </View>
     </ThemedView>
@@ -268,11 +329,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: Spacing.xs,
   },
+  shareContent: {
+    ...Typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: Spacing.sm,
+  },
+  embeddedPost: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  embeddedAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  embeddedAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  embeddedAvatarImg: {
+    width: 28,
+    height: 28,
+  },
+  embeddedAvatarInitial: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666666',
+  },
+  embeddedAuthorMeta: {
+    flex: 1,
+  },
+  embeddedName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  embeddedUsername: {
+    fontSize: 11,
+  },
+  embeddedTitle: {
+    ...Typography.h2,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  embeddedContent: {
+    ...Typography.body,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.md,
     gap: 2,
+  },
+  mediaGridEmbedded: {
+    paddingHorizontal: 0,
+    marginTop: Spacing.xs,
   },
   mediaItem: {
     borderRadius: Radius.sm,

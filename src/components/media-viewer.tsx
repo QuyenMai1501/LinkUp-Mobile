@@ -21,6 +21,7 @@ import Animated, {
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { useAuth } from '@/contexts/auth-context';
 import type { FeedPost, FeedMedia } from '../types/post';
 import VideoPlayer from './video-player';
 
@@ -82,6 +83,8 @@ export default function MediaViewer({
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [infoExpanded, setInfoExpanded] = useState(false);
+  const { user } = useAuth();
+  const isOwner = user?.id != null && post.user_id === user.id;
 
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -242,26 +245,33 @@ export default function MediaViewer({
                     {post.is_liked ? (
                       <Icon name="heartFilled" size={18} color="#E53935" />
                     ) : (
-                      <Icon name="heart" size={18} />
+                      <Icon name="heart" size={18} color="#fff" />
                     )}
                     <ThemedText style={styles.actionCount}>{formatCount(post.likes_count)}</ThemedText>
                   </Pressable>
 
                   <Pressable style={styles.actionBtn} onPress={handleOpenComments}>
-                    <Icon name="chat" size={18} />
+                    <Icon name="chat" size={18} color="#fff" />
                     <ThemedText style={styles.actionCount}>{formatCount(post.comments_count)}</ThemedText>
                   </Pressable>
 
-                  <Pressable style={styles.actionBtn} onPress={onSharePress}>
-                    <Icon name="share" size={18} />
+                  <Pressable
+                    style={styles.actionBtn}
+                    onPress={onSharePress}
+                    disabled={isOwner || post.is_shared}>
+                    <Icon
+                      name="share"
+                      size={18}
+                      color={isOwner || post.is_shared ? 'rgba(255,255,255,0.35)' : '#fff'}
+                    />
                     <ThemedText style={styles.actionCount}>{formatCount(post.shares_count)}</ThemedText>
                   </Pressable>
 
-                  <Pressable style={styles.actionBtn} onPress={onSave}>
+                  <Pressable style={styles.actionBtn} onPress={onSave} disabled={isOwner}>
                     {post.is_saved ? (
                       <Icon name="bookmarkFilled" size={18} color="#FBBC04" />
                     ) : (
-                      <Icon name="bookmark" size={18} />
+                      <Icon name="bookmark" size={18} color={isOwner ? 'rgba(255,255,255,0.35)' : '#fff'} />
                     )}
                   </Pressable>
                 </View>

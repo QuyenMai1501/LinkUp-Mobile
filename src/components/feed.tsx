@@ -189,10 +189,24 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
 
   // Share handler
   const handleShare = useCallback(async (post: FeedPost) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === post.id
+          ? { ...p, is_shared: true, shares_count: p.shares_count + 1 }
+          : p,
+      ),
+    );
     try {
       await sharePost(post.id);
       Alert.alert(t('postDetail.shared'));
     } catch {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id
+            ? { ...p, is_shared: false, shares_count: Math.max(0, p.shares_count - 1) }
+            : p,
+        ),
+      );
       Alert.alert(t('common.error'), t('common.error'));
     }
   }, [t]);
@@ -259,7 +273,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
             onPress={onPostPress}
             onLike={handleLike}
             onSave={handleSave}
-            onMediaPress={(index) => handleOpenMedia(item, index)}
+            onMediaPress={(index, targetPost) => handleOpenMedia(targetPost ?? item, index)}
             onCommentPress={() => handleOpenComments(item)}
             onSharePress={() => handleShare(item)}
           />
