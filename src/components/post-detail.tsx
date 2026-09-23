@@ -106,6 +106,9 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const [mediaIndex, setMediaIndex] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+  const commentsLenRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +137,8 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
         if (cancelled || !commentsRes) return;
         setComments(commentsRes.data);
         setCommentTotal(commentsRes.total);
+        commentsLenRef.current = commentsRes.data.length;
+        hasMoreRef.current = commentsRes.data.length < commentsRes.total;
       })
       .catch(() => {
         if (!cancelled) setError('Không thể tải bài viết.');
@@ -146,20 +151,28 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   }, [postId]);
 
   const loadMoreComments = useCallback(async () => {
-    if (commentsLoading) return;
-    const nextPage = commentPage + 1;
+    if (loadingMoreRef.current || !hasMoreRef.current) return;
+    loadingMoreRef.current = true;
     setCommentsLoading(true);
     try {
+      const nextPage = commentPage + 1;
       const res = await getComments(postId, nextPage, COMMENT_PAGE_SIZE, commentSort);
-      setComments((prev) => [...prev, ...res.data]);
-      setCommentPage(nextPage);
-      setCommentTotal(res.total);
+      if (res.data.length === 0) {
+        hasMoreRef.current = false;
+      } else {
+        setComments((prev) => [...prev, ...res.data]);
+        commentsLenRef.current += res.data.length;
+        setCommentPage(nextPage);
+        setCommentTotal(res.total);
+        hasMoreRef.current = commentsLenRef.current < res.total;
+      }
     } catch {
       // keep existing list
     } finally {
+      loadingMoreRef.current = false;
       setCommentsLoading(false);
     }
-  }, [commentPage, postId, commentSort, commentsLoading]);
+  }, [commentPage, postId, commentSort]);
 
   const handleSortChange = useCallback(
     (sort: CommentSort) => {
@@ -167,10 +180,15 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       setComments([]);
       setCommentPage(1);
       setCommentsLoading(true);
+      hasMoreRef.current = true;
+      loadingMoreRef.current = false;
+      commentsLenRef.current = 0;
       getComments(postId, 1, COMMENT_PAGE_SIZE, sort)
         .then((res) => {
           setComments(res.data);
           setCommentTotal(res.total);
+          commentsLenRef.current = res.data.length;
+          hasMoreRef.current = res.data.length < res.total;
         })
         .catch(() => {})
         .finally(() => setCommentsLoading(false));
@@ -246,6 +264,8 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       setComments(res.data);
       setCommentTotal(res.data.length);
       setCommentPage(1);
+      commentsLenRef.current = res.data.length;
+      hasMoreRef.current = false;
       setCommentText('');
       setReplyingTo(null);
       setPost((prev) => (prev ? { ...prev, comments_count: res.data.length } : prev));
@@ -323,7 +343,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
   const isOwner = currentUserId !== null && post.user_id === currentUserId;
   const commentTree = buildCommentTree(comments, commentSort);
-  const hasMedia = post.media.length > 0;
+  const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
+  const isRepost = Boolean(sharedPost);
+  const mediaList = (isRepost && sharedPost ? sharedPost.media : post.media) ?? [];
+  const hasMedia = mediaList.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -375,7 +398,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   )}
                 </View>
                 <View style={styles.authorMeta}>
-                  <ThemedText style={styles.displayName}>{post.display_name}</ThemedText>
+                  <ThemedText style={styles.displayName}>
+                    {post.display_name}
+                    {isRepost ? ` · ${t('post.sharedPost')}` : ''}
+                  </ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
                     @{post.username} · {formatRelativeTime(post.created_at)}
                   </ThemedText>
@@ -386,7 +412,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               {hasMedia && (
                 <View style={styles.mediaSection}>
                   <FlatList
-                    data={post.media}
+                    data={mediaList}
                     horizontal
                     pagingEnabled
                     showsHorizontalScrollIndicator={false}
@@ -409,22 +435,57 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                       </View>
                     )}
                   />
-                  {post.media.length > 1 && (
+                  {mediaList.length > 1 && (
                     <View style={[styles.mediaCounter, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
                       <ThemedText style={styles.mediaCounterText}>
-                        {mediaIndex + 1} / {post.media.length}
+                        {mediaIndex + 1} / {mediaList.length}
                       </ThemedText>
                     </View>
                   )}
                 </View>
               )}
 
-              {/* Title + Content */}
+              {/* Title + Content / Repost embed */}
               <View style={styles.body}>
-                {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
-                {post.content ? (
-                  <ThemedText style={styles.content}>{post.content}</ThemedText>
-                ) : null}
+                {isRepost && sharedPost ? (
+                  <View>
+                    {post.share_content ? (
+                      <ThemedText style={styles.content}>{post.share_content}</ThemedText>
+                    ) : null}
+                    <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
+                      <View style={styles.embeddedAuthor}>
+                        <View style={styles.embeddedAvatar}>
+                          {sharedPost.avatar_uri ? (
+                            <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
+                          ) : (
+                            <ThemedText style={styles.embeddedAvatarInitial}>
+                              {sharedPost.display_name?.charAt(0)?.toUpperCase() || '?'}
+                            </ThemedText>
+                          )}
+                        </View>
+                        <View style={styles.embeddedAuthorMeta}>
+                          <ThemedText style={styles.embeddedName}>{sharedPost.display_name}</ThemedText>
+                          <ThemedText themeColor="textSecondary" style={styles.embeddedUsername}>
+                            @{sharedPost.username}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      {sharedPost.title ? (
+                        <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
+                      ) : null}
+                      {sharedPost.content ? (
+                        <ThemedText style={styles.embeddedContent}>{sharedPost.content}</ThemedText>
+                      ) : null}
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
+                    {post.content ? (
+                      <ThemedText style={styles.content}>{post.content}</ThemedText>
+                    ) : null}
+                  </>
+                )}
               </View>
 
               {/* Stats */}
@@ -512,14 +573,14 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           }
           ListFooterComponent={
             <View>
-              {comments.length > 0 && comments.length < commentTotal && (
+              {comments.length > 0 && comments.length < commentTotal && !commentsLoading && (
                 <Pressable onPress={loadMoreComments} style={styles.loadMoreBtn}>
                   <ThemedText style={[styles.loadMoreText, { color: theme.primary }]}>
                     {t('postDetail.loadMore')}
                   </ThemedText>
                 </Pressable>
               )}
-              {commentsLoading && (
+              {commentsLoading && comments.length < commentTotal && (
                 <View style={styles.loadingMore}>
                   <Icon name="hourglass" size={16} color={theme.textSecondary} />
                 </View>
@@ -662,6 +723,57 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     lineHeight: 22,
+  },
+  embeddedPost: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  embeddedAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  embeddedAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  embeddedAvatarImg: {
+    width: 28,
+    height: 28,
+  },
+  embeddedAvatarInitial: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#666666',
+  },
+  embeddedAuthorMeta: {
+    flex: 1,
+  },
+  embeddedName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  embeddedUsername: {
+    fontSize: 11,
+  },
+  embeddedTitle: {
+    ...Typography.h2,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  embeddedContent: {
+    ...Typography.body,
+    fontSize: 13,
+    lineHeight: 18,
   },
   stats: {
     flexDirection: 'row',

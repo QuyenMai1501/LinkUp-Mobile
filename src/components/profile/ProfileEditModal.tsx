@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -102,9 +103,12 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
   };
 
   return (
-    <View style={styles.overlay}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <ThemedView style={[styles.modal, { backgroundColor: theme.background, borderColor: theme.border }]}>
+    <Modal visible transparent statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.kbv}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <ThemedView style={[styles.modal, { backgroundColor: theme.background, borderColor: theme.border }]}>
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <Icon name="close" size={18} />
@@ -113,10 +117,7 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
             <View style={{ width: 32 }} />
           </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}>
-            <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+          <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.field}>
               <ThemedText style={styles.label}>{t('profile.editProfile')}</ThemedText>
               <TextInput
@@ -193,7 +194,6 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
               </View>
             </View>
           </ScrollView>
-          </KeyboardAvoidingView>
 
           <View style={styles.footer}>
             <Button
@@ -204,29 +204,27 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
             />
           </View>
         </ThemedView>
-    </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 1000,
+  kbv: {
+    flex: 1,
+    justifyContent: 'center',
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modal: {
-    position: 'absolute',
-    top: '10%',
-    bottom: '10%',
-    left: '5%',
-    right: '5%',
+    marginHorizontal: Spacing.lg,
     flexDirection: 'column',
     borderRadius: Radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
+    maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
@@ -237,7 +235,6 @@ const styles = StyleSheet.create({
   },
   closeBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   title: { ...Typography.h2, fontSize: 16 },
-  keyboardView: { flex: 1 },
   scroll: { padding: Spacing.md },
   field: { marginBottom: Spacing.md },
   label: { ...Typography.caption, fontWeight: 600, marginBottom: Spacing.xs },

@@ -73,6 +73,9 @@ export default function CommentSheet({
   const [commentSort] = useState<CommentSort>('newest');
   const flatListRef = useRef<FlatList>(null);
   const scrollOffsetY = useRef(0);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+  const commentsLenRef = useRef(0);
 
   const translateY = useSharedValue(400);
 
@@ -144,32 +147,48 @@ export default function CommentSheet({
     setCommentPage(1);
     setCommentText('');
     setReplyingTo(null);
+    setCommentsLoading(true);
+    hasMoreRef.current = true;
+    loadingMoreRef.current = false;
+    commentsLenRef.current = 0;
 
     getComments(postId, 1, COMMENT_PAGE_SIZE, 'newest')
       .then((res) => {
-        if (!cancelled) {
-          setComments(res.data);
-        }
+        if (cancelled) return;
+        setComments(res.data);
+        commentsLenRef.current = res.data.length;
+        hasMoreRef.current = res.data.length < res.total;
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCommentsLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, [visible, postId]);
 
   const loadMoreComments = useCallback(async () => {
-    if (commentsLoading) return;
-    const nextPage = commentPage + 1;
+    if (loadingMoreRef.current || !hasMoreRef.current) return;
+    loadingMoreRef.current = true;
     setCommentsLoading(true);
     try {
+      const nextPage = commentPage + 1;
       const res = await getComments(postId, nextPage, COMMENT_PAGE_SIZE, commentSort);
-      setComments((prev) => [...prev, ...res.data]);
-      setCommentPage(nextPage);
+      if (res.data.length === 0) {
+        hasMoreRef.current = false;
+      } else {
+        setComments((prev) => [...prev, ...res.data]);
+        commentsLenRef.current += res.data.length;
+        setCommentPage(nextPage);
+        hasMoreRef.current = commentsLenRef.current < res.total;
+      }
     } catch {
       // keep existing list
     } finally {
+      loadingMoreRef.current = false;
       setCommentsLoading(false);
     }
-  }, [commentPage, postId, commentSort, commentsLoading]);
+  }, [commentPage, postId, commentSort]);
 
   const handleToggleCommentLike = useCallback(
     async (commentId: string) => {
@@ -207,6 +226,8 @@ export default function CommentSheet({
       const res = await createComment(postId, content, replyingTo?.id);
       setComments(res.data);
       setCommentPage(1);
+      commentsLenRef.current = res.data.length;
+      hasMoreRef.current = false;
       setCommentText('');
       setReplyingTo(null);
     } catch {
@@ -266,7 +287,9 @@ export default function CommentSheet({
                 />
               )}
               onScroll={handleScroll}
-              onEndReached={loadMoreComments}
+              onEndReached={() => {
+                if (hasMoreRef.current) loadMoreComments();
+              }}
               onEndReachedThreshold={0.5}
               contentContainerStyle={styles.listContent}
               ListEmptyComponent={
@@ -277,7 +300,7 @@ export default function CommentSheet({
                 ) : null
               }
               ListFooterComponent={
-                commentsLoading ? (
+                commentsLoading && hasMoreRef.current ? (
                   <View style={styles.loadingMore}>
                     <ThemedText themeColor="textSecondary">⏳</ThemedText>
                   </View>
