@@ -10,8 +10,21 @@ const GIPHY_API = 'https://api.giphy.com';
 const GIPHY_MEDIA = 'https://media.giphy.com';
 
 /** URL chuẩn (ngắn) cho 1 item GIPHY — API trả về URL dài có token v1.Y2lk…, phải chuẩn hóa về dạng này. */
-export function giphyMediaUrl(id: string, size = '200w.gif'): string {
+export function giphyMediaUrl(id: string, size = '200w_s.gif'): string {
   return `${GIPHY_MEDIA}/media/${id}/${size}`;
+}
+
+/** Chỉ URL canonical ngắn (emoji chèn từ picker): `media/{id}/200w.gif` → `200w_s.gif` (bản still, 1 frame). */
+const GIPHY_CANONICAL_RE = /^(https:\/\/media\d?\.giphy\.com\/media\/[^/]+\/)(\d{2,4}w?|giphy)\.gif$/i;
+
+/**
+ * Đổi URL emoji GIPHY cũ (ảnh động) sang bản still tĩnh khi render.
+ * URL GIF đính kèm dạng token dài (…/media/v1.Y2lk…/{id}/giphy.gif), mp4/webp
+ * hoặc đã là `_s.gif` → giữ nguyên.
+ */
+export function giphyStillUrl(url: string): string {
+  const m = url.match(GIPHY_CANONICAL_RE);
+  return m ? `${m[1]}${m[2]}_s.gif` : url;
 }
 
 /** Nhận diện URL GIPHY trong text nội dung (chat/bài viết). */
@@ -45,9 +58,9 @@ export function isSingleGiphyUrl(text: string): boolean {
 export interface GiphyEmoji {
   id: string;
   title: string;
-  /** URL đưa vào nội dung (200x200, đủ nét cho bubble lớn). */
+  /** URL đưa vào nội dung — bản still tĩnh (200w_s.gif). */
   url: string;
-  /** Ảnh nhỏ cho lưới picker (100x100, ~17KB). */
+  /** Ảnh tĩnh cho lưới picker (100x100). */
   preview: string;
 }
 
@@ -69,6 +82,9 @@ interface GiphyImage {
 interface GiphyImages {
   fixed_width?: GiphyImage;
   fixed_width_small?: GiphyImage;
+  fixed_width_still?: GiphyImage;
+  fixed_width_small_still?: GiphyImage;
+  fixed_height_small_still?: GiphyImage;
   original?: GiphyImage;
   preview_gif?: GiphyImage;
 }
@@ -108,10 +124,14 @@ function toEmoji(r: GiphyResult): GiphyEmoji {
   return {
     id: r.id,
     title: r.title ?? '',
-    // URL canonical 200w để chèn vào nội dung (đã verify hoạt động cho mọi id).
+    // URL canonical still (200w_s.gif — ảnh tĩnh) để chèn vào nội dung.
     url: giphyMediaUrl(r.id),
-    // Ảnh nhỏ cho lưới picker — lấy từ API (đảm bảo đúng); fallback URL canonical.
-    preview: r.images.preview_gif?.url ?? r.images.fixed_width_small?.url ?? giphyMediaUrl(r.id),
+    // Ảnh tĩnh cho lưới picker — lấy từ API (*_still); fallback URL canonical still.
+    preview:
+      r.images.fixed_width_small_still?.url ??
+      r.images.fixed_height_small_still?.url ??
+      r.images.fixed_width_still?.url ??
+      giphyMediaUrl(r.id, '100w_s.gif'),
   };
 }
 

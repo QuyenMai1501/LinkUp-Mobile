@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
 import { getEmojiTextMap, singleEmojiCode } from '@/utils/emojis';
-import { isSingleGiphyUrl } from '@/api/giphy';
+import { isSingleGiphyUrl, giphyStillUrl } from '@/api/giphy';
 import type { EmojiItem } from '@/utils/emojis';
 import type { ChatMessage } from '@/types/chat';
 
@@ -101,7 +101,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
           <EmojiImage emoji={emojiMap.get(singleEmoji)!} size={64} />
         ) : singleGiphy ? (
           <Image
-            source={{ uri: message.content.trim() }}
+            source={{ uri: giphyStillUrl(message.content.trim()) }}
             style={styles.singleGiphy}
             contentFit="contain"
             transition={200}

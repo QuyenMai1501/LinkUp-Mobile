@@ -62,7 +62,7 @@ function twemojiUrl(emoji: string): string {
   return `https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/72x72/${codepoint}.png`;
 }
 
-// Map code -> GIPHY id (tìm qua v1/stickers/search, xếp tay). Emoji cũ hiển thị GIF GIPHY động.
+// Map code -> GIPHY id (tìm qua v1/stickers/search, xếp tay). Emoji render bằng bản still tĩnh (200w_s.gif).
 const CODE_TO_GIPHY: Record<string, string> = {
   ':smile:': 'adv74AcNdtP0tj9hLj',
   ':laugh:': '4WETZHObEsOo6qAuEm',

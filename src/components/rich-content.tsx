@@ -1,6 +1,6 @@
 import { Text, Image, type StyleProp, type TextStyle } from 'react-native';
 
-import { isGiphyUrl } from '@/api/giphy';
+import { isGiphyUrl, giphyStillUrl } from '@/api/giphy';
 import type { EmojiItem } from '@/utils/emojis';
 
 const EMOJI_RE = /(:[a-z0-9+_-]+:)/gi;
@@ -57,7 +57,7 @@ export function RichContent({ content, style, emojiMap, size = 18, numberOfLines
           return (
             <Image
               key={i}
-              source={{ uri: seg.v }}
+              source={{ uri: giphyStillUrl(seg.v) }}
               style={{ width: size, height: size }}
               resizeMode="contain"
             />
