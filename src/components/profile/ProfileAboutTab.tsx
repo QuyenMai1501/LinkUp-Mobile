@@ -3,10 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
+import { getEmojiTextMap } from '@/utils/emojis';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ViewProfileResponse } from '@/types/profile';
+
+const EMOJI_MAP = getEmojiTextMap();
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '';
@@ -66,7 +70,7 @@ export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
       {profile.bio && (
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>{t('profile.bio')}</ThemedText>
-          <ThemedText style={styles.bioText}>{profile.bio}</ThemedText>
+          <RichContent content={profile.bio} emojiMap={EMOJI_MAP} style={[styles.bioText, { color: theme.text }]} />
         </View>
       )}
 

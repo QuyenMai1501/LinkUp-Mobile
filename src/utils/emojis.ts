@@ -1,3 +1,5 @@
+import { giphyMediaUrl } from '@/api/giphy';
+
 export type EmojiGroup = 'positive' | 'neutral' | 'negative';
 
 export interface EmojiItem {
@@ -60,6 +62,44 @@ function twemojiUrl(emoji: string): string {
   return `https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/72x72/${codepoint}.png`;
 }
 
+// Map code -> GIPHY id (tìm qua v1/stickers/search, xếp tay). Emoji cũ hiển thị GIF GIPHY động.
+const CODE_TO_GIPHY: Record<string, string> = {
+  ':smile:': 'adv74AcNdtP0tj9hLj',
+  ':laugh:': '4WETZHObEsOo6qAuEm',
+  ':love:': 'nlNg4qMR8k5mi04fup',
+  ':fire:': 'Ply2vUaRg3Swc100lk',
+  ':thumbsup:': 'QM3VscCkwB54O6lSee',
+  ':clap:': '5w39AhTMInyt06d4Fu',
+  ':heart:': 'cRLI5pM8yg3tIqZARZ',
+  ':star:': 'AZYVnZVRsDuMVY5GAu',
+  ':pray:': 'WvSbZRvUpfnrlLGzFI',
+  ':hug:': 'lE9zFMsavhUNZuB33I',
+  ':wink:': 'hizFOl9hAbeLxp3v0B',
+  ':cool:': 'S3zCBYTwOXlw6o8j84',
+  ':neutral:': 'MwQZTlAB8wOfR6lKbt',
+  ':thinking:': 'Wt42JLMCrSvqxnOPE4',
+  ':wave:': 'w1OBpBd7kJqHrJnJ13',
+  ':ok:': 'S2GWVFiPJT3bl0ZYeV',
+  ':peace:': 'LqgT5IlmeptnZRMWxA',
+  ':raised:': 'ky9oo3jXqHQdUB8L4B',
+  ':shrug:': 'zs9a8QS1d6wMNt1dNQ',
+  ':eyeroll:': 'gF92QJVGxi3IZDVzDy',
+  ':sleepy:': 'rRHR5IFJ7ygfBPlmdO',
+  ':sad:': 'iyGqsXjNfCfx1p2ldm',
+  ':cry:': 'YhMV2cdUWTrPVpZOFN',
+  ':angry:': 'kgLZrW88GRYmpCuPVk',
+  ':rage:': 'gYBCWGIzW4Dygi8sZK',
+  ':disappointed:': 'h4OGa0npayrJX2NRPT',
+  ':worried:': 'ZWikkq2eBbEYw',
+  ':scared:': '3ucXBbRxXNn627krQt',
+};
+
+/** Ảnh render cho 1 code: GIPHY (nếu có map) -> twemoji (dự phòng). */
+export function emojiImageUrl(code: string, fallbackEmoji: string): string {
+  const id = CODE_TO_GIPHY[code];
+  return id ? giphyMediaUrl(id) : twemojiUrl(fallbackEmoji);
+}
+
 let cachedEmojis: EmojiItem[] | null = null;
 
 export function getEmotionEmojis(): EmojiItem[] {
@@ -70,7 +110,7 @@ export function getEmotionEmojis(): EmojiItem[] {
     emoji: e.emoji,
     label: e.label,
     group: e.group,
-    image_uri: twemojiUrl(e.emoji),
+    image_uri: emojiImageUrl(e.code, e.emoji),
   }));
   return cachedEmojis;
 }

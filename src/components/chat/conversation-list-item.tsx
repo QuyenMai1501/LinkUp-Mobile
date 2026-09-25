@@ -3,11 +3,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { RichContent } from '@/components/rich-content';
+import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
+import { getEmojiTextMap } from '@/utils/emojis';
 import type { ChatConversation } from '@/types/chat';
+
+const EMOJI_MAP = getEmojiTextMap();
 
 interface Props {
   conversation: ChatConversation;
@@ -69,13 +73,19 @@ export function ConversationListItem({
           {is_encrypted && (
             <Icon name="lock" size={12} color={theme.textSecondary} />
           )}
-          <ThemedText themeColor="textSecondary" style={styles.preview} numberOfLines={1}>
-            {last_message
-              ? last_message.sender_id === myUserId
-                ? `${t('chat.youPrefix')}${last_message.content || t('chat.mediaMessage')}`
-                : last_message.content || t('chat.mediaMessage')
-              : t('chat.newChat')}
-          </ThemedText>
+          <RichContent
+            content={
+              last_message
+                ? last_message.sender_id === myUserId
+                  ? `${t('chat.youPrefix')}${last_message.content || t('chat.mediaMessage')}`
+                  : last_message.content || t('chat.mediaMessage')
+                : t('chat.newChat')
+            }
+            emojiMap={EMOJI_MAP}
+            numberOfLines={1}
+            size={14}
+            style={[styles.preview, { color: theme.textSecondary }]}
+          />
         </View>
       </View>
     </Pressable>

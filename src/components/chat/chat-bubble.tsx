@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiImage } from '@/components/chat/emoji-image';
+import { RichContent } from '@/components/rich-content';
 import { MessageMedia } from '@/components/chat/message-media';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -10,6 +12,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
 import { getEmojiTextMap, singleEmojiCode } from '@/utils/emojis';
+import { isSingleGiphyUrl } from '@/api/giphy';
+import type { EmojiItem } from '@/utils/emojis';
 import type { ChatMessage } from '@/types/chat';
 
 interface Props {
@@ -59,6 +63,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
   const bgColor = isMine ? theme.primary : theme.card;
   const textColor = isMine ? '#FFFFFF' : theme.text;
   const singleEmoji = singleEmojiCode(message.content, emojiMap);
+  const singleGiphy = !singleEmoji && isSingleGiphyUrl(message.content);
 
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
@@ -68,7 +73,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         style={[
           styles.bubble,
           {
-            backgroundColor: singleEmoji ? 'transparent' : bgColor,
+            backgroundColor: singleEmoji || singleGiphy ? 'transparent' : bgColor,
             borderBottomRightRadius: isMine ? Radius.sm : Radius.lg,
             borderBottomLeftRadius: isMine ? Radius.lg : Radius.sm,
           },
@@ -94,6 +99,13 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         {/* Content */}
         {singleEmoji ? (
           <EmojiImage emoji={emojiMap.get(singleEmoji)!} size={64} />
+        ) : singleGiphy ? (
+          <Image
+            source={{ uri: message.content.trim() }}
+            style={styles.singleGiphy}
+            contentFit="contain"
+            transition={200}
+          />
         ) : (message.media_id || message.media_uri) ? (
           <MessageMedia
             message={message}
@@ -104,7 +116,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         )}
 
         {/* Caption below media */}
-        {singleEmoji ? null : (message.media_id || message.media_uri) && message.content?.trim() ? (
+        {singleEmoji || singleGiphy ? null : (message.media_id || message.media_uri) && message.content?.trim() ? (
           <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
         ) : null}
 
@@ -128,25 +140,10 @@ function MessageText({
   color,
 }: {
   content: string;
-  emojiMap: Map<string, { emoji: string }>;
+  emojiMap: Map<string, EmojiItem>;
   color: string;
 }) {
-  const EMOJI_RE = /(:[a-z0-9+_-]+:)/gi;
-  const parts = content.split(EMOJI_RE);
-
-  return (
-    <Text style={[styles.content, { color }]}>
-      {parts.map((part, i) => {
-        if (part.startsWith(':') && part.endsWith(':')) {
-          const emoji = emojiMap.get(part);
-          if (emoji) {
-            return <Text key={i}>{emoji.emoji}</Text>;
-          }
-        }
-        return part;
-      })}
-    </Text>
-  );
+  return <RichContent content={content} emojiMap={emojiMap} size={18} style={[styles.content, { color }]} />;
 }
 
 const styles = StyleSheet.create({
@@ -186,6 +183,10 @@ const styles = StyleSheet.create({
   content: {
     ...Typography.body,
     fontSize: 15,
+  },
+  singleGiphy: {
+    width: 64,
+    height: 64,
   },
   timeRow: {
     flexDirection: 'row',

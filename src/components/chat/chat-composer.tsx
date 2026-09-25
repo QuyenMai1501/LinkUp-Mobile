@@ -3,13 +3,14 @@ import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
-import { EmojiPicker } from '@/components/chat/emoji-picker';
+import { GiphyEmojiPicker } from '@/components/giphy-emoji-picker';
+import { GiphyGifPicker } from '@/components/giphy-gif-picker';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { GiphyGif } from '@/api/giphy';
 import type { ChatMessage } from '@/types/chat';
-import type { EmojiItem } from '@/utils/emojis';
 
 const MAX_ATTACHMENTS = 10;
 
@@ -20,7 +21,7 @@ export interface AttachmentItem {
 }
 
 interface Props {
-  onSend: (text: string, attachments?: AttachmentItem[]) => void;
+  onSend: (text: string, attachments?: AttachmentItem[], gifUrl?: string) => void;
   onTyping: (isTyping: boolean) => void;
   replyingTo?: ChatMessage | null;
   onClearReply?: () => void;
@@ -31,6 +32,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [gifOpen, setGifOpen] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const handleSend = () => {
@@ -47,8 +49,14 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
     onTyping(value.length > 0);
   };
 
-  const handleEmojiSelect = (emoji: EmojiItem) => {
-    setText((prev) => prev + emoji.code);
+  const handleEmojiSelect = (url: string) => {
+    setText((prev) => prev + url);
+  };
+
+  // Chọn GIF -> gửi ngay (giống web), GIF gửi dưới dạng gif_url.
+  const handleGifSelect = (gif: GiphyGif) => {
+    onSend('', undefined, gif.preview);
+    onTyping(false);
   };
 
   const handlePickImage = async () => {
@@ -130,9 +138,23 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
 
         {/* Emoji button */}
         <Pressable
-          onPress={() => setEmojiOpen((prev) => !prev)}
+          onPress={() => {
+            setGifOpen(false);
+            setEmojiOpen((prev) => !prev);
+          }}
           style={[styles.emojiBtn, emojiOpen && { backgroundColor: theme.bgSecondary }]}>
           <Icon name="smile" size={20} color={theme.textSecondary} />
+        </Pressable>
+
+        {/* GIF button */}
+        <Pressable
+          onPress={() => {
+            setEmojiOpen(false);
+            setGifOpen((prev) => !prev);
+          }}
+          accessibilityLabel={t('composer.gif')}
+          style={[styles.emojiBtn, gifOpen && { backgroundColor: theme.bgSecondary }]}>
+          <Icon name="gif" size={20} color={theme.textSecondary} />
         </Pressable>
 
         <TextInput
@@ -161,7 +183,10 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
       </View>
 
       {/* Emoji picker */}
-      <EmojiPicker visible={emojiOpen} onClose={() => setEmojiOpen(false)} onSelect={handleEmojiSelect} />
+      <GiphyEmojiPicker visible={emojiOpen} onClose={() => setEmojiOpen(false)} onSelect={handleEmojiSelect} />
+
+      {/* GIF picker */}
+      <GiphyGifPicker visible={gifOpen} onClose={() => setGifOpen(false)} onSelect={handleGifSelect} />
     </View>
   );
 }

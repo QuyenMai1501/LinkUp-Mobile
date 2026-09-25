@@ -316,7 +316,7 @@ export function useChatRoom({
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {
-      if (!chatId || (!content.trim() && !opts?.mediaId && !opts?.emojiId)) return;
+      if (!chatId || (!content.trim() && !opts?.mediaId && !opts?.emojiId && !opts?.gifUrl)) return;
       tempSeqRef.current += 1;
       const tempId = `temp-${tempSeqRef.current}`;
       const optimistic: ChatMessage = {
@@ -325,8 +325,8 @@ export function useChatRoom({
         sender_id: myUserId,
         content,
         media_id: opts?.mediaId ?? null,
-        media_uri: opts?.mediaUri ?? null,
-        media_type: opts?.mediaType ?? null,
+        media_uri: opts?.gifUrl ?? opts?.mediaUri ?? null,
+        media_type: opts?.gifUrl ? 'image/gif' : opts?.mediaType ?? null,
         is_anonymized: false,
         created_at: new Date().toISOString(),
       };
@@ -340,6 +340,7 @@ export function useChatRoom({
           e2e_version: 1,
           emoji_id: opts?.emojiId,
           media_id: opts?.mediaId,
+          gif_url: opts?.gifUrl ?? null,
           reply_to_message_id: opts?.replyToMessageId,
         });
       } else {
@@ -349,6 +350,7 @@ export function useChatRoom({
           content,
           emoji_id: opts?.emojiId,
           media_id: opts?.mediaId,
+          gif_url: opts?.gifUrl ?? null,
           reply_to_message_id: opts?.replyToMessageId,
         });
       }

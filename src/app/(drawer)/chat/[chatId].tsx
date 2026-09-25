@@ -90,7 +90,17 @@ export default function ChatScreen() {
   });
 
   const handleSend = useCallback(
-    async (text: string, attachments?: { uri: string; name: string; type: string }[]) => {
+    async (text: string, attachments?: { uri: string; name: string; type: string }[], gifUrl?: string) => {
+      // GIF từ GIPHY -> gửi ngay dưới dạng gif_url (server tạo media từ URL).
+      if (gifUrl) {
+        room.sendMessage('', { gifUrl, replyToMessageId: replyingTo?.id });
+        setReplyingTo(null);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+        return;
+      }
+
       if (attachments && attachments.length > 0 && chatId) {
         let caption = text;
         let captionEncrypted = false;

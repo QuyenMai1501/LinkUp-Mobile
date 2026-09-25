@@ -27,9 +27,13 @@ import Animated, {
 
 import { ThemedText } from "@/components/themed-text";
 import { Icon } from "@/components/ui/icon";
+import { RichContent } from "@/components/rich-content";
+import { getEmojiTextMap } from "@/utils/emojis";
 
 import type { FeedMedia, FeedPost } from "../types/post";
 import VideoPlayer from "./video-player";
+
+const EMOJI_MAP = getEmojiTextMap();
 
 const DISMISS_DISTANCE = 120;
 const DISMISS_VELOCITY = 850;
@@ -361,11 +365,12 @@ export default function MediaViewer({
                   </View>
 
                   {post.content ? (
-                    <ThemedText
+                    <RichContent
+                      emojiMap={EMOJI_MAP}
+                      numberOfLines={infoExpanded ? undefined : 2}
                       style={styles.content}
-                      numberOfLines={infoExpanded ? undefined : 2}>
-                      {post.content}
-                    </ThemedText>
+                      content={post.content}
+                    />
                   ) : null}
 
                   <View style={styles.actions}>

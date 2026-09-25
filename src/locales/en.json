@@ -481,6 +481,13 @@
     "cancel": "Cancel",
     "media": "Photo/Video",
     "emoji": "Emoji",
+    "emojiSearch": "Search emoji...",
+    "emojiEmpty": "No emoji found",
+    "gifError": "Could not load GIFs, try again later",
+    "gifMissingKey": "Missing GIPHY_API_KEY",
+    "gif": "GIF",
+    "gifSearch": "Search GIFs...",
+    "gifEmpty": "No GIFs found",
     "privacy": {
       "public": "Public",
       "friend": "Friends",

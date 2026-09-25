@@ -4,10 +4,14 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
+import { getEmojiTextMap } from '@/utils/emojis';
 import { Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommentItem as CommentItemType } from '../types/post';
+
+const EMOJI_MAP = getEmojiTextMap();
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -137,7 +141,7 @@ export default function CommentItem({
               @{parentComment.display_name}{' '}
             </ThemedText>
           )}
-          <ThemedText style={styles.content}>{comment.content}</ThemedText>
+          <RichContent content={comment.content} emojiMap={EMOJI_MAP} style={styles.content} />
           <View style={styles.actions}>
             <Pressable
               style={styles.actionBtn}

@@ -33,6 +33,7 @@ export const icons = {
   trash: 'trash-outline' as const,
   attach: 'attach-outline' as const,
   smile: 'happy-outline' as const,
+  gif: 'film-outline' as const,
   send: 'paper-plane-outline' as const,
   sendFilled: 'paper-plane' as const,
 

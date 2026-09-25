@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
 import CommentItem, { buildCommentTree } from '@/components/comment-item';
 import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
@@ -21,6 +22,7 @@ import { Typography } from '@/constants/typography';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getEmojiTextMap } from '@/utils/emojis';
 import {
   getPostDetail,
   getComments,
@@ -35,6 +37,7 @@ import {
 import type { FeedPost, CommentItem as CommentItemType, EmojiItem, CommentSort } from '../types/post';
 
 const COMMENT_PAGE_SIZE = 10;
+const EMOJI_MAP = getEmojiTextMap();
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -450,7 +453,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                 {isRepost && sharedPost ? (
                   <View>
                     {post.share_content ? (
-                      <ThemedText style={styles.content}>{post.share_content}</ThemedText>
+                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} />
                     ) : null}
                     <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
                       <View style={styles.embeddedAuthor}>
@@ -474,7 +477,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                         <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
                       ) : null}
                       {sharedPost.content ? (
-                        <ThemedText style={styles.embeddedContent}>{sharedPost.content}</ThemedText>
+                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} />
                       ) : null}
                     </View>
                   </View>
@@ -482,7 +485,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   <>
                     {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
                     {post.content ? (
-                      <ThemedText style={styles.content}>{post.content}</ThemedText>
+                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} />
                     ) : null}
                   </>
                 )}

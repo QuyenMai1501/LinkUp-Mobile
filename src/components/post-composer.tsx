@@ -18,13 +18,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { type IconName } from '@/constants/icon-map';
-import EmojiPicker from '@/components/post-composer-emoji-picker';
+import { GiphyEmojiPicker } from '@/components/giphy-emoji-picker';
+import { GiphyGifPicker } from '@/components/giphy-gif-picker';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getMyProfile } from '@/api/profile';
 import { createPost } from '@/api/posts';
+import type { GiphyGif } from '@/api/giphy';
 import type { PostStatus, FeedPost } from '@/types/post';
 import type { ViewProfileResponse } from '@/types/profile';
 
@@ -60,6 +62,8 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+  const [gif, setGif] = useState<GiphyGif | null>(null);
   const [privacyMenuVisible, setPrivacyMenuVisible] = useState(false);
   const [profile, setProfile] = useState<ViewProfileResponse | null>(null);
 
@@ -76,6 +80,8 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
     setMedia([]);
     setError(null);
     setEmojiPickerVisible(false);
+    setGifPickerVisible(false);
+    setGif(null);
     setPrivacyMenuVisible(false);
   }, []);
 
@@ -117,10 +123,15 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
     setError(null);
   };
 
+  const handleGifSelect = (selected: GiphyGif) => {
+    setGif(selected);
+    setError(null);
+  };
+
   const validate = (): string | null => {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
-    const hasMedia = media.length > 0;
+    const hasMedia = media.length > 0 || gif !== null;
 
     if (trimmedTitle !== '' && (trimmedTitle.length < 5 || trimmedTitle.length > TITLE_MAX)) {
       return t('composer.errorTitleLength');
@@ -160,6 +171,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
         content: content.trim(),
         status: privacy,
         mediaUris: media,
+        gifUrl: gif?.full,
       });
       reset();
       onPosted(res.data);
@@ -244,6 +256,20 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                 <ThemedText style={[styles.errorText, { color: theme.danger }]}>{error}</ThemedText>
               )}
 
+              {/* GIF preview */}
+              {gif && (
+                <View style={styles.mediaScroll}>
+                  <View style={styles.mediaPreview}>
+                    <Image source={{ uri: gif.preview }} style={styles.mediaThumb} contentFit="cover" />
+                    <Pressable
+                      onPress={() => setGif(null)}
+                      style={[styles.removeBtn, { backgroundColor: theme.danger }]}>
+                      <ThemedText style={styles.removeBtnText}>✕</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
               {/* Media previews */}
               {media.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
@@ -276,9 +302,20 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                 <Icon name="video" size={20} />
               </Pressable>
               <Pressable
-                style={styles.toolBtn}
-                onPress={() => setEmojiPickerVisible(true)}>
+                style={[styles.toolBtn, emojiPickerVisible && { backgroundColor: theme.bgSecondary }]}
+                onPress={() => {
+                  setGifPickerVisible(false);
+                  setEmojiPickerVisible(true);
+                }}>
                 <Icon name="smile" size={20} />
+              </Pressable>
+              <Pressable
+                style={[styles.toolBtn, gifPickerVisible && { backgroundColor: theme.bgSecondary }]}
+                onPress={() => {
+                  setEmojiPickerVisible(false);
+                  setGifPickerVisible(true);
+                }}>
+                <Icon name="gif" size={20} />
               </Pressable>
 
               {/* Privacy selector */}
@@ -318,10 +355,17 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
         )}
 
         {/* Emoji picker */}
-        <EmojiPicker
+        <GiphyEmojiPicker
           visible={emojiPickerVisible}
           onClose={() => setEmojiPickerVisible(false)}
           onSelect={insertEmoji}
+        />
+
+        {/* GIF picker */}
+        <GiphyGifPicker
+          visible={gifPickerVisible}
+          onClose={() => setGifPickerVisible(false)}
+          onSelect={handleGifSelect}
         />
       </ThemedView>
     </Modal>

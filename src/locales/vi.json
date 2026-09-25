@@ -481,6 +481,13 @@
     "cancel": "Hủy",
     "media": "Ảnh/video",
     "emoji": "Biểu tượng cảm xúc",
+    "emojiSearch": "Tìm emoji...",
+    "emojiEmpty": "Không tìm thấy emoji nào",
+    "gifError": "Không tải được GIF, thử lại sau",
+    "gifMissingKey": "Thiếu GIPHY_API_KEY",
+    "gif": "GIF",
+    "gifSearch": "Tìm GIF...",
+    "gifEmpty": "Không tìm thấy GIF nào",
     "privacy": {
       "public": "Công khai",
       "friend": "Bạn bè",

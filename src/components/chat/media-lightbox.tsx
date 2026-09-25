@@ -4,9 +4,13 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getEmojiTextMap } from '@/utils/emojis';
 import type { ChatMessage } from '@/types/chat';
+
+const EMOJI_TEXT_MAP = getEmojiTextMap();
 
 interface Props {
   visible: boolean;
@@ -34,7 +38,7 @@ export function MediaLightbox({ visible, messages, initialIndex, onClose }: Prop
 
         {msg.content?.trim() && (
           <View style={[styles.caption, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-            <ThemedText style={styles.captionText}>{msg.content}</ThemedText>
+            <RichContent content={msg.content} emojiMap={EMOJI_TEXT_MAP} size={16} style={styles.captionText} />
           </View>
         )}
 
