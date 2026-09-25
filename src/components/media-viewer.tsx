@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -7,55 +7,32 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { Image } from 'expo-image';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+} from "react-native";
+
+import { Image } from "expo-image";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
   Easing,
   runOnJS,
-} from 'react-native-reanimated';
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-import { ThemedText } from '@/components/themed-text';
-import { Icon } from '@/components/ui/icon';
-import { useAuth } from '@/contexts/auth-context';
-import type { FeedPost, FeedMedia } from '../types/post';
-import VideoPlayer from './video-player';
+import { ThemedText } from "@/components/themed-text";
+import { Icon } from "@/components/ui/icon";
 
-const DISMISS_THRESHOLD = 120;
-const DISMISS_VELOCITY = 600;
-const INFO_COLLAPSED_HEIGHT = 160;
-const INFO_EXPANDED_RATIO = 0.65;
+import type { FeedMedia, FeedPost } from "../types/post";
+import VideoPlayer from "./video-player";
 
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const past = new Date(dateStr).getTime();
-  const diffMs = now - past;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'vừa xong';
-  if (diffMins < 60) return `${diffMins} phút trước`;
-  if (diffHours < 24) return `${diffHours} giờ trước`;
-  if (diffDays <= 7) return `${diffDays} ngày trước`;
-
-  const d = new Date(dateStr);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
-
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return String(n);
-}
-
-function isVideo(fileType: string): boolean {
-  return fileType.startsWith('video/');
-}
+const DISMISS_DISTANCE = 120;
+const DISMISS_VELOCITY = 850;
 
 interface MediaViewerProps {
   visible: boolean;
@@ -69,6 +46,56 @@ interface MediaViewerProps {
   onSharePress: () => void;
 }
 
+function isVideo(fileType: string): boolean {
+  return fileType.startsWith("video/");
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  }
+
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  }
+
+  return String(n);
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const past = new Date(dateStr).getTime();
+
+  const diffMs = now - past;
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) {
+    return "vừa xong";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} phút trước`;
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours} giờ trước`;
+  }
+
+  if (diffDays <= 7) {
+    return `${diffDays} ngày trước`;
+  }
+
+  const date = new Date(dateStr);
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
 export default function MediaViewer({
   visible,
   media,
@@ -80,317 +107,447 @@ export default function MediaViewer({
   onCommentPress,
   onSharePress,
 }: MediaViewerProps) {
-  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
+  const initialSafeIndex = Math.min(
+    Math.max(initialIndex, 0),
+    Math.max(media.length - 1, 0),
+  );
+
+  const [currentIndex, setCurrentIndex] = useState(initialSafeIndex);
   const [infoExpanded, setInfoExpanded] = useState(false);
-  const { user } = useAuth();
-  const isOwner = user?.id != null && post.user_id === user.id;
 
   const translateY = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  const infoMaxHeight = useSharedValue(INFO_COLLAPSED_HEIGHT);
+  const scale = useSharedValue(1);
+  const backdropOpacity = useSharedValue(1);
 
-  const handleDismiss = useCallback(() => {
+  const handleDismissComplete = useCallback(() => {
     onClose();
   }, [onClose]);
 
-  const dismissWorklet = useCallback(() => {
-    'worklet';
-    // eslint-disable-next-line react-hooks/immutability
-    translateY.value = withSpring(SCREEN_HEIGHT, { damping: 30, stiffness: 300 });
-    // eslint-disable-next-line react-hooks/immutability
-    opacity.value = withSpring(0, { damping: 30, stiffness: 300 }, (finished) => {
-      if (finished) {
-        runOnJS(handleDismiss)();
-      }
-    });
-  }, [handleDismiss, translateY, opacity, SCREEN_HEIGHT]);
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetY(10)
-    .onUpdate((e) => {
-      if (e.translationY > 0) {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = e.translationY;
-        // eslint-disable-next-line react-hooks/immutability
-        opacity.value = Math.max(0, 1 - e.translationY / SCREEN_HEIGHT);
-      }
-    })
-    .onEnd((e) => {
-      if (e.translationY > DISMISS_THRESHOLD || e.velocityY > DISMISS_VELOCITY) {
-        dismissWorklet();
-      } else {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = withSpring(0, { damping: 20 });
-        // eslint-disable-next-line react-hooks/immutability
-        opacity.value = withSpring(1, { damping: 20 });
-      }
-    });
+    translateY.value = 0;
+    scale.value = 1;
+    backdropOpacity.value = 1;
 
-  const containerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
+    setCurrentIndex(initialSafeIndex);
+    setInfoExpanded(false);
+  }, [visible, initialSafeIndex, translateY, scale, backdropOpacity]);
+
+  const nativeScrollGesture = useMemo(() => Gesture.Native(), []);
+
+  const dismissGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-10, 10])
+        .failOffsetX([-30, 30])
+        .simultaneousWithExternalGesture(nativeScrollGesture)
+        .onUpdate((event) => {
+          const y = Math.max(0, event.translationY);
+
+          translateY.value = y;
+
+          const progress = Math.min(y / (screenHeight * 0.5), 1);
+
+          scale.value = 1 - progress * 0.04;
+          backdropOpacity.value = 1 - progress * 0.85;
+        })
+        .onEnd((event) => {
+          const distanceReached = event.translationY >= DISMISS_DISTANCE;
+
+          const velocityReached = event.velocityY >= DISMISS_VELOCITY;
+
+          const shouldDismiss =
+            event.translationY > 0 && (distanceReached || velocityReached);
+
+          if (shouldDismiss) {
+            translateY.value = withTiming(
+              screenHeight,
+              {
+                duration: 220,
+                easing: Easing.out(Easing.cubic),
+              },
+              (finished) => {
+                if (finished) {
+                  runOnJS(handleDismissComplete)();
+                }
+              },
+            );
+
+            backdropOpacity.value = withTiming(0, {
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+            });
+
+            scale.value = withTiming(0.96, {
+              duration: 220,
+              easing: Easing.out(Easing.cubic),
+            });
+
+            return;
+          }
+
+          translateY.value = withSpring(0, {
+            damping: 22,
+            stiffness: 240,
+            mass: 0.85,
+          });
+
+          scale.value = withSpring(1, {
+            damping: 22,
+            stiffness: 240,
+            mass: 0.85,
+          });
+
+          backdropOpacity.value = withSpring(1, {
+            damping: 22,
+            stiffness: 240,
+            mass: 0.85,
+          });
+        }),
+    [
+      screenHeight,
+      nativeScrollGesture,
+      translateY,
+      scale,
+      backdropOpacity,
+      handleDismissComplete,
+    ],
+  );
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
   }));
 
-  const infoOverlayStyle = useAnimatedStyle(() => ({
-    maxHeight: infoMaxHeight.value,
+  const viewerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: translateY.value,
+      },
+      {
+        scale: scale.value,
+      },
+    ],
   }));
 
   const handleClose = useCallback(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    translateY.value = 0;
-    // eslint-disable-next-line react-hooks/immutability
-    opacity.value = 1;
     onClose();
-  }, [onClose, translateY, opacity]);
+  }, [onClose]);
 
   const handleToggleInfo = useCallback(() => {
-    setInfoExpanded((prev) => {
-      const next = !prev;
-      const targetHeight = next
-        ? SCREEN_HEIGHT * INFO_EXPANDED_RATIO
-        : INFO_COLLAPSED_HEIGHT;
-      infoMaxHeight.value = withTiming(targetHeight, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      });
-      return next;
-    });
-  }, [infoMaxHeight, SCREEN_HEIGHT]);
+    setInfoExpanded((previous) => !previous);
+  }, []);
 
-  const handleOpenComments = useCallback(() => {
-    onCommentPress();
-  }, [onCommentPress]);
+  if (!visible || media.length === 0) {
+    return null;
+  }
 
-  if (!visible || media.length === 0) return null;
-
-  const safeIndex = Math.min(currentIndex, media.length - 1);
+  const safeIndex = Math.min(Math.max(currentIndex, 0), media.length - 1);
 
   return (
-    <Modal visible={visible} transparent>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.container, containerStyle]}>
-          <StatusBar hidden />
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={handleClose}>
+      <GestureHandlerRootView style={styles.root}>
+        <StatusBar hidden />
 
-          {/* Close button */}
-          <Pressable style={styles.closeBtn} onPress={handleClose}>
-            <Icon name="close" size={20} color="#fff" />
-          </Pressable>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.backdrop,
+            backdropAnimatedStyle,
+          ]}
+        />
 
-          {/* Counter */}
-          {media.length > 1 && (
-            <View style={[styles.counter, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-              <ThemedText style={styles.counterText}>
-                {safeIndex + 1} / {media.length}
-              </ThemedText>
-            </View>
-          )}
+        <GestureDetector gesture={dismissGesture}>
+          <Animated.View style={[styles.viewer, viewerAnimatedStyle]}>
+            <Pressable
+              style={styles.closeButton}
+              onPress={handleClose}
+              hitSlop={12}>
+              <Icon name="close" size={20} color="#FFFFFF" />
+            </Pressable>
 
-          {/* Media — FlatList handles its own horizontal scrolling */}
-          <FlatList
-            data={media}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            initialScrollIndex={initialIndex}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(
-                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
-              );
-              setCurrentIndex(idx);
-            }}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item: m }) => (
-              <View style={[styles.mediaStage, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]}>
-                {isVideo(m.file_type) ? (
-                  <VideoPlayer uri={m.file_uri} />
-                ) : (
-                  <Image
-                    source={{ uri: m.file_uri }}
-                    style={styles.mediaImage}
-                    contentFit="contain"
-                  />
-                )}
+            {media.length > 1 && (
+              <View style={styles.counter}>
+                <ThemedText style={styles.counterText}>
+                  {safeIndex + 1} / {media.length}
+                </ThemedText>
               </View>
             )}
-          />
 
-          {/* Info overlay — always at bottom, expands upward via maxHeight */}
-          <Animated.View style={[styles.infoOverlay, infoOverlayStyle]}>
-            <Pressable onPress={handleToggleInfo} style={styles.infoPressable}>
-              {/* Gradient background */}
-              <View style={[styles.infoGradient, infoExpanded && styles.infoGradientExpanded]} />
+            <GestureDetector gesture={nativeScrollGesture}>
+              <FlatList
+                data={media}
+                horizontal
+                pagingEnabled
+                bounces={false}
+                directionalLockEnabled
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={initialSafeIndex}
+                keyExtractor={(item) => item.id}
+                getItemLayout={(_, index) => ({
+                  length: screenWidth,
+                  offset: screenWidth * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(event) => {
+                  const width = event.nativeEvent.layoutMeasurement.width;
 
-              <View style={styles.infoContent}>
-                {/* Author row */}
-                <View style={styles.authorRow}>
-                  <ThemedText style={styles.displayName}>{post.display_name}</ThemedText>
-                  <ThemedText style={styles.username}>@{post.username}</ThemedText>
-                  <ThemedText style={styles.dot}>·</ThemedText>
-                  <ThemedText style={styles.time}>{formatRelativeTime(post.created_at)}</ThemedText>
-                </View>
+                  const offset = event.nativeEvent.contentOffset.x;
 
-                {/* Content */}
-                {post.content ? (
-                  <ThemedText
-                    style={styles.content}
-                    numberOfLines={infoExpanded ? undefined : 2}>
-                    {post.content}
-                  </ThemedText>
-                ) : null}
+                  const nextIndex = Math.round(offset / width);
 
-                {/* Action icons */}
-                <View style={styles.actions}>
-                  <Pressable style={styles.actionBtn} onPress={onLike}>
-                    {post.is_liked ? (
-                      <Icon name="heartFilled" size={18} color="#E53935" />
+                  setCurrentIndex(nextIndex);
+                }}
+                renderItem={({ item }) => (
+                  <View
+                    style={[
+                      styles.mediaStage,
+                      {
+                        width: screenWidth,
+                        height: screenHeight,
+                      },
+                    ]}>
+                    {isVideo(item.file_type) ? (
+                      <VideoPlayer uri={item.file_uri} />
                     ) : (
-                      <Icon name="heart" size={18} color="#fff" />
+                      <Image
+                        source={{
+                          uri: item.file_uri,
+                        }}
+                        style={styles.mediaImage}
+                        contentFit="contain"
+                      />
                     )}
-                    <ThemedText style={styles.actionCount}>{formatCount(post.likes_count)}</ThemedText>
-                  </Pressable>
+                  </View>
+                )}
+              />
+            </GestureDetector>
 
-                  <Pressable style={styles.actionBtn} onPress={handleOpenComments}>
-                    <Icon name="chat" size={18} color="#fff" />
-                    <ThemedText style={styles.actionCount}>{formatCount(post.comments_count)}</ThemedText>
-                  </Pressable>
+            <View
+              style={[
+                styles.infoContainer,
+                infoExpanded && styles.infoContainerExpanded,
+              ]}>
+              <Pressable
+                style={styles.infoPressable}
+                onPress={handleToggleInfo}>
+                <View style={styles.infoContent}>
+                  <View style={styles.authorRow}>
+                    <ThemedText style={styles.displayName}>
+                      {post.display_name}
+                    </ThemedText>
 
-                  <Pressable
-                    style={styles.actionBtn}
-                    onPress={onSharePress}
-                    disabled={isOwner || post.is_shared}>
-                    <Icon
-                      name="share"
-                      size={18}
-                      color={isOwner || post.is_shared ? 'rgba(255,255,255,0.35)' : '#fff'}
-                    />
-                    <ThemedText style={styles.actionCount}>{formatCount(post.shares_count)}</ThemedText>
-                  </Pressable>
+                    <ThemedText style={styles.username}>
+                      @{post.username}
+                    </ThemedText>
 
-                  <Pressable style={styles.actionBtn} onPress={onSave} disabled={isOwner}>
-                    {post.is_saved ? (
-                      <Icon name="bookmarkFilled" size={18} color="#FBBC04" />
-                    ) : (
-                      <Icon name="bookmark" size={18} color={isOwner ? 'rgba(255,255,255,0.35)' : '#fff'} />
-                    )}
-                  </Pressable>
+                    <ThemedText style={styles.separator}>·</ThemedText>
+
+                    <ThemedText style={styles.time}>
+                      {formatRelativeTime(post.created_at)}
+                    </ThemedText>
+                  </View>
+
+                  {post.content ? (
+                    <ThemedText
+                      style={styles.content}
+                      numberOfLines={infoExpanded ? undefined : 2}>
+                      {post.content}
+                    </ThemedText>
+                  ) : null}
+
+                  <View style={styles.actions}>
+                    <Pressable style={styles.actionButton} onPress={onLike}>
+                      {post.is_liked ? (
+                        <Icon name="heartFilled" size={19} color="#E53935" />
+                      ) : (
+                        <Icon name="heart" size={19} color="#FFFFFF" />
+                      )}
+
+                      <ThemedText style={styles.actionCount}>
+                        {formatCount(post.likes_count)}
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={onCommentPress}>
+                      <Icon name="chat" size={19} color="#FFFFFF" />
+
+                      <ThemedText style={styles.actionCount}>
+                        {formatCount(post.comments_count)}
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={onSharePress}>
+                      <Icon name="share" size={19} color="#FFFFFF" />
+
+                      <ThemedText style={styles.actionCount}>
+                        {formatCount(post.shares_count)}
+                      </ThemedText>
+                    </Pressable>
+
+                    <Pressable style={styles.actionButton} onPress={onSave}>
+                      {post.is_saved ? (
+                        <Icon name="bookmarkFilled" size={19} color="#FBBC04" />
+                      ) : (
+                        <Icon name="bookmark" size={19} color="#FFFFFF" />
+                      )}
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-            </Pressable>
+              </Pressable>
+            </View>
           </Animated.View>
-        </Animated.View>
-      </GestureDetector>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#000',
   },
-  closeBtn: {
-    position: 'absolute',
+
+  backdrop: {
+    backgroundColor: "#000000",
+  },
+
+  viewer: {
+    flex: 1,
+    backgroundColor: "transparent",
+    overflow: "hidden",
+  },
+
+  closeButton: {
+    position: "absolute",
     top: 50,
     left: 16,
-    zIndex: 20,
+    zIndex: 100,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.50)",
   },
+
   counter: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
     right: 16,
-    zIndex: 20,
+    zIndex: 100,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 9999,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.50)",
   },
+
   counterText: {
-    color: '#fff',
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
+
   mediaStage: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
+
   mediaImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
-  infoOverlay: {
-    position: 'absolute',
-    bottom: 0,
+
+  infoContainer: {
+    position: "absolute",
     left: 0,
     right: 0,
-    overflow: 'hidden',
+    bottom: 0,
+    zIndex: 80,
+    backgroundColor: "rgba(0,0,0,0.28)",
   },
+
+  infoContainerExpanded: {
+    backgroundColor: "rgba(0,0,0,0.90)",
+  },
+
   infoPressable: {
-    minHeight: INFO_COLLAPSED_HEIGHT,
+    width: "100%",
   },
-  infoGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    backgroundColor: 'transparent',
-  },
-  infoGradientExpanded: {
-    height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-  },
+
   infoContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 18,
+    paddingBottom: 18,
   },
+
   authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginBottom: 8,
   },
+
   displayName: {
-    color: '#fff',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
+
   username: {
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.72)",
     fontSize: 13,
   },
-  dot: {
-    color: 'rgba(255,255,255,0.5)',
+
+  separator: {
+    color: "rgba(255,255,255,0.5)",
     fontSize: 13,
   },
+
   time: {
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.72)",
     fontSize: 13,
   },
+
   content: {
-    color: '#fff',
+    color: "#FFFFFF",
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
   actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 22,
   },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  actionButton: {
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
+
   actionCount: {
-    color: 'rgba(255,255,255,0.8)',
+    color: "rgba(255,255,255,0.85)",
     fontSize: 13,
   },
 });
