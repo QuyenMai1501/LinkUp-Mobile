@@ -34,6 +34,15 @@ export function isGiphyUrl(url: string): boolean {
   return /https?:\/\/(?:media\d?|i)\.giphy\.com\//i.test(url);
 }
 
+/**
+ * Chèn khoảng trắng giữa các URL GIPHY bị dính nhau (nội dung cũ được serialize
+ * thiếu separator → `url1url2…` bị renderer coi là 1 URL duy nhất).
+ * Idempotent — chuỗi đã tách sẽ giữ nguyên.
+ */
+export function separateGiphyUrls(text: string): string {
+  return text.replace(/(\S)(https:\/\/(?:media\d?|i)\.giphy\.com\/)/g, '$1 $2');
+}
+
 /** Cắt các URL GIPHY ra khỏi nội dung (trả về text thuần còn lại). */
 export function stripGiphyUrls(text: string): string {
   return text.replace(GIPHY_URL_RE, '').replace(/\s+/g, ' ').trim();

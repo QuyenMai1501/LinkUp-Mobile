@@ -1,6 +1,6 @@
 import { Text, Image, type StyleProp, type TextStyle } from 'react-native';
 
-import { isGiphyUrl, giphyStillUrl } from '@/api/giphy';
+import { isGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
 import type { EmojiItem } from '@/utils/emojis';
 
 const EMOJI_RE = /(:[a-z0-9+_-]+:)/gi;
@@ -14,7 +14,8 @@ type Segment =
 /** Chia nội dung thành text / `:code:` / URL GIPHY. */
 export function splitContentSegments(content: string): Segment[] {
   const out: Segment[] = [];
-  for (const part of content.split(EMOJI_RE)) {
+  // Nội dung cũ có thể dính nhiều URL GIPHY (`url1url2`) → tách trước khi split.
+  for (const part of separateGiphyUrls(content).split(EMOJI_RE)) {
     if (part.startsWith(':') && part.endsWith(':')) {
       out.push({ k: 'code', v: part });
       continue;

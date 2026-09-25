@@ -11,6 +11,7 @@ import { Typography } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
+import { separateGiphyUrls } from '@/api/giphy';
 import VideoPlayer from './video-player';
 import type { FeedPost, FeedMedia } from '../types/post';
 
@@ -124,13 +125,16 @@ export default function PostCard({
   const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
   const isRepost = Boolean(sharedPost);
 
-  const needsTruncation = post.content.length > CONTENT_TRUNCATE_LENGTH;
+  // Tách URL GIPHY dính nhau TRƯỚC khi cắt — chuỗi liền mạch không có space
+  // sẽ bị truncateAvoidingUrl trả về '...' (mất trắng nội dung).
+  const repairedContent = separateGiphyUrls(post.content);
+  const needsTruncation = repairedContent.length > CONTENT_TRUNCATE_LENGTH;
   const displayContent =
     needsTruncation && !expanded
-      ? truncateAvoidingUrl(post.content, CONTENT_TRUNCATE_LENGTH)
-      : post.content;
+      ? truncateAvoidingUrl(repairedContent, CONTENT_TRUNCATE_LENGTH)
+      : repairedContent;
 
-  const sharedContent = sharedPost?.content ?? '';
+  const sharedContent = separateGiphyUrls(sharedPost?.content ?? '');
   const sharedNeedsTruncation = sharedContent.length > CONTENT_TRUNCATE_LENGTH;
   const displaySharedContent = sharedNeedsTruncation
     ? truncateAvoidingUrl(sharedContent, CONTENT_TRUNCATE_LENGTH)

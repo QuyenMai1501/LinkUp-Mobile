@@ -50,7 +50,11 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
   };
 
   const handleEmojiSelect = (url: string) => {
-    setText((prev) => prev + url);
+    // Bọc URL bằng space — 2 emoji liền nhau không separator sẽ render thành 1 ảnh.
+    setText((prev) => {
+      const sep = prev && !/\s$/.test(prev) ? ' ' : '';
+      return `${prev}${sep}${url} `;
+    });
   };
 
   // Chọn GIF -> gửi ngay (giống web), GIF gửi dưới dạng gif_url.

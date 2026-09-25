@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
 import { getEmojiTextMap, singleEmojiCode } from '@/utils/emojis';
-import { isSingleGiphyUrl, giphyStillUrl } from '@/api/giphy';
+import { isSingleGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
 import type { EmojiItem } from '@/utils/emojis';
 import type { ChatMessage } from '@/types/chat';
 
@@ -63,7 +63,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
   const bgColor = isMine ? theme.primary : theme.card;
   const textColor = isMine ? '#FFFFFF' : theme.text;
   const singleEmoji = singleEmojiCode(message.content, emojiMap);
-  const singleGiphy = !singleEmoji && isSingleGiphyUrl(message.content);
+  const singleGiphy = !singleEmoji && isSingleGiphyUrl(separateGiphyUrls(message.content));
 
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>

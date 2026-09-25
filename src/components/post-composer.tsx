@@ -119,7 +119,11 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
   };
 
   const insertEmoji = (emoji: string) => {
-    setContent((prev) => prev + emoji);
+    // Bọc URL bằng space — 2 emoji liền nhau không separator sẽ render thành 1 ảnh.
+    setContent((prev) => {
+      const sep = prev && !/\s$/.test(prev) ? ' ' : '';
+      return `${prev}${sep}${emoji} `;
+    });
     setError(null);
   };
 
