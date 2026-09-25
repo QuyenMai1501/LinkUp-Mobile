@@ -6,16 +6,28 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
+        "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
+        "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
+        "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J"
+      }
     }
   },
   "submit": {
