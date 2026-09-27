@@ -36,7 +36,8 @@
         }
       ],
       "expo-video",
-      "expo-notifications"
+      "expo-notifications",
+      "react-native-quick-crypto"
     ],
     "experiments": {
       "typedRoutes": true,

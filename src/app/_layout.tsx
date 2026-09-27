@@ -1,3 +1,5 @@
+import '@/polyfills'; // PHẢI đứng đầu — cấp globalThis.crypto (WebCrypto) cho e2ee.ts
+
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -59,6 +61,13 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // Selftest DEV: đối chiếu chuỗi E2E với golden vector của Web (xem
+  // src/utils/e2ee.selftest.ts). Log PASS/FAIL qua dbg() → log Metro.
+  useEffect(() => {
+    if (!__DEV__) return;
+    void import('@/utils/e2ee.selftest').then((m) => m.runE2EESelfTest());
+  }, []);
+
   return (
     <LanguageProvider>
       <ThemeModeProvider>
