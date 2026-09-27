@@ -86,9 +86,12 @@ async function importAesKey(
 }
 
 async function generateIdentity(userId: string) {
+  // extractable=true: mobile PHẢI export private key ra JWK để lưu xuống
+  // AsyncStorage (khác web — web lưu object CryptoKey trực tiếp vào IndexedDB).
+  // extractable=false → exportKey('jwk') ném "key is not extractable".
   const keyPair = (await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
-    false,
+    true,
     ['deriveBits'],
   )) as CryptoKeyPair;
   const pubRaw = await crypto.subtle.exportKey('spki', keyPair.publicKey);

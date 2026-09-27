@@ -125,6 +125,40 @@ export async function runE2EESelfTest(): Promise<boolean> {
       );
       if (new TextDecoder().decode(pt) !== 'pin') throw new Error('pin mismatch');
     }),
+    // 5. Đường identity thật: generate extractable=true → export private JWK
+    //    → import lại (false) → derive. Chặn regression "key is not extractable"
+    //    (e2ee.ts generateIdentity lưu JWK xuống AsyncStorage).
+    check('identity JWK export/import roundtrip', async () => {
+      const kp = (await crypto.subtle.generateKey(
+        { name: 'ECDH', namedCurve: 'P-256' },
+        true,
+        ['deriveBits'],
+      )) as CryptoKeyPair;
+      const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+      const spki = bytesToB64(
+        new Uint8Array(await crypto.subtle.exportKey('spki', kp.publicKey)),
+      );
+      const priv = await crypto.subtle.importKey(
+        'jwk',
+        jwk as JsonWebKey,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+      );
+      const shared = await deriveChatKey(priv, spki);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        shared,
+        new TextEncoder().encode('jwk'),
+      );
+      const pt = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        shared,
+        ct as BufferSource,
+      );
+      if (new TextDecoder().decode(pt) !== 'jwk') throw new Error('jwk mismatch');
+    }),
   ]);
 
   const failed = results.filter((ok) => !ok).length;
