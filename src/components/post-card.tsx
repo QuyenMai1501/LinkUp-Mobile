@@ -5,14 +5,30 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
+import { getEmojiTextMap } from '@/utils/emojis';
+import { separateGiphyUrls } from '@/api/giphy';
 import VideoPlayer from './video-player';
 import type { FeedPost, FeedMedia } from '../types/post';
 
 const CONTENT_TRUNCATE_LENGTH = 200;
+const EMOJI_MAP = getEmojiTextMap();
+
+/** Cắt nội dung dài, không cắt giữa URL (URL GIPHY bị cắt dở sẽ hỏng ảnh). */
+function truncateAvoidingUrl(content: string, max: number): string {
+  if (content.length <= max) return content;
+  const cut = content.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  const tail = lastSpace === -1 ? cut : cut.slice(lastSpace + 1);
+  if (tail.includes('://')) {
+    return (lastSpace === -1 ? '' : cut.slice(0, lastSpace + 1)) + '...';
+  }
+  return cut + '...';
+}
 
 function formatRelativeTime(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const now = Date.now();
@@ -109,16 +125,19 @@ export default function PostCard({
   const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
   const isRepost = Boolean(sharedPost);
 
-  const needsTruncation = post.content.length > CONTENT_TRUNCATE_LENGTH;
+  // Tách URL GIPHY dính nhau TRƯỚC khi cắt — chuỗi liền mạch không có space
+  // sẽ bị truncateAvoidingUrl trả về '...' (mất trắng nội dung).
+  const repairedContent = separateGiphyUrls(post.content);
+  const needsTruncation = repairedContent.length > CONTENT_TRUNCATE_LENGTH;
   const displayContent =
     needsTruncation && !expanded
-      ? post.content.slice(0, CONTENT_TRUNCATE_LENGTH) + '...'
-      : post.content;
+      ? truncateAvoidingUrl(repairedContent, CONTENT_TRUNCATE_LENGTH)
+      : repairedContent;
 
-  const sharedContent = sharedPost?.content ?? '';
+  const sharedContent = separateGiphyUrls(sharedPost?.content ?? '');
   const sharedNeedsTruncation = sharedContent.length > CONTENT_TRUNCATE_LENGTH;
   const displaySharedContent = sharedNeedsTruncation
-    ? sharedContent.slice(0, CONTENT_TRUNCATE_LENGTH) + '...'
+    ? truncateAvoidingUrl(sharedContent, CONTENT_TRUNCATE_LENGTH)
     : sharedContent;
 
   const handleContentPress = () => {
@@ -163,7 +182,7 @@ export default function PostCard({
         {isRepost && sharedPost ? (
           <View>
             {post.share_content ? (
-              <ThemedText style={styles.shareContent}>{post.share_content}</ThemedText>
+              <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} />
             ) : null}
             <View style={styles.embeddedPost}>
               <View style={styles.embeddedAuthor}>
@@ -187,7 +206,7 @@ export default function PostCard({
                 <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
               ) : null}
               {displaySharedContent ? (
-                <ThemedText style={styles.embeddedContent}>{displaySharedContent}</ThemedText>
+                <RichContent content={displaySharedContent} emojiMap={EMOJI_MAP} style={styles.embeddedContent} />
               ) : null}
               <MediaGrid
                 media={sharedPost.media}
@@ -201,7 +220,7 @@ export default function PostCard({
             {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
             {post.content ? (
               <View>
-                <ThemedText style={styles.content}>{displayContent}</ThemedText>
+                <RichContent content={displayContent} emojiMap={EMOJI_MAP} style={styles.content} />
                 {needsTruncation && (
                   <ThemedText style={styles.toggleBtn}>
                     {expanded ? t('post.collapse') : t('post.readMore')}

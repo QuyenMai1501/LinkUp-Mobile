@@ -36,6 +36,12 @@ export interface ReplyPreview {
   sender_id: string;
   sender_name: string;
   sender_avatar: string;
+  // Server gửi e2e_version ngay trên preview: 1 = content là ciphertext của
+  // CÙNG chat này (client tự giải mã), 0 = plaintext legacy.
+  e2e_version?: number;
+  decrypted?: boolean;
+  decrypting?: boolean;
+  decrypt_failed?: boolean;
 }
 
 export interface ChatConversation {
@@ -83,6 +89,10 @@ export interface PinnedMessage {
   content: string;
   sender_id: string;
   sender_name: string;
+  // Tin ghim E2E: server giữ nguyên ciphertext, client tự giải mã.
+  e2e_version?: number;
+  decrypted?: boolean;
+  decrypt_failed?: boolean;
 }
 
 export interface SendMessageOptions {

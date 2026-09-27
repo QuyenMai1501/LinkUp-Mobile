@@ -42,7 +42,13 @@ export default function ChatScreen() {
   const socket = useChatSocket();
   const myUserId = user?.id ?? '';
 
-  const [conversation, setConversation] = useState<ChatConversation | null>(null);
+  // Gắn chatId vào state: navigate giữa 2 chat khác nhau thì conversation cũ
+  // còn partner của chat TRƯỚC → derive `conversation` chỉ khi khớp chatId,
+  // tránh ensureChatKey chạy với partner sai (derive sai shared secret).
+  const [convEntry, setConvEntry] = useState<{
+    chatId: string;
+    conv: ChatConversation;
+  } | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Message actions state
@@ -68,12 +74,14 @@ export default function ChatScreen() {
       .then((res) => {
         if (cancelled) return;
         const conv = res.data.find((c) => c.chat_id === chatId);
-        if (conv) setConversation(conv);
+        if (conv) setConvEntry({ chatId, conv });
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [chatId]);
 
+  const conversation =
+    convEntry && convEntry.chatId === chatId ? convEntry.conv : null;
   const partnerUserId = conversation?.partner.user_id ?? null;
 
   const encryption = useChatE2E({
@@ -90,17 +98,41 @@ export default function ChatScreen() {
   });
 
   const handleSend = useCallback(
-    async (text: string, attachments?: { uri: string; name: string; type: string }[]) => {
+    async (text: string, attachments?: { uri: string; name: string; type: string }[], gifUrl?: string) => {
+      // Chưa phân loại E2E (conversation/partner chưa load xong) hoặc E2E chưa
+      // sẵn sàng / đối phương đã đổi thiết bị → chặn gửi ngay (trước cả khi
+      // upload media), không silent fallback về plaintext.
+      if (encryption.status === 'unavailable' || encryption.status === 'loading') {
+        Alert.alert(t('chat.e2eInitializing'));
+        return;
+      }
+      if (encryption.status === 'partner_changed') {
+        Alert.alert(t('chat.e2ePartnerChanged'));
+        return;
+      }
+
+      // GIF từ GIPHY -> gửi ngay dưới dạng gif_url (server tạo media từ URL).
+      if (gifUrl) {
+        room.sendMessage('', { gifUrl, replyToMessageId: replyingTo?.id });
+        setReplyingTo(null);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+        return;
+      }
+
       if (attachments && attachments.length > 0 && chatId) {
         let caption = text;
         let captionEncrypted = false;
-        try {
-          if (encryption.ready && caption) {
+        if (encryption.ready && caption) {
+          try {
             caption = await encryption.encrypt(caption);
             captionEncrypted = true;
+          } catch {
+            // Mã hóa fail → KHÔNG gửi plaintext; hủy luôn (không upload).
+            Alert.alert(t('chat.e2eEncryptFailed'));
+            return;
           }
-        } catch {
-          // Send unencrypted if encryption fails
         }
 
         for (let i = 0; i < attachments.length; i++) {
@@ -129,13 +161,15 @@ export default function ChatScreen() {
       // Text-only message
       let content = text;
       let encrypted = false;
-      try {
-        if (encryption.ready) {
+      if (encryption.ready) {
+        try {
           content = await encryption.encrypt(text);
           encrypted = true;
+        } catch {
+          // Mã hóa fail → chặn gửi, không silent fallback về plaintext.
+          Alert.alert(t('chat.e2eEncryptFailed'));
+          return;
         }
-      } catch {
-        // Send unencrypted if encryption fails
       }
       room.sendMessage(content, {
         replyToMessageId: replyingTo?.id,
@@ -146,7 +180,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption, replyingTo, chatId],
+    [room, encryption, replyingTo, chatId, t],
   );
 
   const handleTyping = useCallback(
@@ -367,6 +401,16 @@ export default function ChatScreen() {
         </View>
       )}
 
+      {/* E2E warning: đối phương đổi identity/thiết bị */}
+      {encryption.status === 'partner_changed' && (
+        <View style={[styles.e2eWarningBanner, { backgroundColor: theme.danger + '1A' }]}>
+          <Icon name="shield" size={14} color={theme.danger} />
+          <ThemedText style={[styles.e2eWarningText, { color: theme.danger }]}>
+            {t('chat.e2ePartnerChanged')}
+          </ThemedText>
+        </View>
+      )}
+
       {/* Pinned messages bar */}
       {room.pinnedMessages.length > 0 && !searchActive && (
         <View style={[styles.pinnedBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -386,7 +430,13 @@ export default function ChatScreen() {
                   {pin.sender_name || t('chat.unknown')}
                 </ThemedText>
                 <ThemedText style={[styles.pinnedBarItemText, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {pin.content.length > 60 ? pin.content.slice(0, 60) + '...' : pin.content || t('chat.attachment')}
+                  {pin.decrypt_failed
+                    ? t('chat.undecryptable')
+                    : pin.decrypted || !pin.e2e_version
+                      ? pin.content.length > 60
+                        ? pin.content.slice(0, 60) + '...'
+                        : pin.content || t('chat.attachment')
+                      : t('chat.decrypting')}
                 </ThemedText>
               </View>
               <Pressable
@@ -779,6 +829,18 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  e2eWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  e2eWarningText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
   },
   newMessagesBar: {
     alignItems: 'center',

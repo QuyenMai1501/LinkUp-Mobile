@@ -6,11 +6,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import { RichContent } from '@/components/rich-content';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getEmojiTextMap } from '@/utils/emojis';
 import type { ViewProfileResponse, FollowStats } from '@/types/profile';
 import { FriendButton } from './FriendButton';
+
+const EMOJI_MAP = getEmojiTextMap();
 
 interface ProfileHeaderProps {
   profile: ViewProfileResponse;
@@ -167,7 +171,7 @@ export function ProfileHeader({
         <ThemedText style={styles.displayName}>{profile.display_name}</ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.username}>@{profile.username}</ThemedText>
         {profile.bio ? (
-          <ThemedText style={styles.bio}>{profile.bio}</ThemedText>
+          <RichContent content={profile.bio} emojiMap={EMOJI_MAP} style={[styles.bio, { color: theme.text }]} />
         ) : null}
         <ThemedText themeColor="textSecondary" style={styles.meta}>
           📅 {t('profile.joined')} {formatJoinDate(profile.created_at)}

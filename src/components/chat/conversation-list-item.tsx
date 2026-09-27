@@ -3,11 +3,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { RichContent } from '@/components/rich-content';
+import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
+import { getEmojiTextMap } from '@/utils/emojis';
 import type { ChatConversation } from '@/types/chat';
+
+const EMOJI_MAP = getEmojiTextMap();
 
 interface Props {
   conversation: ChatConversation;
@@ -27,6 +31,23 @@ export function ConversationListItem({
   const theme = useTheme();
   const { t } = useTranslation();
   const { partner, last_message, is_encrypted } = conversation;
+
+  // Preview tin cuối: E2E chưa hydrate được (không có khóa / decrypt fail) →
+  // server chỉ giữ ciphertext, client nhận content rỗng → hiện placeholder khóa
+  // thay vì "tệp đính kèm" hay lộ ciphertext.
+  const previewText = !last_message
+    ? t('chat.newChat')
+    : last_message.media_id
+      ? t('chat.mediaMessage')
+      : last_message.emoji_id
+        ? t('chat.emojiMessage')
+        : is_encrypted && !last_message.content
+          ? t('chat.encryptedPreview')
+          : last_message.content || t('chat.mediaMessage');
+  const preview =
+    last_message && last_message.sender_id === myUserId
+      ? `${t('chat.youPrefix')}${previewText}`
+      : previewText;
 
   return (
     <Pressable
@@ -69,13 +90,13 @@ export function ConversationListItem({
           {is_encrypted && (
             <Icon name="lock" size={12} color={theme.textSecondary} />
           )}
-          <ThemedText themeColor="textSecondary" style={styles.preview} numberOfLines={1}>
-            {last_message
-              ? last_message.sender_id === myUserId
-                ? `${t('chat.youPrefix')}${last_message.content || t('chat.mediaMessage')}`
-                : last_message.content || t('chat.mediaMessage')
-              : t('chat.newChat')}
-          </ThemedText>
+          <RichContent
+            content={preview}
+            emojiMap={EMOJI_MAP}
+            numberOfLines={1}
+            size={14}
+            style={[styles.preview, { color: theme.textSecondary }]}
+          />
         </View>
       </View>
     </Pressable>
