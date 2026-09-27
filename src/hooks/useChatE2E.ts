@@ -3,9 +3,16 @@ import {
   decryptChat,
   encryptMessage as e2eEncrypt,
   ensureChatKey,
+  wasPartnerChanged,
+  dbg,
 } from '@/utils/e2ee';
 
-export type ChatE2EStatus = 'unavailable' | 'loading' | 'legacy' | 'ready';
+export type ChatE2EStatus =
+  | 'unavailable'
+  | 'loading'
+  | 'legacy'
+  | 'partner_changed'
+  | 'ready';
 
 export interface ChatE2E {
   status: ChatE2EStatus;
@@ -29,28 +36,49 @@ export function useChatE2E({
   const chatKeyRef = useRef<string | null>(null);
   const prevChatRef = useRef<string | null>(null);
 
+  // Reset khi đổi chat. KHÔNG gắn cờ prevChat theo chatId cho lượt chạy
+  // ensureChatKey ở effect bên dưới: lần đầu partnerUserId có thể còn null
+  // (conversation tải async từ listChats) — nếu ghi cờ ngay, partner về sau
+  // sẽ bị early-return và ensureChatKey KHÔNG BAO GIỜ chạy (status kẹt
+  // 'unavailable', decrypt luôn keyCount=0).
   useEffect(() => {
     if (prevChatRef.current === chatId) return;
     prevChatRef.current = chatId;
     chatKeyRef.current = null;
-    if (!chatId || !partnerUserId || !myUserId) {
-      setStatus('unavailable');
-      return;
-    }
+    setStatus('unavailable');
+  }, [chatId]);
 
+  // Chạy ensureChatKey ngay khi ĐỦ id. cancelled chống setState stale theo chat.
+  useEffect(() => {
+    if (!chatId || !partnerUserId || !myUserId) return;
     let cancelled = false;
     setStatus('loading');
 
     const run = async () => {
       try {
         const key = await ensureChatKey({ chatId, myUserId, partnerUserId });
+        if (cancelled) return;
         if (key) {
           chatKeyRef.current = key;
-          if (!cancelled) setStatus('ready');
+          dbg('useChatE2E', chatId, 'status=ready');
+          setStatus('ready');
+        } else if (wasPartnerChanged(chatId)) {
+          // Đối phương đổi identity/thiết bị, mình không giữ khóa chuẩn →
+          // không thể tự re-key; cảnh báo thay vì âm thầm legacy.
+          dbg('useChatE2E', chatId, 'status=partner_changed');
+          setStatus('partner_changed');
         } else {
-          if (!cancelled) setStatus('legacy');
+          // Đối phương chưa đăng ký public key → chat fallback legacy.
+          dbg('useChatE2E', chatId, 'status=legacy (no key, partner unchanged)');
+          setStatus('legacy');
         }
-      } catch {
+      } catch (err) {
+        // Không nuốt im — nếu ensureChatKey throw thì status=legacy + log lỗi
+        // để chẩn đoán (network / derive key / store keys...).
+        dbg(
+          'useChatE2E', chatId, 'ensureChatKey THREW → legacy:',
+          err instanceof Error ? err.message : String(err),
+        );
         if (!cancelled) setStatus('legacy');
       }
     };

@@ -13,6 +13,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 const SETTINGS_ITEMS: { key: string; icon: IconName; labelKey: string; descKey: string }[] = [
   { key: 'change-password', icon: 'lock', labelKey: 'settings.items.changePassword.label', descKey: 'settings.items.changePassword.desc' },
   { key: 'privacy', icon: 'shield', labelKey: 'settings.items.privacy.label', descKey: 'settings.items.privacy.desc' },
+  { key: 'security', icon: 'lock', labelKey: 'settings.items.security.label', descKey: 'settings.items.security.desc' },
   { key: 'storage', icon: 'save', labelKey: 'settings.items.storage.label', descKey: 'settings.items.storage.desc' },
   { key: 'appearance', icon: 'palette', labelKey: 'settings.items.appearance.label', descKey: 'settings.items.appearance.desc' },
   { key: 'sessions', icon: 'laptop', labelKey: 'settings.items.sessions.label', descKey: 'settings.items.sessions.desc' },

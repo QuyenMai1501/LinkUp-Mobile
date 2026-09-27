@@ -291,6 +291,24 @@
     "attachment": "Tệp đính kèm",
     "messageDeleted": "Tin nhắn đã bị xóa",
     "undecryptable": "Không thể giải mã tin nhắn",
+    "decrypting": "Đang giải mã...",
+    "encryptedPreview": "🔒 Tin nhắn đã mã hóa",
+    "e2eInitializing": "Đang khởi tạo mã hóa đầu cuối, vui lòng thử lại...",
+    "e2ePartnerChanged": "Đối phương đã đổi khóa bảo mật (thiết bị mới). Tin nhắn cũ chưa thể giải mã đến khi khóa được cập nhật.",
+    "e2eEncryptFailed": "Mã hóa tin nhắn thất bại",
+    "recovery": {
+      "gateTitle": "Khôi phục tin nhắn mã hóa",
+      "gateSubtitle": "Máy này chưa có khóa giải mã các tin nhắn trước đó. Hãy mở khóa bằng PIN hoặc recovery key để đọc được lịch sử trò chuyện.",
+      "pinTab": "Dùng PIN",
+      "recoveryTab": "Dùng recovery key",
+      "pinPlaceholder": "Nhập PIN (ít nhất 6 chữ số)",
+      "recoveryPlaceholder": "Nhập 32 ký tự recovery key",
+      "unlock": "Mở khóa",
+      "skip": "Bỏ qua",
+      "wrongSecret": "PIN hoặc recovery key không đúng",
+      "noBackup": "Chưa có backup khôi phục nào",
+      "unlockFailed": "Không thể mở khóa tin nhắn"
+    },
     "mediaMessage": "Media",
     "mediaFailed": "Không thể tải media",
     "uploadFailed": "Tải lên thất bại",
@@ -315,6 +333,10 @@
       "privacy": {
         "label": "Bảo mật",
         "desc": "Quản lý cài đặt bảo mật"
+      },
+      "security": {
+        "label": "Mã hóa chat",
+        "desc": "Sao lưu và khôi phục khóa mã hóa đầu cuối"
       },
       "storage": {
         "label": "Lưu trữ",
@@ -431,7 +453,32 @@
       "deactivateSuccess": "Tài khoản đã bị vô hiệu hóa",
       "deactivateFailed": "Không thể vô hiệu hóa tài khoản",
       "passwordRequired": "Vui lòng nhập mật khẩu để xác nhận"
-    }
+    },
+    "e2eStatusActive": "Khôi phục khóa chat đã bật",
+    "e2eStatusActiveHint": "Backup khóa chat của bạn được lưu an toàn trên server",
+    "e2eStatusInactive": "Khôi phục khóa chat chưa bật",
+    "e2eInactiveHint": "Bật để có thể lấy lại khóa chat mã hóa khi đăng nhập trên thiết bị mới",
+    "e2ePinLabel": "PIN (ít nhất 6 chữ số)",
+    "e2ePinConfirm": "Nhập lại PIN",
+    "e2ePinInvalid": "PIN phải có ít nhất 6 chữ số",
+    "e2ePinMismatch": "PIN xác nhận không khớp",
+    "e2eEnable": "Bật khôi phục",
+    "e2eSavePin": "Lưu PIN mới",
+    "e2eEnabled": "Đã bật khôi phục khóa chat",
+    "e2eChangePin": "Đổi PIN",
+    "e2eChangePinHint": "Nhập PIN mới để dùng làm khóa mở backup khôi phục",
+    "e2eRefreshNow": "Cập nhật backup ngay",
+    "e2eRefreshed": "Đã cập nhật backup khóa chat",
+    "e2eRefreshNoKeys": "Không thể tự cập nhật ở phiên này — hãy nhập PIN rồi thử lại",
+    "e2eDisable": "Tắt khôi phục",
+    "e2eDisableHint": "Xóa backup khóa chat khỏi server. Khóa trên máy này không bị ảnh hưởng.",
+    "e2eDisableConfirm": "Xóa backup khôi phục khóa chat? Sau khi xóa, bạn không thể lấy lại khóa chat trên thiết bị mới bằng PIN hoặc recovery key nữa.",
+    "e2eDisabled": "Đã tắt khôi phục khóa chat",
+    "e2eUpdatedAt": "Cập nhật lần cuối",
+    "e2eKeyTitle": "Khóa khôi phục của bạn",
+    "e2eKeyHint": "Hãy lưu khóa này ở nơi an toàn NGOÀI máy (giấy, trình quản lý mật khẩu). Khóa này KHÔNG được lưu trên server và chỉ hiện một lần — không thể xem lại sau khi đóng.",
+    "e2eCopy": "Sao chép",
+    "e2eCopied": "Đã sao chép"
   },
   "profile": {
     "title": "Hồ sơ",

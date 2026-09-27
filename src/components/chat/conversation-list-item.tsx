@@ -32,6 +32,23 @@ export function ConversationListItem({
   const { t } = useTranslation();
   const { partner, last_message, is_encrypted } = conversation;
 
+  // Preview tin cuối: E2E chưa hydrate được (không có khóa / decrypt fail) →
+  // server chỉ giữ ciphertext, client nhận content rỗng → hiện placeholder khóa
+  // thay vì "tệp đính kèm" hay lộ ciphertext.
+  const previewText = !last_message
+    ? t('chat.newChat')
+    : last_message.media_id
+      ? t('chat.mediaMessage')
+      : last_message.emoji_id
+        ? t('chat.emojiMessage')
+        : is_encrypted && !last_message.content
+          ? t('chat.encryptedPreview')
+          : last_message.content || t('chat.mediaMessage');
+  const preview =
+    last_message && last_message.sender_id === myUserId
+      ? `${t('chat.youPrefix')}${previewText}`
+      : previewText;
+
   return (
     <Pressable
       onPress={onPress}
@@ -74,13 +91,7 @@ export function ConversationListItem({
             <Icon name="lock" size={12} color={theme.textSecondary} />
           )}
           <RichContent
-            content={
-              last_message
-                ? last_message.sender_id === myUserId
-                  ? `${t('chat.youPrefix')}${last_message.content || t('chat.mediaMessage')}`
-                  : last_message.content || t('chat.mediaMessage')
-                : t('chat.newChat')
-            }
+            content={preview}
             emojiMap={EMOJI_MAP}
             numberOfLines={1}
             size={14}

@@ -19,6 +19,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="change-password" options={{ title: t('settings.items.changePassword.label') }} />
       <Stack.Screen name="privacy" options={{ title: t('settings.items.privacy.label') }} />
+      <Stack.Screen name="security" options={{ title: t('settings.items.security.label') }} />
       <Stack.Screen name="storage" options={{ title: t('settings.items.storage.label') }} />
       <Stack.Screen name="appearance" options={{ title: t('settings.items.appearance.label') }} />
       <Stack.Screen name="sessions" options={{ title: t('settings.items.sessions.label') }} />

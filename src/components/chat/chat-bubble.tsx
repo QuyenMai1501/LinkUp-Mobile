@@ -91,7 +91,11 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
             <ThemedText
               style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.6)' : theme.textSecondary }]}
               numberOfLines={1}>
-              {message.reply_to.content || t('chat.attachment')}
+              {message.reply_to.decrypt_failed
+                ? t('chat.undecryptable')
+                : message.reply_to.decrypting
+                  ? t('chat.decrypting')
+                  : message.reply_to.content || t('chat.attachment')}
             </ThemedText>
           </Pressable>
         )}

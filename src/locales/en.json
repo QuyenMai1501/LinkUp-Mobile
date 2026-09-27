@@ -291,6 +291,24 @@
     "attachment": "Attachment",
     "messageDeleted": "Message deleted",
     "undecryptable": "Message can't be decrypted",
+    "decrypting": "Decrypting...",
+    "encryptedPreview": "🔒 Encrypted message",
+    "e2eInitializing": "Initializing end-to-end encryption, please try again...",
+    "e2ePartnerChanged": "Your partner changed their security key (new device). Old messages can't be decrypted until the key is updated.",
+    "e2eEncryptFailed": "Failed to encrypt message",
+    "recovery": {
+      "gateTitle": "Restore encrypted messages",
+      "gateSubtitle": "This device doesn't have the keys to decrypt older messages yet. Unlock with your PIN or recovery key to read your chat history.",
+      "pinTab": "Use PIN",
+      "recoveryTab": "Use recovery key",
+      "pinPlaceholder": "Enter PIN (at least 6 digits)",
+      "recoveryPlaceholder": "Enter your 32-character recovery key",
+      "unlock": "Unlock",
+      "skip": "Skip",
+      "wrongSecret": "Wrong PIN or recovery key",
+      "noBackup": "No recovery backup yet",
+      "unlockFailed": "Could not unlock messages"
+    },
     "mediaMessage": "Media",
     "mediaFailed": "Failed to load media",
     "uploadFailed": "Upload failed",
@@ -315,6 +333,10 @@
       "privacy": {
         "label": "Privacy",
         "desc": "Manage privacy settings"
+      },
+      "security": {
+        "label": "Chat encryption",
+        "desc": "Back up and restore end-to-end encryption keys"
       },
       "storage": {
         "label": "Storage",
@@ -431,7 +453,32 @@
       "deactivateSuccess": "Account deactivated",
       "deactivateFailed": "Failed to deactivate account",
       "passwordRequired": "Please enter your password to confirm"
-    }
+    },
+    "e2eStatusActive": "Chat key recovery enabled",
+    "e2eStatusActiveHint": "Your chat keys backup is stored securely on the server",
+    "e2eStatusInactive": "Chat key recovery not enabled",
+    "e2eInactiveHint": "Enable to restore your encrypted chat keys when signing in on a new device",
+    "e2ePinLabel": "PIN (at least 6 digits)",
+    "e2ePinConfirm": "Confirm PIN",
+    "e2ePinInvalid": "PIN must be at least 6 digits",
+    "e2ePinMismatch": "PINs do not match",
+    "e2eEnable": "Enable recovery",
+    "e2eSavePin": "Save new PIN",
+    "e2eEnabled": "Chat key recovery enabled",
+    "e2eChangePin": "Change PIN",
+    "e2eChangePinHint": "Enter a new PIN to use as the key to unlock the recovery backup",
+    "e2eRefreshNow": "Refresh backup now",
+    "e2eRefreshed": "Chat key backup refreshed",
+    "e2eRefreshNoKeys": "Cannot auto-refresh in this session — enter your PIN and try again",
+    "e2eDisable": "Disable recovery",
+    "e2eDisableHint": "Delete the chat keys backup from the server. Keys on this device are unaffected.",
+    "e2eDisableConfirm": "Delete the chat recovery backup? After deletion you cannot restore chat keys on a new device with your PIN or recovery key.",
+    "e2eDisabled": "Chat key recovery disabled",
+    "e2eUpdatedAt": "Last updated",
+    "e2eKeyTitle": "Your recovery key",
+    "e2eKeyHint": "Store this key somewhere safe OFF this device (paper, password manager). It is NOT stored on the server and is shown only once — it cannot be viewed again after closing.",
+    "e2eCopy": "Copy",
+    "e2eCopied": "Copied"
   },
   "profile": {
     "title": "Profile",

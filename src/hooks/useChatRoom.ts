@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 import type { ChatMessage, HistoryCursor, PinnedMessage, SendMessageOptions } from '@/types/chat';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatSocket } from './useChatSocket';
 import type { ChatE2E } from './useChatE2E';
 
@@ -64,6 +66,28 @@ function prependMessages(prev: ChatMessage[], older: ChatMessage[]): ChatMessage
   return sortByCreatedAt([...byId.values()]);
 }
 
+// Cập nhật tin ghim trong prev bằng phiên bản đã giải mã (theo message_id),
+// chỉ khi nội dung/trạng thái thay đổi để tránh render thừa. Giữ thứ tự prev.
+function mergePinned(prev: PinnedMessage[], chunk: PinnedMessage[]): PinnedMessage[] {
+  if (chunk.length === 0) return prev;
+  const byId = new Map(prev.map((p) => [p.message_id, p]));
+  let changed = false;
+  for (const p of chunk) {
+    const cur = byId.get(p.message_id);
+    if (!cur) continue;
+    if (
+      cur.content === p.content &&
+      cur.decrypt_failed === p.decrypt_failed &&
+      cur.decrypted === p.decrypted
+    ) {
+      continue;
+    }
+    byId.set(p.message_id, p);
+    changed = true;
+  }
+  return changed ? [...byId.values()] : prev;
+}
+
 export interface ChatRoom {
   messages: ChatMessage[];
   loading: boolean;
@@ -98,6 +122,7 @@ export function useChatRoom({
   encryption,
   onNewMessage,
 }: UseChatRoomOptions): ChatRoom {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -122,9 +147,40 @@ export function useChatRoom({
     messagesRef.current = messages;
   }, [messages]);
 
+  const pinnedMessagesRef = useRef<PinnedMessage[]>([]);
+
+  useEffect(() => {
+    pinnedMessagesRef.current = pinnedMessages;
+  }, [pinnedMessages]);
+
   const decryptIncoming = useCallback(
     async (list: ChatMessage[]): Promise<ChatMessage[]> => {
       if (!encryption) return list;
+      // Chưa ready (đang set-up khóa / legacy / lỗi) → chỉ đánh dấu placeholder,
+      // KHÔNG gọi decrypt: tránh spam log keyCount=0 + tránh đánh dấu thất bại
+      // oan khi khóa chưa về. Khi status chuyển ready, Effect 3 retry sẽ giải
+      // mã lại toàn bộ (decrypt_failed → decrypted).
+      if (!encryption.ready) {
+        return list.map((msg) => {
+          let updated = msg;
+          if (msg.e2e_version === 1 && msg.content && !msg.deleted && !msg.decrypted) {
+            updated = { ...updated, decrypt_failed: true };
+          }
+          if (
+            updated.reply_to &&
+            updated.reply_to.content &&
+            updated.e2e_version === 1 &&
+            !updated.reply_to.decrypted &&
+            !updated.reply_to.decrypting
+          ) {
+            updated = {
+              ...updated,
+              reply_to: { ...updated.reply_to, decrypt_failed: true, decrypting: false },
+            };
+          }
+          return updated;
+        });
+      }
       return Promise.all(
         list.map(async (msg) => {
           let updated = msg;
@@ -136,19 +192,49 @@ export function useChatRoom({
               return { ...updated, decrypt_failed: true };
             }
           }
-          if (updated.reply_to && updated.reply_to.content && updated.e2e_version === 1) {
+          // Reply preview cùng chat (e2e_version ngay trên preview): giải mã
+          // thành công → nội dung; fail → giữ trạng thái để UI hiện "Không thể
+          // giải mã" thay vì xóa trắng snippet.
+          if (
+            updated.reply_to &&
+            updated.reply_to.content &&
+            updated.e2e_version === 1 &&
+            !updated.reply_to.decrypted &&
+            !updated.reply_to.decrypting
+          ) {
             const rt = updated.reply_to;
+            updated = { ...updated, reply_to: { ...rt, decrypting: true } };
             try {
               const plain = await encryption.decrypt(rt.content);
-              updated = { ...updated, reply_to: { ...rt, content: plain } };
-            } catch {
               updated = {
                 ...updated,
-                reply_to: { id: rt.id, content: '', sender_id: rt.sender_id, sender_name: rt.sender_name, sender_avatar: rt.sender_avatar },
+                reply_to: { ...rt, content: plain, decrypted: true, decrypt_failed: false },
               };
+            } catch {
+              updated = { ...updated, reply_to: { ...rt, decrypt_failed: true, decrypting: false } };
             }
           }
           return updated;
+        }),
+      );
+    },
+    [encryption],
+  );
+
+  // Giải mã tin ghim E2E (cùng chat → decrypt bằng khóa chat hiện tại). Trả về
+  // mảng pin đã có trạng thái decrypted/decrypt_failed để UI hiện placeholder.
+  const decryptPinned = useCallback(
+    async (list: PinnedMessage[]): Promise<PinnedMessage[]> => {
+      if (!encryption || list.length === 0) return list;
+      return Promise.all(
+        list.map(async (pin) => {
+          if (!pin.content || pin.decrypted) return pin;
+          try {
+            const plain = await encryption.decrypt(pin.content);
+            return { ...pin, content: plain, decrypted: true, decrypt_failed: false };
+          } catch {
+            return { ...pin, decrypt_failed: true };
+          }
         }),
       );
     },
@@ -271,8 +357,15 @@ export function useChatRoom({
         setSearchResults(msgs);
       }),
 
+      // Ghim tin E2E: render bản ciphertext ngay, decrypt dần (pin list từ
+      // server có thể là hàng trăm ghim — không block render).
       socket.subscribe('message:pinned_list', (payload: any) => {
-        setPinnedMessages(payload.pinned_messages ?? []);
+        const pins: PinnedMessage[] = payload.pinned_messages ?? [];
+        setPinnedMessages(pins);
+        void decryptPinned(pins).then((decrypted) => {
+          if (activeChatIdRef.current !== chatId) return;
+          setPinnedMessages((prev) => mergePinned(prev, decrypted));
+        });
       }),
 
       socket.subscribe('message:pinned', (payload: any) => {
@@ -282,6 +375,10 @@ export function useChatRoom({
           const exists = prev.some((p) => p.message_id === pin.message_id);
           if (exists) return prev;
           return [pin, ...prev].slice(0, 2);
+        });
+        void decryptPinned([pin]).then(([decrypted]) => {
+          if (activeChatIdRef.current !== chatId) return;
+          setPinnedMessages((prev) => mergePinned(prev, [decrypted]));
         });
       }),
 
@@ -293,7 +390,7 @@ export function useChatRoom({
 
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- socket.subscribe is stable
-  }, [chatId, socket.subscribe, myUserId, onNewMessage, decryptIncoming]);
+  }, [chatId, socket.subscribe, myUserId, onNewMessage, decryptIncoming, decryptPinned]);
 
   // Effect 2: Send chat:join when WebSocket is open.
   useEffect(() => {
@@ -312,11 +409,28 @@ export function useChatRoom({
       if (activeChatIdRef.current !== currentChatId) return;
       setMessages((prev) => mergeDecrypted(prev, decrypted));
     });
-  }, [e2eStatus, encryption, decryptIncoming]);
+    // Tin ghim cũng giữ ciphertext khi key chưa sẵn → giải mã lại khi ready.
+    void decryptPinned(pinnedMessagesRef.current).then((decrypted) => {
+      if (activeChatIdRef.current !== currentChatId) return;
+      setPinnedMessages((prev) => mergePinned(prev, decrypted));
+    });
+  }, [e2eStatus, encryption, decryptIncoming, decryptPinned]);
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {
       if (!chatId || (!content.trim() && !opts?.mediaId && !opts?.emojiId && !opts?.gifUrl)) return;
+      if (e2eStatus === 'unavailable' || e2eStatus === 'loading') {
+        // Chưa phân loại E2E (ids chưa load) hoặc E2E chưa sẵn sàng → chặn gửi
+        // thay vì lặng lẽ lộ plaintext ra server. (Legacy → status='legacy' →
+        // vẫn gửi plaintext như cũ.)
+        Alert.alert(t('chat.e2eInitializing'));
+        return;
+      }
+      if (e2eStatus === 'partner_changed') {
+        // Đối phương đổi thiết bị, không còn khôi phục được → chặn gửi.
+        Alert.alert(t('chat.e2ePartnerChanged'));
+        return;
+      }
       tempSeqRef.current += 1;
       const tempId = `temp-${tempSeqRef.current}`;
       const optimistic: ChatMessage = {
@@ -355,7 +469,7 @@ export function useChatRoom({
         });
       }
     },
-    [chatId, myUserId, socket, encryption],
+    [chatId, myUserId, socket, encryption, e2eStatus, t],
   );
 
   const sendTyping = useCallback(
