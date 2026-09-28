@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { type IconName } from '@/constants/icon-map';
-import { GiphyEmojiPicker } from '@/components/giphy-emoji-picker';
+import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -26,6 +27,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getMyProfile } from '@/api/profile';
 import { createPost } from '@/api/posts';
+import type { EmojiOption } from '@/api/emojifyi';
 import type { GiphyGif } from '@/api/giphy';
 import type { PostStatus, FeedPost } from '@/types/post';
 import type { ViewProfileResponse } from '@/types/profile';
@@ -62,6 +64,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const contentRef = useRef<TextInput>(null);
   const [gifPickerVisible, setGifPickerVisible] = useState(false);
   const [gif, setGif] = useState<GiphyGif | null>(null);
   const [privacyMenuVisible, setPrivacyMenuVisible] = useState(false);
@@ -118,12 +121,9 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
     setMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const insertEmoji = (emoji: string) => {
-    // Bọc URL bằng space — 2 emoji liền nhau không separator sẽ render thành 1 ảnh.
-    setContent((prev) => {
-      const sep = prev && !/\s$/.test(prev) ? ' ' : '';
-      return `${prev}${sep}${emoji} `;
-    });
+  const insertEmoji = (emoji: EmojiOption) => {
+    // Chèn ký tự emoji unicode — TextInput hiển thị trực tiếp, nối tiếp được nhiều emoji.
+    setContent((prev) => prev + emoji.character);
     setError(null);
   };
 
@@ -246,9 +246,11 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
 
               {/* Content input */}
               <TextInput
+                ref={contentRef}
                 style={[styles.contentInput, { color: theme.text }]}
                 value={content}
                 onChangeText={(text) => { setContent(text); setError(null); }}
+                onFocus={() => setEmojiPickerVisible(false)}
                 placeholder={t('composer.contentPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 multiline
@@ -297,6 +299,14 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
               )}
             </ScrollView>
 
+            {/* Emoji panel inline — trên toolbar, không che nội dung/ô nhập */}
+            {emojiPickerVisible && (
+              <EmojiPicker
+                onClose={() => setEmojiPickerVisible(false)}
+                onSelect={insertEmoji}
+              />
+            )}
+
             {/* Toolbar */}
             <ThemedView style={[styles.toolbar, { borderTopColor: theme.border }]}>
               <Pressable style={styles.toolBtn} onPress={handlePickImage}>
@@ -309,7 +319,9 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                 style={[styles.toolBtn, emojiPickerVisible && { backgroundColor: theme.bgSecondary }]}
                 onPress={() => {
                   setGifPickerVisible(false);
-                  setEmojiPickerVisible(true);
+                  contentRef.current?.blur();
+                  Keyboard.dismiss();
+                  setEmojiPickerVisible((prev) => !prev);
                 }}>
                 <Icon name="smile" size={20} />
               </Pressable>
@@ -357,13 +369,6 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
             ))}
           </View>
         )}
-
-        {/* Emoji picker */}
-        <GiphyEmojiPicker
-          visible={emojiPickerVisible}
-          onClose={() => setEmojiPickerVisible(false)}
-          onSelect={insertEmoji}
-        />
 
         {/* GIF picker */}
         <GiphyGifPicker

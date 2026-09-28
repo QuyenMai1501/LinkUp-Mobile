@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
-import { GiphyEmojiPicker } from '@/components/giphy-emoji-picker';
+import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { GiphyGif } from '@/api/giphy';
+import type { EmojiOption } from '@/api/emojifyi';
 import type { ChatMessage } from '@/types/chat';
 
 const MAX_ATTACHMENTS = 10;
@@ -34,6 +35,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [gifOpen, setGifOpen] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const inputRef = useRef<TextInput>(null);
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -49,12 +51,10 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
     onTyping(value.length > 0);
   };
 
-  const handleEmojiSelect = (url: string) => {
-    // Bọc URL bằng space — 2 emoji liền nhau không separator sẽ render thành 1 ảnh.
-    setText((prev) => {
-      const sep = prev && !/\s$/.test(prev) ? ' ' : '';
-      return `${prev}${sep}${url} `;
-    });
+  // Chèn ký tự emoji unicode — TextInput hiển thị trực tiếp, nối tiếp được nhiều emoji.
+  const handleEmojiSelect = (emoji: EmojiOption) => {
+    setText((prev) => prev + emoji.character);
+    onTyping(true);
   };
 
   // Chọn GIF -> gửi ngay (giống web), GIF gửi dưới dạng gif_url.
@@ -132,6 +132,11 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
         </View>
       )}
 
+      {/* Emoji panel inline — trên ô nhập, không che composer */}
+      {emojiOpen && (
+        <EmojiPicker onClose={() => setEmojiOpen(false)} onSelect={handleEmojiSelect} />
+      )}
+
       <View style={styles.inputRow}>
         {/* Attachment button */}
         <Pressable
@@ -140,10 +145,12 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
           <Icon name="attach" size={20} color={theme.textSecondary} />
         </Pressable>
 
-        {/* Emoji button */}
+        {/* Emoji button — mở panel inline phía trên ô nhập (bàn phím tắt trước) */}
         <Pressable
           onPress={() => {
             setGifOpen(false);
+            inputRef.current?.blur();
+            Keyboard.dismiss();
             setEmojiOpen((prev) => !prev);
           }}
           style={[styles.emojiBtn, emojiOpen && { backgroundColor: theme.bgSecondary }]}>
@@ -162,9 +169,11 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
         </Pressable>
 
         <TextInput
+          ref={inputRef}
           style={[styles.input, { color: theme.text, backgroundColor: theme.bgSecondary, borderColor: theme.border }]}
           value={text}
           onChangeText={handleChangeText}
+          onFocus={() => setEmojiOpen(false)}
           placeholder={t('chat.placeholder')}
           placeholderTextColor={theme.textSecondary}
           multiline
@@ -185,9 +194,6 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
           </View>
         </Pressable>
       </View>
-
-      {/* Emoji picker */}
-      <GiphyEmojiPicker visible={emojiOpen} onClose={() => setEmojiOpen(false)} onSelect={handleEmojiSelect} />
 
       {/* GIF picker */}
       <GiphyGifPicker visible={gifOpen} onClose={() => setGifOpen(false)} onSelect={handleGifSelect} />
