@@ -86,9 +86,12 @@ async function importAesKey(
 }
 
 async function generateIdentity(userId: string) {
+  // extractable=true: mobile PHẢI export private key ra JWK để lưu xuống
+  // AsyncStorage (khác web — web lưu object CryptoKey trực tiếp vào IndexedDB).
+  // extractable=false → exportKey('jwk') ném "key is not extractable".
   const keyPair = (await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
-    false,
+    true,
     ['deriveBits'],
   )) as CryptoKeyPair;
   const pubRaw = await crypto.subtle.exportKey('spki', keyPair.publicKey);
@@ -97,49 +100,105 @@ async function generateIdentity(userId: string) {
   return { userId, publicKey: pubB64, privateKeyJwk: privJwk };
 }
 
-export async function getOrCreateIdentity(userId: string) {
-  const stored = await getIdentity(userId);
-  if (stored?.private_key_jwk && stored.public_key) {
+export interface Identity {
+  userId: string;
+  publicKey: string;
+  privateKey: CryptoKey;
+}
+
+// Memoize theo userId. Hydrate chạy song song nhiều ensureChatKey (mapLimited 4
+// ở messages.tsx) — nếu mỗi lời gọi tự đọc storage rồi generate khi storage rỗng
+// thì sẽ sinh ra N identity khác nhau: AsyncStorage giữ bản CUỐI trong khi
+// registeredUserKeys memoize bản ĐẦU → pub trên server ≠ private key đang giữ →
+// derive sai shared secret → unwrap GCM fail. Một promise cho mỗi userId → chỉ
+// 1 generate + 1 ghi storage, mọi caller chung cùng identity.
+const identityCache = new Map<string, Promise<Identity>>();
+
+export async function getOrCreateIdentity(userId: string): Promise<Identity> {
+  const existing = identityCache.get(userId);
+  if (existing) return existing;
+  const p = (async (): Promise<Identity> => {
+    const stored = await getIdentity(userId);
+    if (stored?.private_key_jwk && stored.public_key) {
+      const privateKey = (await crypto.subtle.importKey(
+        'jwk',
+        stored.private_key_jwk as JsonWebKey,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        ['deriveBits'],
+      )) as CryptoKey;
+      return { userId, publicKey: stored.public_key, privateKey };
+    }
+    const generated = await generateIdentity(userId);
     const privateKey = (await crypto.subtle.importKey(
       'jwk',
-      stored.private_key_jwk as JsonWebKey,
+      generated.privateKeyJwk as JsonWebKey,
       { name: 'ECDH', namedCurve: 'P-256' },
       false,
       ['deriveBits'],
     )) as CryptoKey;
-    return { userId, publicKey: stored.public_key, privateKey };
-  }
-  const generated = await generateIdentity(userId);
-  const privateKey = (await crypto.subtle.importKey(
-    'jwk',
-    generated.privateKeyJwk as JsonWebKey,
-    { name: 'ECDH', namedCurve: 'P-256' },
-    false,
-    ['deriveBits'],
-  )) as CryptoKey;
-  await setIdentity({
-    user_id: userId,
-    public_key: generated.publicKey,
-    private_key_jwk: generated.privateKeyJwk,
-  });
-  return { userId, publicKey: generated.publicKey, privateKey };
+    await setIdentity({
+      user_id: userId,
+      public_key: generated.publicKey,
+      private_key_jwk: generated.privateKeyJwk,
+    });
+    return { userId, publicKey: generated.publicKey, privateKey };
+  })();
+  identityCache.set(userId, p);
+  p.catch(() => identityCache.delete(userId));
+  return p;
 }
 
-const registeredUserKeys = new Map<string, Promise<unknown>>();
+const registeredUserKeys = new Map<
+  string,
+  { publicKey: string; p: Promise<unknown> }
+>();
 
 function ensureRegisteredUserKey(
   userId: string,
   publicKey: string,
 ): Promise<void> {
   const existing = registeredUserKeys.get(userId);
-  const p =
-    existing ??
-    registerUserKey(publicKey).catch((err: unknown) => {
-      registeredUserKeys.delete(userId);
-      throw err;
-    });
-  if (!existing) registeredUserKeys.set(userId, p);
+  if (existing) {
+    // Đèn báo (chẩn đoán): trong cùng phiên mà pub cần đăng ký khác pub đã memo
+    // → có lời gọi register với 2 identity khác nhau. Không được xảy ra sau khi
+    // memoize getOrCreateIdentity. Log public key — không nhạy cảm.
+    if (existing.publicKey !== publicKey) {
+      dbg(
+        'OWN-PUB-MISMATCH (in-session)', userId,
+        'registered=', existing.publicKey, 'identity=', publicKey,
+      );
+    }
+    return existing.p.then(() => undefined);
+  }
+  const p = registerUserKey(publicKey).catch((err: unknown) => {
+    registeredUserKeys.delete(userId);
+    throw err;
+  });
+  registeredUserKeys.set(userId, { publicKey, p });
   return p.then(() => undefined);
+}
+
+// LOG CHẨN ĐOÁN (__DEV__, 1 lần/phiên): đọc pub của CHÍNH mình trên server rồi
+// so với identity đang giữ. Khác nhau = pub server ≠ private key → derive sai
+// shared secret (nguyên nhân gốc UNWRAP fail). Chỉ GET, không ghi.
+let ownPubCheck: Promise<void> | null = null;
+
+function dbgOwnPub(userId: string, identityPub: string): Promise<void> {
+  if (!ownPubCheck) {
+    ownPubCheck = (async () => {
+      try {
+        const mine = await getUserKey(userId);
+        dbg(
+          'OWN-PUB', mine.public_key === identityPub ? 'MATCH' : 'MISMATCH',
+          'server=', mine.public_key, 'identity=', identityPub,
+        );
+      } catch {
+        dbg('OWN-PUB', 'MISMATCH (server=NONE)', 'identity=', identityPub);
+      }
+    })();
+  }
+  return ownPubCheck;
 }
 
 const inFlightChatKeys = new Map<string, Promise<string | null>>();
@@ -168,6 +227,7 @@ export async function ensureChatKey(args: {
   const promise = (async (): Promise<string | null> => {
     const identity = await getOrCreateIdentity(myUserId);
     await ensureRegisteredUserKey(myUserId, identity.publicKey);
+    if (__DEV__) await dbgOwnPub(myUserId, identity.publicKey);
 
     let localKey: string | null = null;
     try {
@@ -190,6 +250,10 @@ export async function ensureChatKey(args: {
       return localKey;
     }
     const partnerPub = partner.public_key;
+    dbg(
+      'ensureChatKey', chatId, 'identity pub=', identity.publicKey,
+      'partner pub=', partnerPub, 'partner key_version=', partner.key_version,
+    );
 
     // Đối phương đổi identity/thiết bị (key_version tăng hoặc public key đổi so
     // với lần wrap trước)? Nếu mình vẫn giữ khóa chuẩn local → re-key row của
@@ -235,6 +299,11 @@ export async function ensureChatKey(args: {
       remote = null;
     }
     if (remote?.wrapped_key) {
+      // Chẩn đoán: log TRƯỚC khi unwrap để có dữ liệu cả khi throw.
+      dbg(
+        'ensureChatKey', chatId, 'remote row wrapped.len=', remote.wrapped_key.length,
+        'nonce.len=', remote.nonce.length,
+      );
       try {
         const key = await unwrapChatKey(shared, remote.wrapped_key, remote.nonce);
         dbg(

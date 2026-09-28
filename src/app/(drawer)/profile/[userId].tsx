@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getProfileByUserID } from '@/api/profile';
+import { createChatInvite, createDirectChat } from '@/api/chat';
 import { useFollowStats } from '@/hooks/useFollowStats';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import type { ViewProfileResponse } from '@/types/profile';
@@ -31,6 +32,7 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<'private' | 'not-found' | 'network' | null>(null);
+  const [messageBusy, setMessageBusy] = useState(false);
 
   const isSelf = user?.id === userId;
   const { stats, following, followBusy, handleFollow } = useFollowStats(userId ?? null);
@@ -70,8 +72,30 @@ export default function UserProfileScreen() {
   const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
   const handleMessage = () => {
-    if (!userId) return;
-    (router as any).push(`/(drawer)/chat/${userId}`);
+    if (!userId || messageBusy) return;
+    setMessageBusy(true);
+    // Flow parity với Web startDirectChat: tạo/lấy chat trực tiếp; nếu server
+    // chặn (chưa kết bạn + target không cho người lạ nhắn) thì gửi lời mời chat.
+    void (async () => {
+      try {
+        const res = await createDirectChat(userId);
+        (router as any).push(`/(drawer)/chat/${res.chat_id}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('chat.NOT_PARTICIPANT')) {
+          try {
+            await createChatInvite(userId);
+            Alert.alert(t('common.success'), t('profile.inviteSent'));
+          } catch {
+            Alert.alert(t('common.error'), t('profile.messageFailed'));
+          }
+        } else {
+          Alert.alert(t('common.error'), t('profile.messageFailed'));
+        }
+      } finally {
+        setMessageBusy(false);
+      }
+    })();
   };
 
   if (loading) {

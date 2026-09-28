@@ -11,8 +11,9 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
-import { getEmojiTextMap, singleEmojiCode } from '@/utils/emojis';
+import { getEmojiTextMap, singleEmojiCode, isSingleEmojiText } from '@/utils/emojis';
 import { isSingleGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
+import { isSingleEmojifyiUrl } from '@/api/emojifyi';
 import type { EmojiItem } from '@/utils/emojis';
 import type { ChatMessage } from '@/types/chat';
 
@@ -63,7 +64,14 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
   const bgColor = isMine ? theme.primary : theme.card;
   const textColor = isMine ? '#FFFFFF' : theme.text;
   const singleEmoji = singleEmojiCode(message.content, emojiMap);
-  const singleGiphy = !singleEmoji && isSingleGiphyUrl(separateGiphyUrls(message.content));
+  const singleUnicode = !singleEmoji && isSingleEmojiText(message.content);
+  const singleEmojiUrl =
+    !singleEmoji && !singleUnicode && isSingleEmojifyiUrl(message.content);
+  const singleGiphy =
+    !singleEmoji &&
+    !singleUnicode &&
+    !singleEmojiUrl &&
+    isSingleGiphyUrl(separateGiphyUrls(message.content));
 
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
@@ -73,7 +81,8 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         style={[
           styles.bubble,
           {
-            backgroundColor: singleEmoji || singleGiphy ? 'transparent' : bgColor,
+            backgroundColor:
+              singleEmoji || singleUnicode || singleEmojiUrl || singleGiphy ? 'transparent' : bgColor,
             borderBottomRightRadius: isMine ? Radius.sm : Radius.lg,
             borderBottomLeftRadius: isMine ? Radius.lg : Radius.sm,
           },
@@ -103,6 +112,17 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         {/* Content */}
         {singleEmoji ? (
           <EmojiImage emoji={emojiMap.get(singleEmoji)!} size={64} />
+        ) : singleUnicode ? (
+          <ThemedText style={{ fontSize: 64, lineHeight: 76 }}>
+            {message.content.trim()}
+          </ThemedText>
+        ) : singleEmojiUrl ? (
+          <Image
+            source={{ uri: message.content.trim() }}
+            style={styles.singleGiphy}
+            contentFit="contain"
+            transition={200}
+          />
         ) : singleGiphy ? (
           <Image
             source={{ uri: giphyStillUrl(message.content.trim()) }}
@@ -120,7 +140,7 @@ export function ChatBubble({ message, isMine, showTime = true, isPinned, onLongP
         )}
 
         {/* Caption below media */}
-        {singleEmoji || singleGiphy ? null : (message.media_id || message.media_uri) && message.content?.trim() ? (
+        {singleEmoji || singleUnicode || singleEmojiUrl || singleGiphy ? null : (message.media_id || message.media_uri) && message.content?.trim() ? (
           <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
         ) : null}
 

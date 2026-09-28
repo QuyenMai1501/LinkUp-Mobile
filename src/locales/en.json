@@ -498,6 +498,8 @@
     "networkError": "Network error",
     "viewProfile": "View Profile",
     "sendMessage": "Send Message",
+    "inviteSent": "Chat invite sent",
+    "messageFailed": "Could not start the conversation",
     "addFriend": "Add Friend",
     "acceptFriend": "Accept",
     "unfriend": "Unfriend",

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedText } from '@/components/themed-text';
@@ -198,6 +198,20 @@ export default function MessagesScreen() {
     });
     return unsub;
   }, [socket]);
+
+  // Mở chat từ notification: notification type 'message' đi qua màn này với
+  // param chat_id (xem utils/notification-navigate.ts). Chỉ mở khi id khớp 1
+  // hội thoại thực tế; id không tồn tại / group chat → đứng yên ở danh sách.
+  const { chat_id: notifyChatId } = useLocalSearchParams<{ chat_id?: string }>();
+  const notifyChatOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (!notifyChatId || loading || notifyChatOpenedRef.current) return;
+    const conv = conversations.find((c) => c.chat_id === notifyChatId);
+    if (!conv) return;
+    notifyChatOpenedRef.current = true;
+    (router as any).push(`/(drawer)/chat/${conv.chat_id}`);
+  }, [notifyChatId, loading, conversations, router]);
 
   const filtered = filter.trim()
     ? conversations.filter((c) =>

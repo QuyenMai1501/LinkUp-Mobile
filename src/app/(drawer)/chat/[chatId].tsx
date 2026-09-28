@@ -452,7 +452,7 @@ export default function ChatScreen() {
       )}
 
       {/* Messages */}
-      <View style={[styles.messagesWrap, { backgroundColor: theme.bg }]}>
+      <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
         {room.searchResults ? (
           <View style={styles.searchResults}>
             <View style={[styles.searchResultsHeader, { borderBottomColor: theme.border }]}>

@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { LanguageProvider } from '@/contexts/language-context';
 import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
+import { markNavigationReady } from '@/utils/notification-navigate';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -61,6 +62,16 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const router = useRouter();
+
+  // Navigation sẵn sàng → flush route notification bị giữ lại từ cold start
+  // (push tap khi app bị kill đến trước khi Root mount).
+  useEffect(() => {
+    markNavigationReady((route) => {
+      (router as any).push(route);
+    });
+  }, [router]);
+
   // Selftest DEV: đối chiếu chuỗi E2E với golden vector của Web (xem
   // src/utils/e2ee.selftest.ts). Log PASS/FAIL qua dbg() → log Metro.
   useEffect(() => {
