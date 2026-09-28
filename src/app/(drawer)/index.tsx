@@ -25,6 +25,10 @@ import { useNotification } from '@/contexts/notification-context';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import {
+  navigateToNotification,
+  notificationRoute,
+} from '@/utils/notification-navigate';
 import type { FeedPost } from '@/types/post';
 
 type TabKey = 'home' | 'friends' | 'notifications';
@@ -57,6 +61,10 @@ function NotificationPanel() {
   const handleItemPress = (item: typeof notifications[0]) => {
     if (!item.is_read) {
       markAsRead(item);
+    }
+    const route = notificationRoute(item);
+    if (route) {
+      navigateToNotification(route);
     }
   };
 

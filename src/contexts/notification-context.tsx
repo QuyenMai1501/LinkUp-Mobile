@@ -23,9 +23,14 @@ import {
   mergeNotification,
 } from '@/utils/group-notifications';
 import { registerForPushNotificationsAsync } from '@/utils/register-push';
+import {
+  navigateToNotification,
+  notificationRoute,
+} from '@/utils/notification-navigate';
 import type {
   NotificationGroup,
   NotificationItem,
+  NotificationType,
 } from '../types/notification';
 
 Notifications.setNotificationHandler({
@@ -109,6 +114,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshUnreadCount]);
 
+  // Điều hướng khi người dùng TAP vào notification (push data chứa type +
+  // redirect_* — xem server notification.service.go sendPush).
+  const handledResponseRef = useRef<{ id: string; at: number } | null>(null);
+
+  const handleNotificationResponse = useCallback(
+    (response: Notifications.NotificationResponse | null | undefined) => {
+      if (!response) return;
+      const data = response.notification.request.content
+        .data as Record<string, string | null> | undefined;
+      if (!data?.type) return;
+
+      // Tránh xử lý trùng 1 response (cold start: getLast + live event).
+      const id = response.notification.request.identifier;
+      const now = Date.now();
+      if (
+        handledResponseRef.current &&
+        handledResponseRef.current.id === id &&
+        now - handledResponseRef.current.at < 3000
+      ) {
+        return;
+      }
+      handledResponseRef.current = { id, at: now };
+
+      const route = notificationRoute({
+        type: data.type as NotificationType,
+        redirect_post_id: data.redirect_post_id ?? undefined,
+        redirect_user_id: data.redirect_user_id ?? undefined,
+        redirect_comment_id: data.redirect_comment_id ?? undefined,
+      });
+      if (route) navigateToNotification(route);
+    },
+    [],
+  );
+
   // Push notification registration + listeners
   useEffect(() => {
     const initPush = async () => {
@@ -131,19 +170,27 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
 
     const responseListener = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data as Record<string, string> | undefined;
-        if (data?.type === 'message') {
-          // Navigate to messages - handled by deep linking
-        }
-      },
+      handleNotificationResponse,
     );
+
+    // Cold start: app bị kill → mở từ notification tap, event có thể đến TRƯỚC
+    // khi listener đăng ký → đọc response gần nhất và xử lý nếu còn mới.
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response) return;
+        const date = Number(response.notification.date);
+        if (Number.isNaN(date) || Date.now() - date > 15000) return;
+        handleNotificationResponse(response);
+      })
+      .catch(() => {
+        /* không có response cũ — bình thường */
+      });
 
     return () => {
       receivedListener.remove();
       responseListener.remove();
     };
-  }, [refreshUnreadCount, fetchNotifications]);
+  }, [refreshUnreadCount, fetchNotifications, handleNotificationResponse]);
 
   // WebSocket connection
   useEffect(() => {
