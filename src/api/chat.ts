@@ -25,6 +25,12 @@ export const createDirectChat = (targetUserId: string) =>
     body: JSON.stringify({ target_user_id: targetUserId }),
   });
 
+export const createChatInvite = (targetUserId: string) =>
+  request<{ invite_id: string; message?: string }>('/chats/invite', {
+    method: 'POST',
+    body: JSON.stringify({ target_user_id: targetUserId }),
+  });
+
 export const deleteChat = (chatId: string) =>
   request<{ message: string }>(`/chats/${chatId}`, {
     method: 'DELETE',

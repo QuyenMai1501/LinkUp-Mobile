@@ -498,6 +498,8 @@
     "networkError": "Lỗi mạng",
     "viewProfile": "Xem hồ sơ",
     "sendMessage": "Nhắn tin",
+    "inviteSent": "Đã gửi lời mời nhắn tin",
+    "messageFailed": "Không thể bắt đầu cuộc trò chuyện",
     "addFriend": "Thêm bạn",
     "acceptFriend": "Chấp nhận",
     "unfriend": "Hủy kết bạn",
