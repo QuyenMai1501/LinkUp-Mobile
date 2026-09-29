@@ -14,6 +14,7 @@ export interface ChatMessage {
   media_group_id?: string | null;
   reply_to_message_id?: string | null;
   shared_post_id?: string | null;
+  shared_post?: SharedPostPreview | null;
   reply_to?: ReplyPreview | null;
   media_uri?: string | null;
   media_type?: string | null;
@@ -28,6 +29,19 @@ export interface ChatMessage {
   decrypted?: boolean;
   deleted?: boolean;
   created_at: string;
+}
+
+// Mirror server dto.SharedPostPayload — payload bài viết được chia sẻ vào chat.
+export interface SharedPostPreview {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_uri: string;
+  title: string;
+  content: string;
+  media_uri?: string;
+  media_type?: string;
 }
 
 export interface ReplyPreview {

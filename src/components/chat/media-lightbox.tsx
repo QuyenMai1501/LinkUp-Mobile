@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
+import VideoPlayer from '@/components/video-player';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getEmojiTextMap } from '@/utils/emojis';
@@ -86,7 +87,7 @@ function MediaView({ message }: { message: ChatMessage }) {
   }
 
   if (isVideo) {
-    return <ThemedText style={styles.mediaFailed}>Video preview not available</ThemedText>;
+    return <VideoPlayer uri={src} style={styles.lightboxVideo} muted={false} loop={false} nativeControls />;
   }
 
   return (
@@ -182,5 +183,11 @@ const styles = StyleSheet.create({
   lightboxImage: {
     width: 300,
     height: 400,
+  },
+  lightboxVideo: {
+    width: '100%',
+    height: 400,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
 });

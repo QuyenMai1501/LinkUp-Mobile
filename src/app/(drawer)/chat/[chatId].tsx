@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,12 +18,15 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
+import { MediaStack } from '@/components/chat/media-stack';
 import { MessageActions } from '@/components/chat/message-actions';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
+import { SystemMessage, isSystemMessage } from '@/components/chat/system-message';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
+import { useCall } from '@/contexts/call-context';
 import { useChatSocket } from '@/hooks/useChatSocket';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useChatE2E } from '@/hooks/useChatE2E';
@@ -31,7 +34,17 @@ import { listChats, deleteChat, uploadChatMedia } from '@/api/chat';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { formatChatDate } from '@/utils/chat';
+import { groupMediaTimeline, type MediaGroupItem } from '@/utils/chatMediaGroup';
 import type { ChatConversation, ChatMessage } from '@/types/chat';
+
+type GroupedItem = ChatMessage | MediaGroupItem;
+
+/** Prev message cho date-separator/showTime: group media → lấy tin cuối của group. */
+function resolvePrevMsg(items: GroupedItem[], index: number): ChatMessage | undefined {
+  const prev = items[index - 1];
+  if (!prev) return undefined;
+  return 'kind' in prev ? prev.msgs[prev.msgs.length - 1] : prev;
+}
 
 export default function ChatScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
@@ -39,6 +52,7 @@ export default function ChatScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
+  const { startCall } = useCall();
   const socket = useChatSocket();
   const myUserId = user?.id ?? '';
 
@@ -96,6 +110,25 @@ export default function ChatScreen() {
     socket,
     encryption,
   });
+
+  // Timeline đã gộp media liên tiếp (list chính chỉ render khi searchResults === null).
+  const grouped = useMemo<GroupedItem[]>(() => groupMediaTimeline(room.messages), [room.messages]);
+
+  /** Index trên mảng grouped (group media chiếm 1 slot) — dùng cho scrollToIndex. */
+  const findIndexInGrouped = useCallback(
+    (messageId: string): number => {
+      for (let i = 0; i < grouped.length; i++) {
+        const item = grouped[i];
+        if ('kind' in item) {
+          if (item.msgs.some((m) => m.id === messageId)) return i;
+        } else if (item.id === messageId) {
+          return i;
+        }
+      }
+      return -1;
+    },
+    [grouped],
+  );
 
   const handleSend = useCallback(
     async (text: string, attachments?: { uri: string; name: string; type: string }[], gifUrl?: string) => {
@@ -231,22 +264,29 @@ export default function ChatScreen() {
 
   const handleReplyPress = useCallback(
     (messageId: string) => {
-      const idx = room.messages.findIndex((m) => m.id === messageId);
+      const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
         (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
       }
     },
-    [room.messages],
+    [findIndexInGrouped],
   );
 
   const scrollToMessage = useCallback(
     (messageId: string) => {
-      const idx = room.messages.findIndex((m) => m.id === messageId);
+      const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
         (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
       }
     },
-    [room.messages],
+    [findIndexInGrouped],
+  );
+
+  const handleOpenPost = useCallback(
+    (postId: string) => {
+      router.push({ pathname: '/(drawer)/post/[postId]', params: { postId } });
+    },
+    [router],
   );
 
   const handleDeleteChat = useCallback(async () => {
@@ -353,6 +393,42 @@ export default function ChatScreen() {
           </ThemedText>
           )}
         </View>
+
+        {partner && (
+          <>
+            <Pressable
+              onPress={() =>
+                startCall(
+                  {
+                    user_id: partner.user_id,
+                    display_name: partner.display_name,
+                    avatar_uri: partner.avatar_uri,
+                  },
+                  'voice',
+                )
+              }
+              hitSlop={8}
+              style={styles.headerAction}>
+              <Icon name="call" size={18} color={theme.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                startCall(
+                  {
+                    user_id: partner.user_id,
+                    display_name: partner.display_name,
+                    avatar_uri: partner.avatar_uri,
+                  },
+                  'video',
+                )
+              }
+              hitSlop={8}
+              style={styles.headerAction}>
+              <Icon name="video" size={18} color={theme.textSecondary} />
+            </Pressable>
+          </>
+        )}
 
         <Pressable
           onPress={() => {
@@ -507,41 +583,75 @@ export default function ChatScreen() {
             )}
             <FlatList
               ref={flatListRef}
-              data={room.messages}
-              keyExtractor={(item) => item.id}
+              data={grouped}
+              keyExtractor={(item) => ('kind' in item ? `grp-${item.msgs[0]?.id ?? item.msgs.length}` : item.id)}
               renderItem={({ item, index }) => {
-                const prev = room.messages[index - 1];
+                const prev = resolvePrevMsg(grouped, index);
+                const dateSep = (createdAt: string) => (
+                  <View style={styles.dateSep}>
+                    <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
+                    <ThemedText style={[styles.dateSepText, { color: theme.textSecondary }]}>
+                      {formatChatDate(createdAt, t)}
+                    </ThemedText>
+                    <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
+                  </View>
+                );
+
+                if ('kind' in item) {
+                  const groupMine = item.msgs[0]?.sender_id === myUserId;
+                  return (
+                    <View style={[styles.groupRow, groupMine ? styles.groupRowMine : styles.groupRowTheirs]}>
+                      <MediaStack
+                        msgs={item.msgs}
+                        onOpen={(i) => setLightbox({ msgs: item.msgs, index: i })}
+                        onLongPress={handleLongPress}
+                      />
+                    </View>
+                  );
+                }
+
+                const msg = item;
                 const showDate =
                   !prev ||
-                  formatChatDate(item.created_at, t) !==
-                    formatChatDate(prev.created_at, t);
+                  formatChatDate(msg.created_at, t) !== formatChatDate(prev.created_at, t);
                 const showTime =
                   !prev ||
-                  prev.sender_id !== item.sender_id ||
-                  new Date(item.created_at).getTime() -
+                  prev.sender_id !== msg.sender_id ||
+                  new Date(msg.created_at).getTime() -
                     new Date(prev.created_at).getTime() >
                     60000;
+                const showAvatar = !prev || prev.sender_id !== msg.sender_id;
+
+                if (isSystemMessage(msg)) {
+                  return (
+                    <Fragment key={msg.id}>
+                      {showDate && dateSep(msg.created_at)}
+                      <SystemMessage
+                        message={msg}
+                        myUserId={myUserId}
+                        partnerUserId={partner?.user_id}
+                        partnerName={partner?.display_name}
+                      />
+                    </Fragment>
+                  );
+                }
+
                 return (
-                  <>
-                    {showDate && (
-                      <View style={styles.dateSep}>
-                        <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                        <ThemedText style={[styles.dateSepText, { color: theme.textSecondary }]}>
-                          {formatChatDate(item.created_at, t)}
-                        </ThemedText>
-                        <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                      </View>
-                    )}
+                  <Fragment key={msg.id}>
+                    {showDate && dateSep(msg.created_at)}
                     <ChatBubble
-                      message={item}
-                      isMine={item.sender_id === myUserId}
+                      message={msg}
+                      isMine={msg.sender_id === myUserId}
                       showTime={showTime}
-                      isPinned={room.pinnedMessages.some((p) => p.message_id === item.id)}
+                      isPinned={room.pinnedMessages.some((p) => p.message_id === msg.id)}
+                      avatarUri={partner?.avatar_uri ?? msg.sender_avatar ?? null}
+                      showAvatar={showAvatar}
                       onLongPress={handleLongPress}
                       onReplyPress={handleReplyPress}
                       onMediaPress={handleMediaPress}
+                      onOpenPost={handleOpenPost}
                     />
-                  </>
+                  </Fragment>
                 );
               }}
               onScroll={handleScroll}
@@ -765,6 +875,16 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
+  },
+  groupRow: {
+    marginVertical: 2,
+    paddingHorizontal: Spacing.md,
+  },
+  groupRowMine: {
+    alignItems: 'flex-end',
+  },
+  groupRowTheirs: {
+    alignItems: 'flex-start',
   },
   dateSep: {
     flexDirection: 'row',

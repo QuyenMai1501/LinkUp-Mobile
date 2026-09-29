@@ -61,6 +61,9 @@ export const icons = {
   logout: 'log-out-outline' as const,
   camera: 'camera-outline' as const,
   video: 'videocam-outline' as const,
+  videoOff: 'videocam-off-outline' as const,
+  mic: 'mic-outline' as const,
+  micOff: 'mic-off-outline' as const,
   newspaper: 'newspaper-outline' as const,
   images: 'images-outline' as const,
   info: 'information-circle-outline' as const,
@@ -70,6 +73,7 @@ export const icons = {
   palette: 'color-palette-outline' as const,
   laptop: 'laptop-outline' as const,
   play: 'play-outline' as const,
+  expand: 'expand-outline' as const,
   compass: 'compass-outline' as const,
   compassFilled: 'compass' as const,
 } as const;

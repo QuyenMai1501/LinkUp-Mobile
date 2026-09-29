@@ -6,7 +6,9 @@ import { useEffect } from 'react';
 import { useSegments, useRouter } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { CallOverlay } from '@/components/calls/call-overlay';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { CallProvider } from '@/contexts/call-context';
 import { LanguageProvider } from '@/contexts/language-context';
 import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
@@ -84,9 +86,12 @@ export default function RootLayout() {
       <ThemeModeProvider>
         <AuthProvider>
           <NotificationProvider>
-            <AnimatedSplashOverlay />
-            <AuthRedirect />
-            <RootNavigator />
+            <CallProvider>
+              <AnimatedSplashOverlay />
+              <AuthRedirect />
+              <RootNavigator />
+              <CallOverlay />
+            </CallProvider>
           </NotificationProvider>
         </AuthProvider>
       </ThemeModeProvider>
