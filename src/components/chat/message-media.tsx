@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import VideoPlayer from '@/components/video-player';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -41,11 +42,12 @@ export function MessageMedia({ message, onPress }: Props) {
 
   if (isVideo) {
     return (
-      <Pressable onPress={onPress} style={styles.videoWrap}>
-        <View style={[styles.videoPlaceholder, { backgroundColor: theme.bgSecondary }]}>
-          <Icon name="play" size={40} color={theme.textSecondary} />
-        </View>
-      </Pressable>
+      <View style={styles.videoWrap}>
+        <VideoPlayer uri={src} style={styles.videoInline} muted={false} loop={false} />
+        <Pressable onPress={onPress} hitSlop={8} style={styles.expandBtn}>
+          <Icon name="expand" size={14} color="#FFF" />
+        </Pressable>
+      </View>
     );
   }
 
@@ -87,13 +89,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   videoWrap: {
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-  },
-  videoPlaceholder: {
     width: 240,
     height: 180,
     borderRadius: Radius.md,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  videoInline: {
+    width: 240,
+    height: 180,
+  },
+  expandBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },

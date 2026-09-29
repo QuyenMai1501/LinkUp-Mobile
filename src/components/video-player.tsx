@@ -6,15 +6,28 @@ interface VideoPlayerProps {
   uri: string;
   style?: object;
   interactive?: boolean;
+  /** Bật âm thanh (mặc định false — giữ hành vi cũ của post/media-viewer). */
+  muted?: boolean;
+  /** Lặp lại video (mặc định true — giữ hành vi cũ). */
+  loop?: boolean;
+  /** Dùng điều khiển video gốc của expo-video (bỏ overlay play custom). */
+  nativeControls?: boolean;
 }
 
-export default function VideoPlayer({ uri, style, interactive = true }: VideoPlayerProps) {
+export default function VideoPlayer({
+  uri,
+  style,
+  interactive = true,
+  muted = true,
+  loop = true,
+  nativeControls = false,
+}: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(true);
 
   const player = useVideoPlayer(uri, (p) => {
-    p.muted = true;
-    p.loop = true;
+    p.muted = muted;
+    p.loop = loop;
   });
 
   const togglePlay = useCallback(() => {
@@ -29,6 +42,19 @@ export default function VideoPlayer({ uri, style, interactive = true }: VideoPla
       setTimeout(() => setShowPlayButton(false), 2000);
     }
   }, [playing, player]);
+
+  if (nativeControls) {
+    return (
+      <View style={[styles.container, style]}>
+        <VideoView
+          player={player}
+          style={styles.video}
+          contentFit="contain"
+          nativeControls
+        />
+      </View>
+    );
+  }
 
   const content = (
     <>

@@ -70,6 +70,7 @@ export const icons = {
   palette: 'color-palette-outline' as const,
   laptop: 'laptop-outline' as const,
   play: 'play-outline' as const,
+  expand: 'expand-outline' as const,
   compass: 'compass-outline' as const,
   compassFilled: 'compass' as const,
 } as const;
