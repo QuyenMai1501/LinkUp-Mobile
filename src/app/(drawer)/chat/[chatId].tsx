@@ -26,6 +26,7 @@ import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
+import { useCall } from '@/contexts/call-context';
 import { useChatSocket } from '@/hooks/useChatSocket';
 import { useChatRoom } from '@/hooks/useChatRoom';
 import { useChatE2E } from '@/hooks/useChatE2E';
@@ -51,6 +52,7 @@ export default function ChatScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
+  const { startCall } = useCall();
   const socket = useChatSocket();
   const myUserId = user?.id ?? '';
 
@@ -391,6 +393,42 @@ export default function ChatScreen() {
           </ThemedText>
           )}
         </View>
+
+        {partner && (
+          <>
+            <Pressable
+              onPress={() =>
+                startCall(
+                  {
+                    user_id: partner.user_id,
+                    display_name: partner.display_name,
+                    avatar_uri: partner.avatar_uri,
+                  },
+                  'voice',
+                )
+              }
+              hitSlop={8}
+              style={styles.headerAction}>
+              <Icon name="call" size={18} color={theme.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                startCall(
+                  {
+                    user_id: partner.user_id,
+                    display_name: partner.display_name,
+                    avatar_uri: partner.avatar_uri,
+                  },
+                  'video',
+                )
+              }
+              hitSlop={8}
+              style={styles.headerAction}>
+              <Icon name="video" size={18} color={theme.textSecondary} />
+            </Pressable>
+          </>
+        )}
 
         <Pressable
           onPress={() => {

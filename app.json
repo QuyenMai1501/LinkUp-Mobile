@@ -37,7 +37,20 @@
       ],
       "expo-video",
       "expo-notifications",
-      "react-native-quick-crypto"
+      "react-native-quick-crypto",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "LinkUp cần truy cập camera để thực hiện cuộc gọi video.",
+          "microphonePermission": "LinkUp cần truy cập mic để thực hiện cuộc gọi."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "LinkUp cần truy cập mic để phát chuông và thực hiện cuộc gọi."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

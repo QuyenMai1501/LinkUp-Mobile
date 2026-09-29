@@ -334,6 +334,36 @@
       "negative": "😢"
     }
   },
+  "call": {
+    "voiceCall": "Cuộc gọi thoại",
+    "videoCall": "Cuộc gọi video",
+    "incomingVoice": "Đang gọi thoại đến...",
+    "incomingVideo": "Đang gọi video đến...",
+    "outgoing": "Đang gọi...",
+    "inCallVoice": "Đang trong cuộc gọi thoại",
+    "inCallVideo": "Đang trong cuộc gọi video",
+    "accept": "Chấp nhận",
+    "reject": "Từ chối",
+    "end": "Kết thúc cuộc gọi",
+    "cancel": "Hủy cuộc gọi",
+    "mute": "Tắt tiếng",
+    "unmute": "Bật tiếng",
+    "videoOn": "Bật camera",
+    "videoOff": "Tắt camera",
+    "permissionDenied": "Không thể truy cập microphone/camera",
+    "failed": "Cuộc gọi thất bại",
+    "noConnection": "Không thể kết nối máy chủ gọi",
+    "unknown": "Người gọi",
+    "statusCalling": "Đang gọi...",
+    "statusRinging": "Đang đổ chuông...",
+    "statusConnected": "Đã kết nối",
+    "statusEnded": "Cuộc gọi đã kết thúc",
+    "statusMissed": "Cuộc gọi nhỡ",
+    "statusRejected": "Cuộc gọi đã bị từ chối",
+    "statusBusy": "Người dùng đang bận",
+    "statusCancelled": "Cuộc gọi đã hủy",
+    "noAnswer": "Không có ai nghe máy"
+  },
   "settings": {
     "title": "Cài đặt",
     "items": {
