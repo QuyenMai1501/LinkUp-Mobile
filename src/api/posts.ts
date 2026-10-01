@@ -59,6 +59,30 @@ export const unpinPost = (postId: string) =>
 export const getPostDetail = (postId: string) =>
   request<{ data: FeedPost }>(`/posts/${postId}`);
 
+// Dedup phía client: mỗi post chỉ báo impression 1 lần mỗi phiên mở app
+// (server dedup tiếp 1 user/post/ngày).
+const reportedPostViews = new Set<string>();
+
+export const trackPostView = async (
+  postId: string,
+  source: 'feed' | 'detail' = 'feed',
+): Promise<{ counted: boolean }> => {
+  // Khách vãng lai không tính view: không có token thì bỏ qua, tránh 401.
+  const token = await tokenStorage.getAccessToken();
+  if (!token) return { counted: false };
+  const key = `${source}:${postId}`;
+  if (reportedPostViews.has(key)) return { counted: false };
+  reportedPostViews.add(key);
+  try {
+    return await request<{ counted: boolean }>(`/posts/${postId}/view`, {
+      method: 'POST',
+      body: JSON.stringify({ source }),
+    });
+  } catch {
+    return { counted: false };
+  }
+};
+
 export const getComments = (
   postId: string,
   page: number,
