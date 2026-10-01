@@ -1,24 +1,32 @@
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from "expo-image";
+import { useMemo } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { EmojiImage } from '@/components/chat/emoji-image';
-import { RichContent } from '@/components/rich-content';
-import { MessageMedia } from '@/components/chat/message-media';
-import { SharedPostBubble } from '@/components/chat/shared-post-bubble';
-import { VideoLinkPreview } from '@/components/chat/video-link-preview';
-import { Icon } from '@/components/ui/icon';
-import { Radius, Spacing, Typography } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { useTranslation } from '@/hooks/useTranslation';
-import { formatChatTime } from '@/utils/chat';
-import { getEmojiTextMap, singleEmojiCode, isSingleEmojiText } from '@/utils/emojis';
-import { isSingleGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
-import { isSingleEmojifyiUrl } from '@/api/emojifyi';
-import { extractVideoUrls } from '@/utils/videoLink';
-import type { EmojiItem } from '@/utils/emojis';
-import type { ChatMessage } from '@/types/chat';
+import { isSingleEmojifyiUrl } from "@/api/emojifyi";
+import {
+  giphyStillUrl,
+  isSingleGiphyUrl,
+  separateGiphyUrls,
+} from "@/api/giphy";
+import { EmojiImage } from "@/components/chat/emoji-image";
+import { MessageMedia } from "@/components/chat/message-media";
+import { SharedPostBubble } from "@/components/chat/shared-post-bubble";
+import { VideoLinkPreview } from "@/components/chat/video-link-preview";
+import { RichContent } from "@/components/rich-content";
+import { ThemedText } from "@/components/themed-text";
+import { Icon } from "@/components/ui/icon";
+import { Radius, Spacing, Typography } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { ChatMessage } from "@/types/chat";
+import { formatChatTime } from "@/utils/chat";
+import type { EmojiItem } from "@/utils/emojis";
+import {
+  getEmojiTextMap,
+  isSingleEmojiText,
+  singleEmojiCode,
+} from "@/utils/emojis";
+import { extractVideoUrls } from "@/utils/videoLink";
 
 interface Props {
   message: ChatMessage;
@@ -54,7 +62,11 @@ export function ChatBubble({
   // Cột avatar của đối phương: avatar ở tin đầu chuỗi, spacer (cùng bề rộng) cho các tin sau.
   const avatarColumn = !isMine ? (
     showAvatar && avatarUri ? (
-      <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
+      <Image
+        source={{ uri: avatarUri }}
+        style={styles.avatar}
+        contentFit="cover"
+      />
     ) : (
       <View style={styles.avatarSpacer} />
     )
@@ -64,9 +76,14 @@ export function ChatBubble({
     return (
       <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
         {avatarColumn}
-        <View style={[styles.bubble, styles.bubbleDeleted, { backgroundColor: theme.bgSecondary }]}>
+        <View
+          style={[
+            styles.bubble,
+            styles.bubbleDeleted,
+            { backgroundColor: theme.bgSecondary },
+          ]}>
           <ThemedText themeColor="textSecondary" style={styles.deletedText}>
-            {t('chat.messageDeleted')}
+            {t("chat.messageDeleted")}
           </ThemedText>
           {showTime && (
             <ThemedText themeColor="textSecondary" style={styles.time}>
@@ -84,24 +101,32 @@ export function ChatBubble({
         {avatarColumn}
         <View style={[styles.bubble, { backgroundColor: theme.bgSecondary }]}>
           <ThemedText themeColor="textSecondary" style={styles.deletedText}>
-            {t('chat.undecryptable')}
+            {t("chat.undecryptable")}
           </ThemedText>
         </View>
       </View>
     );
   }
 
-  const isSharedPost = !!message.shared_post_id || message.type === 'shared_post';
+  const isSharedPost =
+    !!message.shared_post_id || message.type === "shared_post";
   const videoUrls =
     !isSharedPost && message.content ? extractVideoUrls(message.content) : [];
-  const isSingleVideo = videoUrls.length === 1 && videoUrls[0] === message.content?.trim();
+  const isSingleVideo =
+    videoUrls.length === 1 && videoUrls[0] === message.content?.trim();
 
   const bgColor = isMine ? theme.primary : theme.card;
-  const textColor = isMine ? '#FFFFFF' : theme.text;
-  const singleEmoji = isSharedPost ? null : singleEmojiCode(message.content, emojiMap);
-  const singleUnicode = !singleEmoji && !isSharedPost && isSingleEmojiText(message.content);
+  const textColor = isMine ? "#FFFFFF" : theme.text;
+  const singleEmoji = isSharedPost
+    ? null
+    : singleEmojiCode(message.content, emojiMap);
+  const singleUnicode =
+    !singleEmoji && !isSharedPost && isSingleEmojiText(message.content);
   const singleEmojiUrl =
-    !singleEmoji && !singleUnicode && !isSharedPost && isSingleEmojifyiUrl(message.content);
+    !singleEmoji &&
+    !singleUnicode &&
+    !isSharedPost &&
+    isSingleEmojifyiUrl(message.content);
   const singleGiphy =
     !singleEmoji &&
     !singleUnicode &&
@@ -109,7 +134,8 @@ export function ChatBubble({
     !isSharedPost &&
     isSingleGiphyUrl(separateGiphyUrls(message.content));
   const transparentBubble =
-    !isSharedPost && (singleEmoji || singleUnicode || singleEmojiUrl || singleGiphy);
+    !isSharedPost &&
+    (singleEmoji || singleUnicode || singleEmojiUrl || singleGiphy);
 
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
@@ -120,7 +146,7 @@ export function ChatBubble({
         style={[
           styles.bubble,
           {
-            backgroundColor: transparentBubble ? 'transparent' : bgColor,
+            backgroundColor: transparentBubble ? "transparent" : bgColor,
             borderBottomRightRadius: isMine ? Radius.sm : Radius.lg,
             borderBottomLeftRadius: isMine ? Radius.lg : Radius.sm,
           },
@@ -129,20 +155,35 @@ export function ChatBubble({
         {message.reply_to && (
           <Pressable
             onPress={() => onReplyPress?.(message.reply_to!.id)}
-            style={[styles.replySnippet, { borderLeftColor: isMine ? 'rgba(255,255,255,0.5)' : theme.primary }]}>
+            style={[
+              styles.replySnippet,
+              {
+                borderLeftColor: isMine
+                  ? "rgba(255,255,255,0.5)"
+                  : theme.primary,
+              },
+            ]}>
             <ThemedText
-              style={[styles.replyName, { color: isMine ? 'rgba(255,255,255,0.8)' : theme.primary }]}
+              style={[
+                styles.replyName,
+                { color: isMine ? "rgba(255,255,255,0.8)" : theme.primary },
+              ]}
               numberOfLines={1}>
-              {message.reply_to.sender_name || t('chat.unknown')}
+              {message.reply_to.sender_name || t("chat.unknown")}
             </ThemedText>
             <ThemedText
-              style={[styles.replyText, { color: isMine ? 'rgba(255,255,255,0.6)' : theme.textSecondary }]}
+              style={[
+                styles.replyText,
+                {
+                  color: isMine ? "rgba(255,255,255,0.6)" : theme.textSecondary,
+                },
+              ]}
               numberOfLines={1}>
               {message.reply_to.decrypt_failed
-                ? t('chat.undecryptable')
+                ? t("chat.undecryptable")
                 : message.reply_to.decrypting
-                  ? t('chat.decrypting')
-                  : message.reply_to.content || t('chat.attachment')}
+                  ? t("chat.decrypting")
+                  : message.reply_to.content || t("chat.attachment")}
             </ThemedText>
           </Pressable>
         )}
@@ -162,6 +203,7 @@ export function ChatBubble({
             ) : singleUnicode ? (
               <ThemedText style={{ fontSize: 64, lineHeight: 76 }}>
                 {message.content.trim()}
+                {/* {message.content.trim()} */}
               </ThemedText>
             ) : singleEmojiUrl ? (
               <Image
@@ -178,16 +220,29 @@ export function ChatBubble({
                 transition={200}
               />
             ) : message.media_id || message.media_uri ? (
-              <MessageMedia message={message} onPress={() => onMediaPress?.(message)} />
+              <MessageMedia
+                message={message}
+                onPress={() => onMediaPress?.(message)}
+              />
             ) : isSingleVideo ? (
               <VideoLinkPreview url={videoUrls[0]} />
             ) : (
-              <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
+              <MessageText
+                content={message.content}
+                emojiMap={emojiMap}
+                color={"#000000"}
+              />
             )}
 
             {/* Caption below media */}
-            {!transparentBubble && (message.media_id || message.media_uri) && message.content?.trim() ? (
-              <MessageText content={message.content} emojiMap={emojiMap} color={textColor} />
+            {!transparentBubble &&
+            (message.media_id || message.media_uri) &&
+            message.content?.trim() ? (
+              <MessageText
+                content={message.content}
+                emojiMap={emojiMap}
+                color={textColor}
+              />
             ) : null}
 
             {/* Video link previews (nội dung có nhiều URL video / xen text) */}
@@ -203,9 +258,20 @@ export function ChatBubble({
 
         {showTime && (
           <View style={styles.timeRow}>
-            {isPinned && <Icon name="pin" size={10} color={isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary} />}
+            {isPinned && (
+              <Icon
+                name="pin"
+                size={10}
+                color={isMine ? "rgba(255,255,255,0.7)" : theme.textSecondary}
+              />
+            )}
             <ThemedText
-              style={[styles.time, { color: isMine ? 'rgba(255,255,255,0.7)' : theme.textSecondary }]}>
+              style={[
+                styles.time,
+                {
+                  color: isMine ? "rgba(255,255,255,0.7)" : theme.textSecondary,
+                },
+              ]}>
               {formatChatTime(message.created_at, t)}
             </ThemedText>
           </View>
@@ -224,22 +290,29 @@ function MessageText({
   emojiMap: Map<string, EmojiItem>;
   color: string;
 }) {
-  return <RichContent content={content} emojiMap={emojiMap} size={18} style={[styles.content, { color }]} />;
+  return (
+    <RichContent
+      content={content}
+      emojiMap={emojiMap}
+      size={18}
+      style={[styles.content, { color }]} 
+    />
+  );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginVertical: 2,
     paddingHorizontal: Spacing.md,
     gap: 6,
   },
   rowMine: {
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   rowTheirs: {
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
   avatar: {
     width: 28,
@@ -252,7 +325,7 @@ const styles = StyleSheet.create({
     height: 1,
   },
   bubble: {
-    maxWidth: '78%',
+    maxWidth: "78%",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.lg,
@@ -269,7 +342,7 @@ const styles = StyleSheet.create({
   },
   replyName: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   replyText: {
     fontSize: 12,
@@ -287,18 +360,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
     gap: 4,
   },
   time: {
     ...Typography.caption,
     fontSize: 10,
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   deletedText: {
     ...Typography.caption,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });

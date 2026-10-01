@@ -1,4 +1,13 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image } from "expo-image";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,40 +19,63 @@ import {
   StyleSheet,
   TextInput,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Image } from 'expo-image';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from '@/components/themed-text';
-import { ChatBubble } from '@/components/chat/chat-bubble';
-import { ChatComposer } from '@/components/chat/chat-composer';
-import { MediaStack } from '@/components/chat/media-stack';
-import { MessageActions } from '@/components/chat/message-actions';
-import { MediaLightbox } from '@/components/chat/media-lightbox';
-import { SystemMessage, isSystemMessage } from '@/components/chat/system-message';
-import { TypingIndicator } from '@/components/chat/typing-indicator';
-import { useTheme } from '@/hooks/use-theme';
-import { useTranslation } from '@/hooks/useTranslation';
-import { useAuth } from '@/contexts/auth-context';
-import { useCall } from '@/contexts/call-context';
-import { useChatSocket } from '@/hooks/useChatSocket';
-import { useChatRoom } from '@/hooks/useChatRoom';
-import { useChatE2E } from '@/hooks/useChatE2E';
-import { listChats, deleteChat, uploadChatMedia } from '@/api/chat';
-import { Icon } from '@/components/ui/icon';
-import { Spacing, Typography } from '@/constants/theme';
-import { formatChatDate } from '@/utils/chat';
-import { groupMediaTimeline, type MediaGroupItem } from '@/utils/chatMediaGroup';
-import type { ChatConversation, ChatMessage } from '@/types/chat';
+import { deleteChat, listChats, uploadChatMedia } from "@/api/chat";
+import { CallHistoryRow } from "@/components/chat/call-history-row";
+import { ChatBubble } from "@/components/chat/chat-bubble";
+import { ChatComposer } from "@/components/chat/chat-composer";
+import { MediaLightbox } from "@/components/chat/media-lightbox";
+import { MediaStack } from "@/components/chat/media-stack";
+import { MessageActions } from "@/components/chat/message-actions";
+import {
+  SystemMessage,
+  isSystemMessage,
+} from "@/components/chat/system-message";
+import { TypingIndicator } from "@/components/chat/typing-indicator";
+import { ThemedText } from "@/components/themed-text";
+import { Icon } from "@/components/ui/icon";
+import { Spacing, Typography } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { useCall } from "@/contexts/call-context";
+import { useTheme } from "@/hooks/use-theme";
+import { useChatCallHistory } from "@/hooks/useChatCallHistory";
+import { useChatE2E } from "@/hooks/useChatE2E";
+import { useChatRoom } from "@/hooks/useChatRoom";
+import { useChatSocket } from "@/hooks/useChatSocket";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { CallHistoryItem } from "@/types/call";
+import type { ChatConversation, ChatMessage } from "@/types/chat";
+import { formatChatDate } from "@/utils/chat";
+import {
+  groupMediaTimeline,
+  type MediaGroupItem,
+} from "@/utils/chatMediaGroup";
 
-type GroupedItem = ChatMessage | MediaGroupItem;
+type CallTimelineItem = { kind: "call"; item: CallHistoryItem };
+type GroupedItem = ChatMessage | MediaGroupItem | CallTimelineItem;
 
-/** Prev message cho date-separator/showTime: group media → lấy tin cuối của group. */
-function resolvePrevMsg(items: GroupedItem[], index: number): ChatMessage | undefined {
+/** Prev item cho date-separator/showTime: group media → tin cuối; call → thời điểm gọi. */
+function resolvePrevMsg(
+  items: GroupedItem[],
+  index: number,
+): { createdAt: string; senderId: string } | undefined {
   const prev = items[index - 1];
   if (!prev) return undefined;
-  return 'kind' in prev ? prev.msgs[prev.msgs.length - 1] : prev;
+  if ("kind" in prev) {
+    if (prev.kind === "call") {
+      return {
+        createdAt: new Date(prev.item.created_at).toISOString(),
+        senderId: "",
+      };
+    }
+    const last = prev.msgs[prev.msgs.length - 1];
+    return last
+      ? { createdAt: last.created_at, senderId: last.sender_id }
+      : undefined;
+  }
+  return { createdAt: prev.created_at, senderId: prev.sender_id };
 }
 
 export default function ChatScreen() {
@@ -52,9 +84,9 @@ export default function ChatScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
-  const { startCall } = useCall();
+  const { startCall, phase: callPhase, isInCall, call: activeCall } = useCall();
   const socket = useChatSocket();
-  const myUserId = user?.id ?? '';
+  const myUserId = user?.id ?? "";
 
   // Gắn chatId vào state: navigate giữa 2 chat khác nhau thì conversation cũ
   // còn partner của chat TRƯỚC → derive `conversation` chỉ khi khớp chatId,
@@ -70,9 +102,12 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
-  const [lightbox, setLightbox] = useState<{ msgs: ChatMessage[]; index: number } | null>(null);
+  const [lightbox, setLightbox] = useState<{
+    msgs: ChatMessage[];
+    index: number;
+  } | null>(null);
   const [searchActive, setSearchActive] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState("");
   const pinToBottomRef = useRef(true);
   const isNearBottomRef = useRef(true);
   const programmaticScrollRef = useRef(false);
@@ -91,7 +126,9 @@ export default function ChatScreen() {
         if (conv) setConvEntry({ chatId, conv });
       })
       .catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [chatId]);
 
   const conversation =
@@ -111,15 +148,38 @@ export default function ChatScreen() {
     encryption,
   });
 
-  // Timeline đã gộp media liên tiếp (list chính chỉ render khi searchResults === null).
-  const grouped = useMemo<GroupedItem[]>(() => groupMediaTimeline(room.messages), [room.messages]);
+  const callHistory = useChatCallHistory({
+    partnerUserId,
+    callPhase,
+    activeCall,
+  });
 
-  /** Index trên mảng grouped (group media chiếm 1 slot) — dùng cho scrollToIndex. */
+  // Timeline gộp messages (đã group media) + lịch sử cuộc gọi, sort theo thời gian.
+  const timeline = useMemo<GroupedItem[]>(() => {
+    const created = (g: GroupedItem): number => {
+      if ("kind" in g) {
+        if (g.kind === "call") return g.item.created_at;
+        const first = g.msgs[0];
+        return first ? new Date(first.created_at).getTime() : 0;
+      }
+      return new Date(g.created_at).getTime();
+    };
+    const callItems: CallTimelineItem[] = callHistory.map((item) => ({
+      kind: "call",
+      item,
+    }));
+    return [...groupMediaTimeline(room.messages), ...callItems].sort(
+      (a, b) => created(a) - created(b),
+    );
+  }, [room.messages, callHistory]);
+
+  /** Index trên mảng timeline (group media/call chiếm 1 slot) — dùng cho scrollToIndex. */
   const findIndexInGrouped = useCallback(
     (messageId: string): number => {
-      for (let i = 0; i < grouped.length; i++) {
-        const item = grouped[i];
-        if ('kind' in item) {
+      for (let i = 0; i < timeline.length; i++) {
+        const item = timeline[i];
+        if ("kind" in item) {
+          if (item.kind === "call") continue;
           if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
@@ -127,26 +187,33 @@ export default function ChatScreen() {
       }
       return -1;
     },
-    [grouped],
+    [timeline],
   );
 
   const handleSend = useCallback(
-    async (text: string, attachments?: { uri: string; name: string; type: string }[], gifUrl?: string) => {
+    async (
+      text: string,
+      attachments?: { uri: string; name: string; type: string }[],
+      gifUrl?: string,
+    ) => {
       // Chưa phân loại E2E (conversation/partner chưa load xong) hoặc E2E chưa
       // sẵn sàng / đối phương đã đổi thiết bị → chặn gửi ngay (trước cả khi
       // upload media), không silent fallback về plaintext.
-      if (encryption.status === 'unavailable' || encryption.status === 'loading') {
-        Alert.alert(t('chat.e2eInitializing'));
+      if (
+        encryption.status === "unavailable" ||
+        encryption.status === "loading"
+      ) {
+        Alert.alert(t("chat.e2eInitializing"));
         return;
       }
-      if (encryption.status === 'partner_changed') {
-        Alert.alert(t('chat.e2ePartnerChanged'));
+      if (encryption.status === "partner_changed") {
+        Alert.alert(t("chat.e2ePartnerChanged"));
         return;
       }
 
       // GIF từ GIPHY -> gửi ngay dưới dạng gif_url (server tạo media từ URL).
       if (gifUrl) {
-        room.sendMessage('', { gifUrl, replyToMessageId: replyingTo?.id });
+        room.sendMessage("", { gifUrl, replyToMessageId: replyingTo?.id });
         setReplyingTo(null);
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
@@ -155,33 +222,23 @@ export default function ChatScreen() {
       }
 
       if (attachments && attachments.length > 0 && chatId) {
-        let caption = text;
-        let captionEncrypted = false;
-        if (encryption.ready && caption) {
-          try {
-            caption = await encryption.encrypt(caption);
-            captionEncrypted = true;
-          } catch {
-            // Mã hóa fail → KHÔNG gửi plaintext; hủy luôn (không upload).
-            Alert.alert(t('chat.e2eEncryptFailed'));
-            return;
-          }
-        }
+        const caption = text;
 
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
           try {
             const res = await uploadChatMedia(att, chatId);
-            room.sendMessage(i === 0 ? caption : '', {
+            // Encrypt do useChatRoom.sendMessage đảm nhận (sau khi append bubble
+            // tạm plaintext) — không encrypt ở đây.
+            room.sendMessage(i === 0 ? caption : "", {
               mediaId: res.data.id,
               mediaUri: res.data.file_uri,
               mediaType: res.data.file_type,
               replyToMessageId: i === 0 ? replyingTo?.id : undefined,
-              e2eEncrypted: i === 0 ? captionEncrypted : false,
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            Alert.alert(t('common.error'), msg || t('chat.uploadFailed'));
+            Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
           }
         }
         setReplyingTo(null);
@@ -191,22 +248,10 @@ export default function ChatScreen() {
         return;
       }
 
-      // Text-only message
-      let content = text;
-      let encrypted = false;
-      if (encryption.ready) {
-        try {
-          content = await encryption.encrypt(text);
-          encrypted = true;
-        } catch {
-          // Mã hóa fail → chặn gửi, không silent fallback về plaintext.
-          Alert.alert(t('chat.e2eEncryptFailed'));
-          return;
-        }
-      }
-      room.sendMessage(content, {
+      // Text-only message — encrypt do useChatRoom.sendMessage đảm nhận.
+      // Bubble tạm giữ plaintext, echo server về thay temp theo id.
+      room.sendMessage(text, {
         replyToMessageId: replyingTo?.id,
-        e2eEncrypted: encrypted,
       });
       setReplyingTo(null);
       setTimeout(() => {
@@ -235,25 +280,34 @@ export default function ChatScreen() {
     setDeleteTarget(msg);
   }, []);
 
-  const handlePin = useCallback((msg: ChatMessage) => {
-    room.pinMessage(msg.id);
-  }, [room]);
+  const handlePin = useCallback(
+    (msg: ChatMessage) => {
+      room.pinMessage(msg.id);
+    },
+    [room],
+  );
 
-  const handleUnpin = useCallback((msg: ChatMessage) => {
-    room.unpinMessage(msg.id);
-  }, [room]);
+  const handleUnpin = useCallback(
+    (msg: ChatMessage) => {
+      room.unpinMessage(msg.id);
+    },
+    [room],
+  );
 
-  const handleMediaPress = useCallback((msg: ChatMessage) => {
-    // Find all media messages in sequence for lightbox navigation
-    const mediaMsgs = room.messages.filter(
-      (m) => !m.deleted && !m.decrypt_failed && (m.media_id || m.media_uri),
-    );
-    const idx = mediaMsgs.findIndex((m) => m.id === msg.id);
-    setLightbox({ msgs: mediaMsgs, index: idx >= 0 ? idx : 0 });
-  }, [room.messages]);
+  const handleMediaPress = useCallback(
+    (msg: ChatMessage) => {
+      // Find all media messages in sequence for lightbox navigation
+      const mediaMsgs = room.messages.filter(
+        (m) => !m.deleted && !m.decrypt_failed && (m.media_id || m.media_uri),
+      );
+      const idx = mediaMsgs.findIndex((m) => m.id === msg.id);
+      setLightbox({ msgs: mediaMsgs, index: idx >= 0 ? idx : 0 });
+    },
+    [room.messages],
+  );
 
   const handleConfirmDelete = useCallback(
-    (mode: 'all' | 'me') => {
+    (mode: "all" | "me") => {
       if (deleteTarget) {
         room.deleteMessage(deleteTarget.id, mode);
       }
@@ -266,7 +320,11 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
-        (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
+        (flatListRef.current as any)?.scrollToIndex?.({
+          index: idx,
+          animated: true,
+          viewPosition: 0.3,
+        });
       }
     },
     [findIndexInGrouped],
@@ -276,7 +334,11 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
-        (flatListRef.current as any)?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.3 });
+        (flatListRef.current as any)?.scrollToIndex?.({
+          index: idx,
+          animated: true,
+          viewPosition: 0.3,
+        });
       }
     },
     [findIndexInGrouped],
@@ -284,9 +346,24 @@ export default function ChatScreen() {
 
   const handleOpenPost = useCallback(
     (postId: string) => {
-      router.push({ pathname: '/(drawer)/post/[postId]', params: { postId } });
+      router.push({ pathname: "/(drawer)/post/[postId]", params: { postId } });
     },
     [router],
+  );
+
+  const handleCallBack = useCallback(
+    (item: CallHistoryItem) => {
+      if (isInCall) return;
+      void startCall(
+        {
+          user_id: item.other_user.id,
+          display_name: item.other_user.display_name,
+          avatar_uri: item.other_user.avatar_url,
+        },
+        item.call_type,
+      );
+    },
+    [isInCall, startCall],
   );
 
   const handleDeleteChat = useCallback(async () => {
@@ -294,7 +371,7 @@ export default function ChatScreen() {
     try {
       await deleteChat(chatId);
       setShowDeleteChat(false);
-      router.navigate('/(drawer)/messages');
+      router.navigate("/(drawer)/messages");
     } catch {
       setShowDeleteChat(false);
     }
@@ -344,7 +421,11 @@ export default function ChatScreen() {
   // Track new messages + auto-scroll (gộp lại giống Web)
   useEffect(() => {
     const count = room.messages.length;
-    if (prevMsgCountRef.current > 0 && count > prevMsgCountRef.current && room.searchResults === null) {
+    if (
+      prevMsgCountRef.current > 0 &&
+      count > prevMsgCountRef.current &&
+      room.searchResults === null
+    ) {
       if (pinToBottomRef.current) {
         // Đang ở dưới → auto scroll xuống
         programmaticScrollRef.current = true;
@@ -362,339 +443,492 @@ export default function ChatScreen() {
   const partner = conversation?.partner;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior="padding"
         keyboardVerticalOffset={0}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.bg }]}>
-        <Pressable onPress={() => router.navigate('/(drawer)/messages')} hitSlop={8} style={styles.backBtn}>
-          <ThemedText style={styles.backIcon}>←</ThemedText>
-        </Pressable>
+        {/* Header */}
+        <View
+          style={[
+            styles.header,
+            { borderBottomColor: theme.border, backgroundColor: theme.bg },
+          ]}>
+          <Pressable
+            onPress={() => router.navigate("/(drawer)/messages")}
+            hitSlop={8}
+            style={styles.backBtn}>
+            <ThemedText style={styles.backIcon}>←</ThemedText>
+          </Pressable>
 
-        {partner?.avatar_uri ? (
-          <Image source={{ uri: partner.avatar_uri }} style={styles.avatar} contentFit="cover" />
-        ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: theme.primaryLight }]}>
-            <ThemedText style={[styles.avatarLetter, { color: theme.primary }]}>
-              {(partner?.display_name || '?')[0]?.toUpperCase()}
-            </ThemedText>
-          </View>
-        )}
-
-        <View style={styles.headerMeta}>
-          <ThemedText style={styles.headerName} numberOfLines={1}>
-            {partner?.display_name || t('chat.unknown')}
-          </ThemedText>
-          {encryption.ready && (
-            <ThemedText style={styles.e2eBadge}>
-            <Icon name="lock" size={12} /> {t('chat.e2eBadge')}
-          </ThemedText>
-          )}
-        </View>
-
-        {partner && (
-          <>
-            <Pressable
-              onPress={() =>
-                startCall(
-                  {
-                    user_id: partner.user_id,
-                    display_name: partner.display_name,
-                    avatar_uri: partner.avatar_uri,
-                  },
-                  'voice',
-                )
-              }
-              hitSlop={8}
-              style={styles.headerAction}>
-              <Icon name="call" size={18} color={theme.textSecondary} />
-            </Pressable>
-
-            <Pressable
-              onPress={() =>
-                startCall(
-                  {
-                    user_id: partner.user_id,
-                    display_name: partner.display_name,
-                    avatar_uri: partner.avatar_uri,
-                  },
-                  'video',
-                )
-              }
-              hitSlop={8}
-              style={styles.headerAction}>
-              <Icon name="video" size={18} color={theme.textSecondary} />
-            </Pressable>
-          </>
-        )}
-
-        <Pressable
-          onPress={() => {
-            setSearchActive((prev) => !prev);
-            if (searchActive) {
-              setSearchInput('');
-              room.clearSearch();
-            }
-          }}
-          hitSlop={8}
-          style={[styles.headerAction, searchActive && { backgroundColor: theme.bgSecondary }]}>
-          <Icon name="search" size={18} color={searchActive ? theme.primary : theme.textSecondary} />
-        </Pressable>
-
-        <Pressable onPress={() => setShowDeleteChat(true)} hitSlop={8} style={styles.headerAction}>
-          <Icon name="trash" size={18} color={theme.textSecondary} />
-        </Pressable>
-      </View>
-
-      {/* Search bar */}
-      {searchActive && (
-        <View style={[styles.searchBar, { backgroundColor: theme.bgSecondary, borderBottomColor: theme.border }]}>
-          <Icon name="search" size={14} color={theme.textSecondary} />
-          <View style={styles.searchInputWrap}>
-            <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              value={searchInput}
-              onChangeText={(text) => {
-                setSearchInput(text);
-                if (text.trim()) {
-                  room.searchMessages(text);
-                } else {
-                  room.clearSearch();
-                }
-              }}
-              placeholder={t('chat.searchMessages')}
-              placeholderTextColor={theme.textSecondary}
-              autoFocus
+          {partner?.avatar_uri ? (
+            <Image
+              source={{ uri: partner.avatar_uri }}
+              style={styles.avatar}
+              contentFit="cover"
             />
-            {searchInput.length > 0 && (
-              <Pressable onPress={() => { setSearchInput(''); room.clearSearch(); }} hitSlop={8}>
-                <Icon name="close" size={14} color={theme.textSecondary} />
-              </Pressable>
+          ) : (
+            <View
+              style={[
+                styles.avatar,
+                styles.avatarPlaceholder,
+                { backgroundColor: theme.primaryLight },
+              ]}>
+              <ThemedText
+                style={[styles.avatarLetter, { color: theme.primary }]}>
+                {(partner?.display_name || "?")[0]?.toUpperCase()}
+              </ThemedText>
+            </View>
+          )}
+
+          <View style={styles.headerMeta}>
+            <ThemedText style={styles.headerName} numberOfLines={1}>
+              {partner?.display_name || t("chat.unknown")}
+            </ThemedText>
+            {encryption.ready && (
+              <ThemedText style={styles.e2eBadge}>
+                <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
+              </ThemedText>
             )}
           </View>
-        </View>
-      )}
 
-      {/* E2E warning: đối phương đổi identity/thiết bị */}
-      {encryption.status === 'partner_changed' && (
-        <View style={[styles.e2eWarningBanner, { backgroundColor: theme.danger + '1A' }]}>
-          <Icon name="shield" size={14} color={theme.danger} />
-          <ThemedText style={[styles.e2eWarningText, { color: theme.danger }]}>
-            {t('chat.e2ePartnerChanged')}
-          </ThemedText>
-        </View>
-      )}
+          {partner && (
+            <>
+              <Pressable
+                onPress={() =>
+                  startCall(
+                    {
+                      user_id: partner.user_id,
+                      display_name: partner.display_name,
+                      avatar_uri: partner.avatar_uri,
+                    },
+                    "voice",
+                  )
+                }
+                hitSlop={8}
+                style={styles.headerAction}>
+                <Icon name="call" size={18} color={theme.textSecondary} />
+              </Pressable>
 
-      {/* Pinned messages bar */}
-      {room.pinnedMessages.length > 0 && !searchActive && (
-        <View style={[styles.pinnedBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-          <View style={styles.pinnedBarHeader}>
-            <ThemedText style={[styles.pinnedBarTitle, { color: theme.primary }]}>
-              <Icon name="pin" size={12} color={theme.primary} /> {t('chat.pinnedMessages')} ({room.pinnedMessages.length})
+              <Pressable
+                onPress={() =>
+                  startCall(
+                    {
+                      user_id: partner.user_id,
+                      display_name: partner.display_name,
+                      avatar_uri: partner.avatar_uri,
+                    },
+                    "video",
+                  )
+                }
+                hitSlop={8}
+                style={styles.headerAction}>
+                <Icon name="video" size={18} color={theme.textSecondary} />
+              </Pressable>
+            </>
+          )}
+
+          <Pressable
+            onPress={() => {
+              setSearchActive((prev) => !prev);
+              if (searchActive) {
+                setSearchInput("");
+                room.clearSearch();
+              }
+            }}
+            hitSlop={8}
+            style={[
+              styles.headerAction,
+              searchActive && { backgroundColor: theme.bgSecondary },
+            ]}>
+            <Icon
+              name="search"
+              size={18}
+              color={searchActive ? theme.primary : theme.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShowDeleteChat(true)}
+            hitSlop={8}
+            style={styles.headerAction}>
+            <Icon name="trash" size={18} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+
+        {/* Search bar */}
+        {searchActive && (
+          <View
+            style={[
+              styles.searchBar,
+              {
+                backgroundColor: theme.bgSecondary,
+                borderBottomColor: theme.border,
+              },
+            ]}>
+            <Icon name="search" size={14} color={theme.textSecondary} />
+            <View style={styles.searchInputWrap}>
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                value={searchInput}
+                onChangeText={(text) => {
+                  setSearchInput(text);
+                  if (text.trim()) {
+                    room.searchMessages(text);
+                  } else {
+                    room.clearSearch();
+                  }
+                }}
+                placeholder={t("chat.searchMessages")}
+                placeholderTextColor={theme.textSecondary}
+                autoFocus
+              />
+              {searchInput.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    setSearchInput("");
+                    room.clearSearch();
+                  }}
+                  hitSlop={8}>
+                  <Icon name="close" size={14} color={theme.textSecondary} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* E2E warning: đối phương đổi identity/thiết bị */}
+        {encryption.status === "partner_changed" && (
+          <View
+            style={[
+              styles.e2eWarningBanner,
+              { backgroundColor: theme.danger + "1A" },
+            ]}>
+            <Icon name="shield" size={14} color={theme.danger} />
+            <ThemedText
+              style={[styles.e2eWarningText, { color: theme.danger }]}>
+              {t("chat.e2ePartnerChanged")}
             </ThemedText>
           </View>
-          {room.pinnedMessages.map((pin) => (
-            <Pressable
-              key={pin.message_id}
-              style={[styles.pinnedBarItem, { backgroundColor: theme.bgSecondary }]}
-              onPress={() => scrollToMessage(pin.message_id)}
-            >
-              <View style={styles.pinnedBarItemContent}>
-                <ThemedText style={[styles.pinnedBarItemSender, { color: theme.text }]} numberOfLines={1}>
-                  {pin.sender_name || t('chat.unknown')}
-                </ThemedText>
-                <ThemedText style={[styles.pinnedBarItemText, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {pin.decrypt_failed
-                    ? t('chat.undecryptable')
-                    : pin.decrypted || !pin.e2e_version
-                      ? pin.content.length > 60
-                        ? pin.content.slice(0, 60) + '...'
-                        : pin.content || t('chat.attachment')
-                      : t('chat.decrypting')}
-                </ThemedText>
-              </View>
-              <Pressable
-                hitSlop={8}
-                onPress={() => room.unpinMessage(pin.message_id)}
-                style={styles.pinnedBarRemove}
-              >
-                <ThemedText style={{ color: theme.textSecondary, fontSize: 16 }}>×</ThemedText>
-              </Pressable>
-            </Pressable>
-          ))}
-        </View>
-      )}
+        )}
 
-      {/* Messages */}
-      <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-        {room.searchResults ? (
-          <View style={styles.searchResults}>
-            <View style={[styles.searchResultsHeader, { borderBottomColor: theme.border }]}>
-              <ThemedText style={[styles.searchResultsTitle, { color: theme.text }]}>
-                {t('chat.searchResults', { keyword: room.searchKeyword })}
+        {/* Pinned messages bar */}
+        {room.pinnedMessages.length > 0 && !searchActive && (
+          <View
+            style={[
+              styles.pinnedBar,
+              { backgroundColor: theme.card, borderBottomColor: theme.border },
+            ]}>
+            <View style={styles.pinnedBarHeader}>
+              <ThemedText
+                style={[styles.pinnedBarTitle, { color: theme.primary }]}>
+                <Icon name="pin" size={12} color={theme.primary} />{" "}
+                {t("chat.pinnedMessages")} ({room.pinnedMessages.length})
               </ThemedText>
-              <Pressable onPress={() => { setSearchInput(''); room.clearSearch(); }} hitSlop={8}>
-                <Icon name="close" size={14} color={theme.textSecondary} />
-              </Pressable>
             </View>
-            {room.searchResults.length === 0 ? (
-              <View style={styles.center}>
-                <ThemedText themeColor="textSecondary">{t('chat.noResults')}</ThemedText>
-              </View>
-            ) : (
-              <FlatList
-                data={room.searchResults}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <View style={[styles.searchResultItem, { borderBottomColor: theme.border }]}>
-                    <ThemedText style={[styles.searchResultSender, { color: theme.primary }]}>
-                      {item.sender_id === myUserId ? t('chat.you') : (item.sender_name || t('chat.unknown'))}
-                    </ThemedText>
-                    <ThemedText style={[styles.searchResultContent, { color: theme.text }]} numberOfLines={2}>
-                      {item.deleted ? t('chat.messageDeleted') : item.content || t('chat.attachment')}
-                    </ThemedText>
-                  </View>
-                )}
-              />
-            )}
-          </View>
-        ) : room.loading ? (
-          <View style={styles.center}>
-            <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
-          </View>
-        ) : room.messages.length === 0 ? (
-          <View style={styles.center}>
-            <ThemedText themeColor="textSecondary">{t('chat.noMessages')}</ThemedText>
-          </View>
-        ) : (
-          <>
-            {room.hasMore && (
-              <View style={styles.loadMoreRow}>
-                {room.loadingMore ? (
-                  <ActivityIndicator size="small" color={theme.primary} />
-                ) : (
-                  <ThemedText themeColor="textSecondary" style={styles.loadMoreText}>
-                    {t('chat.scrollForOlder')}
+            {room.pinnedMessages.map((pin) => (
+              <Pressable
+                key={pin.message_id}
+                style={[
+                  styles.pinnedBarItem,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => scrollToMessage(pin.message_id)}>
+                <View style={styles.pinnedBarItemContent}>
+                  <ThemedText
+                    style={[styles.pinnedBarItemSender, { color: theme.text }]}
+                    numberOfLines={1}>
+                    {pin.sender_name || t("chat.unknown")}
                   </ThemedText>
-                )}
-              </View>
-            )}
-            <FlatList
-              ref={flatListRef}
-              data={grouped}
-              keyExtractor={(item) => ('kind' in item ? `grp-${item.msgs[0]?.id ?? item.msgs.length}` : item.id)}
-              renderItem={({ item, index }) => {
-                const prev = resolvePrevMsg(grouped, index);
-                const dateSep = (createdAt: string) => (
-                  <View style={styles.dateSep}>
-                    <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                    <ThemedText style={[styles.dateSepText, { color: theme.textSecondary }]}>
-                      {formatChatDate(createdAt, t)}
-                    </ThemedText>
-                    <View style={[styles.dateSepLine, { backgroundColor: theme.border }]} />
-                  </View>
-                );
+                  <ThemedText
+                    style={[
+                      styles.pinnedBarItemText,
+                      { color: theme.textSecondary },
+                    ]}
+                    numberOfLines={1}>
+                    {pin.decrypt_failed
+                      ? t("chat.undecryptable")
+                      : pin.decrypted || !pin.e2e_version
+                        ? pin.content.length > 10
+                          ? pin.content.slice(0, 10) + "..."
+                          : pin.content || t("chat.attachment")
+                        : t("chat.decrypting")}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => room.unpinMessage(pin.message_id)}
+                  style={styles.pinnedBarRemove}>
+                  <ThemedText
+                    style={{ color: theme.textSecondary, fontSize: 16 }}>
+                    ×
+                  </ThemedText>
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
-                if ('kind' in item) {
-                  const groupMine = item.msgs[0]?.sender_id === myUserId;
-                  return (
-                    <View style={[styles.groupRow, groupMine ? styles.groupRowMine : styles.groupRowTheirs]}>
-                      <MediaStack
-                        msgs={item.msgs}
-                        onOpen={(i) => setLightbox({ msgs: item.msgs, index: i })}
-                        onLongPress={handleLongPress}
+        {/* Messages */}
+        <View
+          style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
+          {room.searchResults ? (
+            <View style={styles.searchResults}>
+              <View
+                style={[
+                  styles.searchResultsHeader,
+                  { borderBottomColor: theme.border },
+                ]}>
+                <ThemedText
+                  style={[styles.searchResultsTitle, { color: theme.text }]}>
+                  {t("chat.searchResults", { keyword: room.searchKeyword })}
+                </ThemedText>
+                <Pressable
+                  onPress={() => {
+                    setSearchInput("");
+                    room.clearSearch();
+                  }}
+                  hitSlop={8}>
+                  <Icon name="close" size={14} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+              {room.searchResults.length === 0 ? (
+                <View style={styles.center}>
+                  <ThemedText themeColor="textSecondary">
+                    {t("chat.noResults")}
+                  </ThemedText>
+                </View>
+              ) : (
+                <FlatList
+                  data={room.searchResults}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View
+                      style={[
+                        styles.searchResultItem,
+                        { borderBottomColor: theme.border },
+                      ]}>
+                      <ThemedText
+                        style={[
+                          styles.searchResultSender,
+                          { color: theme.primary },
+                        ]}>
+                        {item.sender_id === myUserId
+                          ? t("chat.you")
+                          : item.sender_name || t("chat.unknown")}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.searchResultContent,
+                          { color: theme.text },
+                        ]}
+                        numberOfLines={2}>
+                        {item.deleted
+                          ? t("chat.messageDeleted")
+                          : item.content || t("chat.attachment")}
+                      </ThemedText>
+                    </View>
+                  )}
+                />
+              )}
+            </View>
+          ) : room.loading ? (
+            <View style={styles.center}>
+              <ThemedText themeColor="textSecondary">
+                {t("common.loading")}
+              </ThemedText>
+            </View>
+          ) : room.messages.length === 0 && callHistory.length === 0 ? (
+            <View style={styles.center}>
+              <ThemedText themeColor="textSecondary">
+                {t("chat.noMessages")}
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              {room.hasMore && (
+                <View style={styles.loadMoreRow}>
+                  {room.loadingMore ? (
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  ) : (
+                    <ThemedText
+                      themeColor="textSecondary"
+                      style={styles.loadMoreText}>
+                      {t("chat.scrollForOlder")}
+                    </ThemedText>
+                  )}
+                </View>
+              )}
+              <FlatList
+                ref={flatListRef}
+                data={timeline}
+                keyExtractor={(item) =>
+                  "kind" in item
+                    ? item.kind === "call"
+                      ? `call-${item.item.id}`
+                      : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
+                    : item.id
+                }
+                renderItem={({ item, index }) => {
+                  const prev = resolvePrevMsg(timeline, index);
+                  const dateSep = (createdAt: string) => (
+                    <View style={styles.dateSep}>
+                      <View
+                        style={[
+                          styles.dateSepLine,
+                          { backgroundColor: theme.border },
+                        ]}
+                      />
+                      <ThemedText
+                        style={[
+                          styles.dateSepText,
+                          { color: theme.textSecondary },
+                        ]}>
+                        {formatChatDate(createdAt, t)}
+                      </ThemedText>
+                      <View
+                        style={[
+                          styles.dateSepLine,
+                          { backgroundColor: theme.border },
+                        ]}
                       />
                     </View>
                   );
-                }
 
-                const msg = item;
-                const showDate =
-                  !prev ||
-                  formatChatDate(msg.created_at, t) !== formatChatDate(prev.created_at, t);
-                const showTime =
-                  !prev ||
-                  prev.sender_id !== msg.sender_id ||
-                  new Date(msg.created_at).getTime() -
-                    new Date(prev.created_at).getTime() >
-                    60000;
-                const showAvatar = !prev || prev.sender_id !== msg.sender_id;
+                  if ("kind" in item && item.kind === "call") {
+                    const iso = new Date(item.item.created_at).toISOString();
+                    const showDate =
+                      !prev ||
+                      formatChatDate(iso, t) !==
+                        formatChatDate(prev.createdAt, t);
+                    return (
+                      <Fragment key={`call-${item.item.id}`}>
+                        {showDate && dateSep(iso)}
+                        <CallHistoryRow
+                          item={item.item}
+                          partnerAvatar={partner?.avatar_uri}
+                          partnerName={partner?.display_name}
+                          isInCall={isInCall}
+                          onCallback={handleCallBack}
+                        />
+                      </Fragment>
+                    );
+                  }
 
-                if (isSystemMessage(msg)) {
+                  if ("kind" in item) {
+                    const groupMine = item.msgs[0]?.sender_id === myUserId;
+                    return (
+                      <View
+                        style={[
+                          styles.groupRow,
+                          groupMine
+                            ? styles.groupRowMine
+                            : styles.groupRowTheirs,
+                        ]}>
+                        <MediaStack
+                          msgs={item.msgs}
+                          onOpen={(i) =>
+                            setLightbox({ msgs: item.msgs, index: i })
+                          }
+                          onLongPress={handleLongPress}
+                        />
+                      </View>
+                    );
+                  }
+
+                  const msg = item;
+                  const showDate =
+                    !prev ||
+                    formatChatDate(msg.created_at, t) !==
+                      formatChatDate(prev.createdAt, t);
+                  const showTime =
+                    !prev ||
+                    prev.senderId !== msg.sender_id ||
+                    new Date(msg.created_at).getTime() -
+                      new Date(prev.createdAt).getTime() >
+                      60000;
+                  const showAvatar = !prev || prev.senderId !== msg.sender_id;
+
+                  if (isSystemMessage(msg)) {
+                    return (
+                      <Fragment key={msg.id}>
+                        {showDate && dateSep(msg.created_at)}
+                        <SystemMessage
+                          message={msg}
+                          myUserId={myUserId}
+                          partnerUserId={partner?.user_id}
+                          partnerName={partner?.display_name}
+                        />
+                      </Fragment>
+                    );
+                  }
+
                   return (
                     <Fragment key={msg.id}>
                       {showDate && dateSep(msg.created_at)}
-                      <SystemMessage
+                      <ChatBubble
                         message={msg}
-                        myUserId={myUserId}
-                        partnerUserId={partner?.user_id}
-                        partnerName={partner?.display_name}
+                        isMine={msg.sender_id === myUserId}
+                        showTime={showTime}
+                        isPinned={room.pinnedMessages.some(
+                          (p) => p.message_id === msg.id,
+                        )}
+                        avatarUri={
+                          partner?.avatar_uri ?? msg.sender_avatar ?? null
+                        }
+                        showAvatar={showAvatar}
+                        onLongPress={handleLongPress}
+                        onReplyPress={handleReplyPress}
+                        onMediaPress={handleMediaPress}
+                        onOpenPost={handleOpenPost}
                       />
                     </Fragment>
                   );
-                }
+                }}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onContentSizeChange={() => {
+                  if (pinToBottomRef.current) {
+                    flatListRef.current?.scrollToEnd({ animated: false });
+                  }
+                }}
+                contentContainerStyle={styles.messageList}
+              />
+            </>
+          )}
 
-                return (
-                  <Fragment key={msg.id}>
-                    {showDate && dateSep(msg.created_at)}
-                    <ChatBubble
-                      message={msg}
-                      isMine={msg.sender_id === myUserId}
-                      showTime={showTime}
-                      isPinned={room.pinnedMessages.some((p) => p.message_id === msg.id)}
-                      avatarUri={partner?.avatar_uri ?? msg.sender_avatar ?? null}
-                      showAvatar={showAvatar}
-                      onLongPress={handleLongPress}
-                      onReplyPress={handleReplyPress}
-                      onMediaPress={handleMediaPress}
-                      onOpenPost={handleOpenPost}
-                    />
-                  </Fragment>
-                );
-              }}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              onContentSizeChange={() => {
-                if (pinToBottomRef.current) {
-                  flatListRef.current?.scrollToEnd({ animated: false });
-                }
-              }}
-              contentContainerStyle={styles.messageList}
-            />
-          </>
+          {room.partnerTyping && <TypingIndicator />}
+        </View>
+
+        {/* New messages bar – like Web */}
+        {newMessagesCount > 0 && !isNearBottom && (
+          <Pressable
+            style={[styles.newMessagesBar, { backgroundColor: theme.primary }]}
+            onPress={scrollToBottom}>
+            <ThemedText style={styles.newMessagesText}>
+              ↓ {newMessagesCount} {t("chat.scrollToLower")}
+            </ThemedText>
+          </Pressable>
         )}
 
-        {room.partnerTyping && <TypingIndicator />}
-      </View>
-
-      {/* New messages bar – like Web */}
-      {newMessagesCount > 0 && !isNearBottom && (
-        <Pressable
-          style={[styles.newMessagesBar, { backgroundColor: theme.primary }]}
-          onPress={scrollToBottom}
-        >
-          <ThemedText style={styles.newMessagesText}>
-            ↓ {newMessagesCount} {t('chat.scrollToLower')}
-          </ThemedText>
-        </Pressable>
-      )}
-
-      {/* Composer */}
-      <ChatComposer
-        onSend={handleSend}
-        onTyping={handleTyping}
-        replyingTo={replyingTo}
-        onClearReply={() => setReplyingTo(null)}
-      />
+        {/* Composer */}
+        <ChatComposer
+          onSend={handleSend}
+          onTyping={handleTyping}
+          replyingTo={replyingTo}
+          onClearReply={() => setReplyingTo(null)}
+        />
       </KeyboardAvoidingView>
 
       {/* Message actions menu */}
       <MessageActions
         message={actionTarget}
         myUserId={myUserId}
-        isPinned={actionTarget ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id) : false}
+        isPinned={
+          actionTarget
+            ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id)
+            : false
+        }
         canPin={room.pinnedMessages.length < 2}
         onClose={() => setActionTarget(null)}
         onReply={handleReply}
@@ -706,20 +940,36 @@ export default function ChatScreen() {
       {/* Delete conversation confirmation */}
       {showDeleteChat && (
         <View style={styles.deleteOverlay}>
-          <Pressable style={styles.deleteOverlayBg} onPress={() => setShowDeleteChat(false)} />
+          <Pressable
+            style={styles.deleteOverlayBg}
+            onPress={() => setShowDeleteChat(false)}
+          />
           <View style={[styles.deleteDialog, { backgroundColor: theme.card }]}>
-            <ThemedText style={[styles.deleteTitle, { color: theme.text }]}>{t('chat.deleteChat')}</ThemedText>
-            <ThemedText style={[styles.deleteDesc, { color: theme.textSecondary }]}>{t('chat.deleteChatConfirm')}</ThemedText>
+            <ThemedText style={[styles.deleteTitle, { color: theme.text }]}>
+              {t("chat.deleteChat")}
+            </ThemedText>
+            <ThemedText
+              style={[styles.deleteDesc, { color: theme.textSecondary }]}>
+              {t("chat.deleteChatConfirm")}
+            </ThemedText>
             <View style={styles.deleteActions}>
               <Pressable
-                style={[styles.deleteBtn, { backgroundColor: theme.bgSecondary }]}
+                style={[
+                  styles.deleteBtn,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
                 onPress={() => setShowDeleteChat(false)}>
-                <ThemedText style={[styles.deleteBtnText, { color: theme.text }]}>{t('common.cancel')}</ThemedText>
+                <ThemedText
+                  style={[styles.deleteBtnText, { color: theme.text }]}>
+                  {t("common.cancel")}
+                </ThemedText>
               </Pressable>
               <Pressable
                 style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                 onPress={handleDeleteChat}>
-                <ThemedText style={[styles.deleteBtnText, { color: '#FFF' }]}>{t('chat.delete')}</ThemedText>
+                <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                  {t("chat.delete")}
+                </ThemedText>
               </Pressable>
             </View>
           </View>
@@ -729,26 +979,50 @@ export default function ChatScreen() {
       {/* Delete message confirmation */}
       {deleteTarget && (
         <View style={styles.deleteOverlay}>
-          <Pressable style={styles.deleteOverlayBg} onPress={() => setDeleteTarget(null)} />
+          <Pressable
+            style={styles.deleteOverlayBg}
+            onPress={() => setDeleteTarget(null)}
+          />
           <View style={[styles.deleteDialog, { backgroundColor: theme.card }]}>
-            <ThemedText style={[styles.deleteTitle, { color: theme.text }]}>{t('chat.deleteMessage')}</ThemedText>
-            <ThemedText style={[styles.deleteDesc, { color: theme.textSecondary }]}>{t('chat.deleteConfirm')}</ThemedText>
+            <ThemedText style={[styles.deleteTitle, { color: theme.text }]}>
+              {t("chat.deleteMessage")}
+            </ThemedText>
+            <ThemedText
+              style={[styles.deleteDesc, { color: theme.textSecondary }]}>
+              {t("chat.deleteConfirm")}
+            </ThemedText>
             <View style={styles.deleteActions}>
               <Pressable
-                style={[styles.deleteBtn, { backgroundColor: theme.bgSecondary }]}
-                onPress={() => handleConfirmDelete('me')}>
-                <ThemedText style={[styles.deleteBtnText, { color: theme.text }]}>{t('chat.deleteForMe')}</ThemedText>
+                style={[
+                  styles.deleteBtn,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => handleConfirmDelete("me")}>
+                <ThemedText
+                  style={[styles.deleteBtnText, { color: theme.text }]}>
+                  {t("chat.deleteForMe")}
+                </ThemedText>
               </Pressable>
               {deleteTarget.sender_id === myUserId && (
                 <Pressable
                   style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
-                  onPress={() => handleConfirmDelete('all')}>
-                  <ThemedText style={[styles.deleteBtnText, { color: '#FFF' }]}>{t('chat.deleteForAll')}</ThemedText>
+                  onPress={() => handleConfirmDelete("all")}>
+                  <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                    {t("chat.deleteForAll")}
+                  </ThemedText>
                 </Pressable>
               )}
             </View>
-            <Pressable style={styles.deleteCancel} onPress={() => setDeleteTarget(null)}>
-              <ThemedText style={[styles.deleteCancelText, { color: theme.textSecondary }]}>{t('common.cancel')}</ThemedText>
+            <Pressable
+              style={styles.deleteCancel}
+              onPress={() => setDeleteTarget(null)}>
+              <ThemedText
+                style={[
+                  styles.deleteCancelText,
+                  { color: theme.textSecondary },
+                ]}>
+                {t("common.cancel")}
+              </ThemedText>
             </Pressable>
           </View>
         </View>
@@ -774,8 +1048,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -793,8 +1067,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarLetter: {
     ...Typography.body,
@@ -818,8 +1092,8 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -827,8 +1101,8 @@ const styles = StyleSheet.create({
   },
   searchInputWrap: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   searchInput: {
     flex: 1,
@@ -839,16 +1113,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchResultsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchResultsTitle: {
     ...Typography.body,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 13,
   },
   searchResultItem: {
@@ -859,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   searchResultSender: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   searchResultContent: {
     ...Typography.body,
@@ -870,8 +1144,8 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   messageList: {
     paddingVertical: Spacing.sm,
@@ -881,14 +1155,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   groupRowMine: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   groupRowTheirs: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   dateSep: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
@@ -902,7 +1176,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   loadMoreRow: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.sm,
   },
   loadMoreText: {
@@ -915,19 +1189,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   pinnedBarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
   pinnedBarTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   pinnedBarItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.sm,
     padding: 6,
     borderRadius: 6,
@@ -938,7 +1212,7 @@ const styles = StyleSheet.create({
   },
   pinnedBarItemSender: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   pinnedBarItemText: {
     fontSize: 12,
@@ -947,12 +1221,12 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   e2eWarningBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -960,12 +1234,12 @@ const styles = StyleSheet.create({
   e2eWarningText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   newMessagesBar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 6,
     paddingVertical: 6,
     marginHorizontal: Spacing.md,
@@ -973,31 +1247,31 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   newMessagesText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   // Delete confirmation dialog
   deleteOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   deleteOverlayBg: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   deleteDialog: {
-    width: '80%',
+    width: "80%",
     borderRadius: 16,
     padding: 20,
     gap: 12,
@@ -1012,22 +1286,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   deleteActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
     marginTop: Spacing.sm,
   },
   deleteBtn: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 12,
     borderRadius: 8,
   },
   deleteBtnText: {
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 14,
   },
   deleteCancel: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 8,
     marginTop: Spacing.xs,
   },

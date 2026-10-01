@@ -362,7 +362,8 @@
     "statusRejected": "Call declined",
     "statusBusy": "User is busy",
     "statusCancelled": "Call cancelled",
-    "noAnswer": "No answer"
+    "noAnswer": "No answer",
+    "callback": "Callback"
   },
   "settings": {
     "title": "Settings",

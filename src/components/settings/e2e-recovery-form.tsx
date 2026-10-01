@@ -53,7 +53,7 @@ export default function E2ERecoveryForm() {
   const handleEnable = async () => {
     setError(null);
     if (!canSave) {
-      setError(t('userSettings.e2ePinInvalid'));
+      setError(t('settings.e2ePinInvalid'));
       return;
     }
     try {
@@ -62,7 +62,7 @@ export default function E2ERecoveryForm() {
       setShowKey(true);
       setPin('');
       setPinConfirm('');
-      Alert.alert(t('userSettings.e2eEnabled'));
+      Alert.alert(t('settings.e2eEnabled'));
     } catch (err) {
       setError(translateErr(err));
     }
@@ -86,7 +86,7 @@ export default function E2ERecoveryForm() {
       setShowKey(false);
       setRevealedKey(null);
       setEnabled(false);
-      Alert.alert(t('userSettings.e2eDisabled'));
+      Alert.alert(t('settings.e2eDisabled'));
     } catch (err) {
       Alert.alert(t('common.error'), translateErr(err));
     }
@@ -96,9 +96,9 @@ export default function E2ERecoveryForm() {
     try {
       const ok = await recovery.forceRefreshBackup();
       if (ok) {
-        Alert.alert(t('userSettings.e2eRefreshed'));
+        Alert.alert(t('settings.e2eRefreshed'));
       } else {
-        Alert.alert(t('userSettings.e2eRefreshNoKeys'));
+        Alert.alert(t('settings.e2eRefreshNoKeys'));
       }
     } catch (err) {
       Alert.alert(t('common.error'), translateErr(err));
@@ -120,19 +120,19 @@ export default function E2ERecoveryForm() {
         <ThemedView style={[styles.statusCard, { backgroundColor: colors.bgSecondary }]}>
           <Icon name="shield" size={20} color={colors.primary} />
           <ThemedView style={styles.statusInfo}>
-            <ThemedText style={styles.label}>{t('userSettings.e2eStatusActive')}</ThemedText>
+            <ThemedText style={styles.label}>{t('settings.e2eStatusActive')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.hint}>
               {activeKey?.updated_at
-                ? `${t('userSettings.e2eUpdatedAt')}: ${new Date(activeKey.updated_at).toLocaleString()}`
-                : t('userSettings.e2eStatusActiveHint')}
+                ? `${t('settings.e2eUpdatedAt')}: ${new Date(activeKey.updated_at).toLocaleString()}`
+                : t('settings.e2eStatusActiveHint')}
             </ThemedText>
           </ThemedView>
         </ThemedView>
 
         <ThemedView style={styles.field}>
-          <ThemedText style={styles.label}>{t('userSettings.e2eChangePin')}</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.e2eChangePin')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('userSettings.e2eChangePinHint')}
+            {t('settings.e2eChangePinHint')}
           </ThemedText>
           <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
             <TextInput
@@ -159,10 +159,10 @@ export default function E2ERecoveryForm() {
             />
           </ThemedView>
           {pinInvalid && (
-            <ThemedText style={styles.error}>{t('userSettings.e2ePinInvalid')}</ThemedText>
+            <ThemedText style={styles.error}>{t('settings.e2ePinInvalid')}</ThemedText>
           )}
           {mismatch && (
-            <ThemedText style={styles.error}>{t('userSettings.e2ePinMismatch')}</ThemedText>
+            <ThemedText style={styles.error}>{t('settings.e2ePinMismatch')}</ThemedText>
           )}
           {error && <ThemedText style={styles.error}>{error}</ThemedText>}
           <View style={styles.footerRow}>
@@ -174,7 +174,7 @@ export default function E2ERecoveryForm() {
               {recovery.busy ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <ThemedText style={styles.buttonText}>{t('userSettings.e2eSavePin')}</ThemedText>
+                <ThemedText style={styles.buttonText}>{t('settings.e2eSavePin')}</ThemedText>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -183,7 +183,7 @@ export default function E2ERecoveryForm() {
               disabled={recovery.busy}
               activeOpacity={0.8}>
               <ThemedText style={[styles.buttonText, { color: colors.text }]}>
-                {t('userSettings.e2eRefreshNow')}
+                {t('settings.e2eRefreshNow')}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -191,22 +191,22 @@ export default function E2ERecoveryForm() {
 
         <ThemedView style={[styles.dangerZone, { borderTopColor: colors.border }]}>
           <ThemedText style={[styles.label, { color: colors.danger }]}>
-            {t('userSettings.e2eDisable')}
+            {t('settings.e2eDisable')}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('userSettings.e2eDisableHint')}
+            {t('settings.e2eDisableHint')}
           </ThemedText>
           {!confirmDisable ? (
             <TouchableOpacity
               style={[styles.button, styles.buttonDanger, { backgroundColor: colors.danger }]}
               onPress={() => setConfirmDisable(true)}
               activeOpacity={0.8}>
-              <ThemedText style={styles.buttonText}>{t('userSettings.e2eDisable')}</ThemedText>
+              <ThemedText style={styles.buttonText}>{t('settings.e2eDisable')}</ThemedText>
             </TouchableOpacity>
           ) : (
             <ThemedView style={[styles.confirmBox, { backgroundColor: colors.bgSecondary }]}>
               <ThemedText themeColor="textSecondary" style={styles.hint}>
-                {t('userSettings.e2eDisableConfirm')}
+                {t('settings.e2eDisableConfirm')}
               </ThemedText>
               <View style={styles.footerRow}>
                 <TouchableOpacity
@@ -225,7 +225,7 @@ export default function E2ERecoveryForm() {
                   {recovery.busy ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <ThemedText style={styles.buttonText}>{t('userSettings.e2eDisable')}</ThemedText>
+                    <ThemedText style={styles.buttonText}>{t('settings.e2eDisable')}</ThemedText>
                   )}
                 </TouchableOpacity>
               </View>
@@ -235,9 +235,9 @@ export default function E2ERecoveryForm() {
 
         {showKey && revealedKey && (
           <ThemedView style={[styles.keyBox, { backgroundColor: colors.bgSecondary }]}>
-            <ThemedText style={styles.label}>{t('userSettings.e2eKeyTitle')}</ThemedText>
+            <ThemedText style={styles.label}>{t('settings.e2eKeyTitle')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.hint}>
-              {t('userSettings.e2eKeyHint')}
+              {t('settings.e2eKeyHint')}
             </ThemedText>
             <ThemedText style={styles.recoveryKeyText} selectable>
               {revealedKey}
@@ -247,7 +247,7 @@ export default function E2ERecoveryForm() {
               onPress={handleShareKey}
               activeOpacity={0.8}>
               <ThemedText style={[styles.buttonText, { color: colors.text }]}>
-                {t('userSettings.e2eCopy')}
+                {t('settings.e2eCopy')}
               </ThemedText>
             </TouchableOpacity>
           </ThemedView>
@@ -261,15 +261,15 @@ export default function E2ERecoveryForm() {
       <ThemedView style={[styles.statusCard, { backgroundColor: colors.bgSecondary }]}>
         <Icon name="shield" size={20} color={colors.textSecondary} />
         <ThemedView style={styles.statusInfo}>
-          <ThemedText style={styles.label}>{t('userSettings.e2eStatusInactive')}</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.e2eStatusInactive')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('userSettings.e2eInactiveHint')}
+            {t('settings.e2eInactiveHint')}
           </ThemedText>
         </ThemedView>
       </ThemedView>
 
       <ThemedView style={styles.field}>
-        <ThemedText style={styles.label}>{t('userSettings.e2ePinLabel')}</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.e2ePinLabel')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
@@ -282,7 +282,7 @@ export default function E2ERecoveryForm() {
             placeholderTextColor={colors.textSecondary}
           />
         </ThemedView>
-        <ThemedText style={styles.label}>{t('userSettings.e2ePinConfirm')}</ThemedText>
+        <ThemedText style={styles.label}>{t('settings.e2ePinConfirm')}</ThemedText>
         <ThemedView style={[styles.inputWrapper, { backgroundColor: colors.bgSecondary }]}>
           <TextInput
             style={[styles.input, { color: colors.text }]}
@@ -296,10 +296,10 @@ export default function E2ERecoveryForm() {
           />
         </ThemedView>
         {pinInvalid && (
-          <ThemedText style={styles.error}>{t('userSettings.e2ePinInvalid')}</ThemedText>
+          <ThemedText style={styles.error}>{t('settings.e2ePinInvalid')}</ThemedText>
         )}
         {mismatch && (
-          <ThemedText style={styles.error}>{t('userSettings.e2ePinMismatch')}</ThemedText>
+          <ThemedText style={styles.error}>{t('settings.e2ePinMismatch')}</ThemedText>
         )}
         {error && <ThemedText style={styles.error}>{error}</ThemedText>}
 
@@ -311,16 +311,16 @@ export default function E2ERecoveryForm() {
           {recovery.busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <ThemedText style={styles.buttonText}>{t('userSettings.e2eEnable')}</ThemedText>
+            <ThemedText style={styles.buttonText}>{t('settings.e2eEnable')}</ThemedText>
           )}
         </TouchableOpacity>
       </ThemedView>
 
       {showKey && revealedKey && (
         <ThemedView style={[styles.keyBox, { backgroundColor: colors.bgSecondary }]}>
-          <ThemedText style={styles.label}>{t('userSettings.e2eKeyTitle')}</ThemedText>
+          <ThemedText style={styles.label}>{t('settings.e2eKeyTitle')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('userSettings.e2eKeyHint')}
+            {t('settings.e2eKeyHint')}
           </ThemedText>
           <ThemedText style={styles.recoveryKeyText} selectable>
             {revealedKey}
@@ -330,7 +330,7 @@ export default function E2ERecoveryForm() {
             onPress={handleShareKey}
             activeOpacity={0.8}>
             <ThemedText style={[styles.buttonText, { color: colors.text }]}>
-              {t('userSettings.e2eCopy')}
+              {t('settings.e2eCopy')}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
