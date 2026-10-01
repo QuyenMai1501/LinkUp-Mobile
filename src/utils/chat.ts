@@ -59,3 +59,9 @@ export function formatChatDate(iso: string, t: TranslationFn): string {
   if (isYesterday(iso)) return t('chat.yesterday');
   return vnDateTime(iso);
 }
+
+export function formatCallDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${pad2(m)}:${pad2(s)}`;
+}

@@ -136,6 +136,10 @@ export function useChatRoom({
   const loadingMoreRef = useRef(false);
   const chatIdRef = useRef<string | null>(null);
   const tempSeqRef = useRef(0);
+  // Hàng đợi id bubble tạm (optimistic) theo thứ tự gửi — echo `message:new`
+  // sẽ shift() từng id để thay đúng temp (Web cũng làm vậy). Không so content:
+  // temp plaintext vs echo plaintext sau decrypt có thể lệch khi lỗi/đổi nội dung.
+  const pendingIdsRef = useRef<string[]>([]);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const activeChatIdRef = useRef<string | null>(null);
@@ -315,17 +319,17 @@ export function useChatRoom({
 
         void decryptIncoming([msg]).then(([resolved]) => {
           setMessages((prev) => {
-            // Thay thế optimistic temp message nếu có
-            const idx = prev.findIndex(
-              (m) =>
-                m.id.startsWith('temp-') &&
-                m.sender_id === myUserId &&
-                m.content === resolved.content,
-            );
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = resolved;
-              return sortByCreatedAt(dedupeByID(next));
+            // Thay optimistic temp message theo hàng đợi id (không so content —
+            // content của temp và echo luôn là plaintext nhưng so sánh từng ký tự
+            // dễ sai khi gửi trùng nội dung / decrypt fail).
+            if (resolved.sender_id === myUserId && pendingIdsRef.current.length > 0) {
+              const tempId = pendingIdsRef.current.shift()!;
+              const idx = prev.findIndex((m) => m.id === tempId);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = resolved;
+                return sortByCreatedAt(dedupeByID(next));
+              }
             }
             return sortByCreatedAt(dedupeByID([...prev, resolved]));
           });
@@ -433,6 +437,10 @@ export function useChatRoom({
       }
       tempSeqRef.current += 1;
       const tempId = `temp-${tempSeqRef.current}`;
+      // Bubble tạm giữ PLAINTEXT để hiển thị đúng ngay; echo server về sẽ thay
+      // đúng temp này theo id (xem pendingIdsRef). Encrypt XẢY RA Ở ĐÂY, sau
+      // khi append — không để caller encrypt trước như trước đây (gây 2 bubble:
+      // temp = ciphertext render raw + echo = plaintext bị append trùng).
       const optimistic: ChatMessage = {
         id: tempId,
         chat_id: chatId,
@@ -444,30 +452,47 @@ export function useChatRoom({
         is_anonymized: false,
         created_at: new Date().toISOString(),
       };
+      pendingIdsRef.current.push(tempId);
       setMessages((prev) => [...prev, optimistic]);
 
-      // Chỉ gửi e2e_version khi content thực sự được encrypt
-      if (opts?.e2eEncrypted) {
-        socket.send('message:send', {
-          chat_id: chatId,
-          content,
-          e2e_version: 1,
-          emoji_id: opts?.emojiId,
-          media_id: opts?.mediaId,
-          gif_url: opts?.gifUrl ?? null,
-          reply_to_message_id: opts?.replyToMessageId,
-        });
-      } else {
-        // Không encrypt → gửi plaintext KHÔNG có e2e_version
-        socket.send('message:send', {
-          chat_id: chatId,
-          content,
-          emoji_id: opts?.emojiId,
-          media_id: opts?.mediaId,
-          gif_url: opts?.gifUrl ?? null,
-          reply_to_message_id: opts?.replyToMessageId,
-        });
-      }
+      void (async () => {
+        let wireContent = content;
+        let e2eEncrypted = false;
+        if (encryption?.ready && content !== '') {
+          try {
+            wireContent = await encryption.encrypt(content);
+            e2eEncrypted = true;
+          } catch {
+            // Encrypt fail → gỡ bubble tạm, KHÔNG gửi plaintext âm thầm.
+            pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== tempId);
+            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+            Alert.alert(t('chat.e2eEncryptFailed'));
+            return;
+          }
+        }
+
+        if (e2eEncrypted) {
+          socket.send('message:send', {
+            chat_id: chatId,
+            content: wireContent,
+            e2e_version: 1,
+            emoji_id: opts?.emojiId,
+            media_id: opts?.mediaId,
+            gif_url: opts?.gifUrl ?? null,
+            reply_to_message_id: opts?.replyToMessageId,
+          });
+        } else {
+          // Không encrypt (legacy / content rỗng) → gửi plaintext KHÔNG có e2e_version
+          socket.send('message:send', {
+            chat_id: chatId,
+            content: wireContent,
+            emoji_id: opts?.emojiId,
+            media_id: opts?.mediaId,
+            gif_url: opts?.gifUrl ?? null,
+            reply_to_message_id: opts?.replyToMessageId,
+          });
+        }
+      })();
     },
     [chatId, myUserId, socket, encryption, e2eStatus, t],
   );

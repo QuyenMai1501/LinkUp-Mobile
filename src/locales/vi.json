@@ -362,7 +362,8 @@
     "statusRejected": "Cuộc gọi đã bị từ chối",
     "statusBusy": "Người dùng đang bận",
     "statusCancelled": "Cuộc gọi đã hủy",
-    "noAnswer": "Không có ai nghe máy"
+    "noAnswer": "Không có ai nghe máy",
+    "callback": "Gọi lại"
   },
   "settings": {
     "title": "Cài đặt",

@@ -80,3 +80,34 @@ export interface CallMissedPayload {
   caller_id: string;
   timestamp: number;
 }
+
+// ─── Call history (GET /api/calls/history) ──────────────────────
+
+export interface CallHistoryUserBrief {
+  id: string;
+  display_name: string;
+  /** Server json tag là `avatar_url` (KHÔNG phải `avatar_uri` như type của Web). */
+  avatar_url: string;
+}
+
+export interface CallHistoryItem {
+  id: string;
+  other_user: CallHistoryUserBrief;
+  call_type: CallType;
+  direction: 'outgoing' | 'incoming';
+  status: CallStatus;
+  is_missed: boolean;
+  /** Giây. */
+  duration: number;
+  started_at?: number;
+  ended_at?: number;
+  /** Epoch milliseconds. */
+  created_at: number;
+}
+
+export interface CallHistoryListResponse {
+  data: CallHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
