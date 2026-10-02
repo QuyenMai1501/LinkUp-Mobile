@@ -65,16 +65,27 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const closedByUserRef = useRef(false);
   const maxReconnectDelay = 30000;
 
+  // Mirror unreadCount để WS increment lấy giá trị mới nhất mà không cần
+  // side-effect trong setState updater; đồng bộ badge iOS theo cùng giá trị.
+  const unreadRef = useRef(0);
+  const syncUnread = useCallback((count: number) => {
+    unreadRef.current = count;
+    setUnreadCount(count);
+    void Notifications.setBadgeCountAsync(count).catch(() => {
+      /* badge không hỗ trợ trên nền tảng này — bỏ qua */
+    });
+  }, []);
+
   const refreshUnreadCount = useCallback(async () => {
     const token = await tokenStorage.getAccessToken();
     if (!token) return;
     try {
       const res = await getUnreadCount();
-      setUnreadCount(res.count);
+      syncUnread(res.count);
     } catch (err) {
       console.error('Failed to get unread count:', err);
     }
-  }, []);
+  }, [syncUnread]);
 
   const fetchNotifications = useCallback(async () => {
     const token = await tokenStorage.getAccessToken();
@@ -106,14 +117,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const markAllAsRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    syncUnread(0);
     try {
       await apiMarkAllAsRead();
     } catch (err) {
       console.error('Failed to mark all as read:', err);
       refreshUnreadCount();
     }
-  }, [refreshUnreadCount]);
+  }, [syncUnread, refreshUnreadCount]);
 
   // Điều hướng khi người dùng TAP vào notification (push data chứa type +
   // redirect_* — xem server notification.service.go sendPush).
@@ -225,7 +236,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             if (message.type === 'notification') {
               const newNotif: NotificationItem = message.data;
               setNotifications((prev) => mergeNotification(newNotif, prev));
-              setUnreadCount((prev) => prev + 1);
+              syncUnread(unreadRef.current + 1);
               // A3: tin nhắn mới trong lúc app mở → báo danh sách hội thoại
               // refresh (chat socket không broadcast message:new cho client
               // chưa join phòng — xem ws/hub.go).
@@ -282,7 +293,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         wsRef.current = null;
       }
     };
-  }, [refreshUnreadCount, fetchNotifications]);
+  }, [refreshUnreadCount, fetchNotifications, syncUnread]);
 
   return (
     <NotificationContext.Provider
