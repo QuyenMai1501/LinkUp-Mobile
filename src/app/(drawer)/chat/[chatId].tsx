@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { batchGetPresence } from "@/api/presence";
 import { deleteChat, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
 import { ChatBubble } from "@/components/chat/chat-bubble";
@@ -102,6 +103,8 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
+  // A4: online của đối phương — batch presence khi mở + presence:update realtime.
+  const [partnerOnline, setPartnerOnline] = useState(false);
   const [lightbox, setLightbox] = useState<{
     msgs: ChatMessage[];
     index: number;
@@ -153,6 +156,39 @@ export default function ChatScreen() {
     callPhase,
     activeCall,
   });
+
+  // A4: lần đầu biết partner → batch query trạng thái online.
+  // Reset về offline sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    if (!partnerUserId) return;
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setPartnerOnline(false);
+      try {
+        const res = await batchGetPresence([partnerUserId]);
+        if (cancelled) return;
+        setPartnerOnline(res.data[partnerUserId]?.status === "online");
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [partnerUserId]);
+
+  // A4: realtime — server broadcast presence:update cho toàn bộ client.
+  useEffect(() => {
+    if (!partnerUserId) return;
+    const unsub = socket.subscribe("presence:update", (payload: any) => {
+      if (payload.user_id === partnerUserId) {
+        setPartnerOnline(payload.status === "online");
+      }
+    });
+    return unsub;
+  }, [socket, partnerUserId]);
 
   // Timeline gộp messages (đã group media) + lịch sử cuộc gọi, sort theo thời gian.
   const timeline = useMemo<GroupedItem[]>(() => {
@@ -290,6 +326,21 @@ export default function ChatScreen() {
   const handleUnpin = useCallback(
     (msg: ChatMessage) => {
       room.unpinMessage(msg.id);
+    },
+    [room],
+  );
+
+  // A2: gửi lại / bỏ tin thất bại.
+  const handleRetry = useCallback(
+    (msg: ChatMessage) => {
+      room.retryMessage(msg.id);
+    },
+    [room],
+  );
+
+  const handleDiscard = useCallback(
+    (msg: ChatMessage) => {
+      room.discardMessage(msg.id);
     },
     [room],
   );
@@ -485,11 +536,23 @@ export default function ChatScreen() {
             <ThemedText style={styles.headerName} numberOfLines={1}>
               {partner?.display_name || t("chat.unknown")}
             </ThemedText>
-            {encryption.ready && (
-              <ThemedText style={styles.e2eBadge}>
-                <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
-              </ThemedText>
-            )}
+            <View style={styles.headerMetaRow}>
+              {encryption.ready && (
+                <ThemedText style={styles.e2eBadge}>
+                  <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
+                </ThemedText>
+              )}
+              {/* A4: trạng thái online/offline của đối phương */}
+              {partner && (
+                <ThemedText
+                  style={[
+                    styles.presenceBadge,
+                    { color: partnerOnline ? "#22C55E" : theme.textSecondary },
+                  ]}>
+                  {partnerOnline ? t("chat.online") : t("chat.offline")}
+                </ThemedText>
+              )}
+            </View>
           </View>
 
           {partner && (
@@ -762,14 +825,20 @@ export default function ChatScreen() {
               <FlatList
                 ref={flatListRef}
                 data={timeline}
-                keyExtractor={(item) =>
+                keyExtractor={(item: GroupedItem) =>
                   "kind" in item
                     ? item.kind === "call"
                       ? `call-${item.item.id}`
                       : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
                     : item.id
                 }
-                renderItem={({ item, index }) => {
+                renderItem={({
+                  item,
+                  index,
+                }: {
+                  item: GroupedItem;
+                  index: number;
+                }) => {
                   const prev = resolvePrevMsg(timeline, index);
                   const dateSep = (createdAt: string) => (
                     <View style={styles.dateSep}>
@@ -873,6 +942,10 @@ export default function ChatScreen() {
                         isPinned={room.pinnedMessages.some(
                           (p) => p.message_id === msg.id,
                         )}
+                        seen={
+                          msg.sender_id === myUserId &&
+                          (msg.seen_by ?? []).some((uid) => uid !== myUserId)
+                        }
                         avatarUri={
                           partner?.avatar_uri ?? msg.sender_avatar ?? null
                         }
@@ -935,6 +1008,8 @@ export default function ChatScreen() {
         onDelete={handleDeleteRequest}
         onPin={handlePin}
         onUnpin={handleUnpin}
+        onRetry={handleRetry}
+        onDiscard={handleDiscard}
       />
 
       {/* Delete conversation confirmation */}
@@ -1079,6 +1154,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   headerName: {
     ...Typography.body,
     fontWeight: 600,
@@ -1087,6 +1167,11 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 10,
     opacity: 0.7,
+  },
+  presenceBadge: {
+    ...Typography.caption,
+    fontSize: 10,
+    fontWeight: "600",
   },
   headerAction: {
     padding: Spacing.xs,

@@ -18,14 +18,13 @@ import { useChatSocket } from '@/hooks/useChatSocket';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useE2ERecovery } from '@/hooks/useE2ERecovery';
 import { listChats, createDirectChat } from '@/api/chat';
+import { batchGetPresence } from '@/api/presence';
 import { decryptChat, ensureChatKey, dbg } from '@/utils/e2ee';
+import { onChatListDirty } from '@/utils/chat-list-dirty';
+import { RECOVERY_RESOLVED_KEY } from '@/utils/e2e-flags';
 import { Spacing, Typography } from '@/constants/theme';
 import { Icon } from '@/components/ui/icon';
 import type { ChatConversation } from '@/types/chat';
-
-// Cờ đánh dấu "đã giải quyết cổng khôi phục" trên máy này (mở khóa hoặc bỏ qua)
-// — AsyncStorage vì mobile không có localStorage.
-const RECOVERY_RESOLVED_KEY = '@e2e:recoveryResolved';
 
 // Chạy fn trên từng item với tối đa `limit` song song, giữ nguyên thứ tự.
 async function mapLimited<T, R>(
@@ -67,6 +66,8 @@ export default function MessagesScreen() {
   const [filter, setFilter] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
+  // A3: chống double-load khi focus event + load effect cùng chạy.
+  const lastRefreshAtRef = useRef(0);
 
   // Cổng khôi phục khóa E2E (thiết bị mới): chặn hydrate cho tới khi mở khóa
   // bằng PIN/recovery key hoặc bỏ qua. useE2ERecovery tự fetch meta khi mount.
@@ -172,6 +173,7 @@ export default function MessagesScreen() {
   useEffect(() => {
     if (recoveryGate === 'checking') return;
     let cancelled = false;
+    lastRefreshAtRef.current = Date.now();
     listChats()
       .then(async (res) => {
         const hydrated = await hydrateConversations(res.data);
@@ -184,17 +186,44 @@ export default function MessagesScreen() {
     return () => { cancelled = true; };
   }, [hydrateConversations, recoveryGate]);
 
+  // A4: batch presence khi danh sách hội thoại đổi (online của các partner).
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    const ids = [
+      ...new Set(conversations.map((c) => c.partner.user_id).filter(Boolean)),
+    ].slice(0, 100);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    batchGetPresence(ids)
+      .then((res) => {
+        if (cancelled) return;
+        setOnlineUsers((prev) => {
+          const next = new Set(prev);
+          for (const [uid, p] of Object.entries(res.data ?? {})) {
+            if (p.status === 'online') next.add(uid);
+            else next.delete(uid);
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        /* silent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversations]);
+
   // Listen for presence updates via socket
   useEffect(() => {
     const unsub = socket.subscribe('presence:update', (payload: any) => {
-      if (payload.user_id && payload.is_online !== undefined) {
-        setOnlineUsers((prev) => {
-          const next = new Set(prev);
-          if (payload.is_online) next.add(payload.user_id);
-          else next.delete(payload.user_id);
-          return next;
-        });
-      }
+      if (!payload.user_id || !payload.status) return;
+      setOnlineUsers((prev) => {
+        const next = new Set(prev);
+        if (payload.status === 'online') next.add(payload.user_id);
+        else next.delete(payload.user_id);
+        return next;
+      });
     });
     return unsub;
   }, [socket]);
@@ -228,6 +257,40 @@ export default function MessagesScreen() {
       // silent
     }
   }, [hydrateConversations]);
+
+  // A3: refresh "mềm" — chống spam khi focus + notification dirty cùng lúc.
+  const softRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefreshAtRef.current < 1500) return;
+    lastRefreshAtRef.current = now;
+    void refreshList();
+  }, [refreshList]);
+
+  // A3: quay lại màn danh sách → refetch (tin mới trong lúc đang ở chat khác).
+  useEffect(() => {
+    const sub = navigation.addListener('focus', () => {
+      if (recoveryGate === 'checking') return;
+      softRefresh();
+    });
+    return sub;
+  }, [navigation, softRefresh, recoveryGate]);
+
+  // A3: có notification type='message' tới (notification WS) → debounce refresh.
+  useEffect(() => {
+    if (recoveryGate === 'checking') return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = onChatListDirty(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        softRefresh();
+      }, 600);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
+  }, [softRefresh, recoveryGate]);
 
   const { refreshing, onRefresh } = usePullToRefresh(refreshList);
 

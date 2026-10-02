@@ -18,6 +18,7 @@ import {
   registerPushToken,
 } from '@/api/notifications';
 import { tokenStorage } from '@/api/token-storage';
+import { notifyChatListDirty } from '@/utils/chat-list-dirty';
 import {
   groupNotifications,
   mergeNotification,
@@ -225,6 +226,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               const newNotif: NotificationItem = message.data;
               setNotifications((prev) => mergeNotification(newNotif, prev));
               setUnreadCount((prev) => prev + 1);
+              // A3: tin nhắn mới trong lúc app mở → báo danh sách hội thoại
+              // refresh (chat socket không broadcast message:new cho client
+              // chưa join phòng — xem ws/hub.go).
+              if (newNotif.type === 'message') notifyChatListDirty();
             }
           } catch (err) {
             console.error('Error parsing WS message:', err);

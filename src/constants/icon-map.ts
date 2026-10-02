@@ -36,6 +36,7 @@ export const icons = {
   gif: 'film-outline' as const,
   send: 'paper-plane-outline' as const,
   sendFilled: 'paper-plane' as const,
+  refresh: 'refresh-outline' as const,
 
   // Close / Cancel
   close: 'close-outline' as const,

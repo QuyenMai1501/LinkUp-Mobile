@@ -28,6 +28,23 @@ export interface ChatMessage {
   decrypt_failed?: boolean;
   decrypted?: boolean;
   deleted?: boolean;
+  // Server payload: danh sách user đã đọc (message:read broadcast).
+  seen_by?: string[];
+  // Server payload: reaction hiện tại của tin (message:reacted broadcast).
+  reactions?: MessageReaction[];
+  // Tin được chuyển tiếp: id tin gốc.
+  forwarded_from?: string | null;
+  // Client-only: trạng thái gửi optimistic (không có trên server).
+  sending?: boolean;
+  failed?: boolean;
+  created_at: string;
+}
+
+// Mirror server dto.MessageReactionPayload.
+export interface MessageReaction {
+  message_id: string;
+  user_id: string;
+  emoji_id: string;
   created_at: string;
 }
 
@@ -117,6 +134,13 @@ export interface SendMessageOptions {
   gifUrl?: string;
   sharedPostId?: string;
   replyToMessageId?: string;
+  forwardedFrom?: string;
+}
+
+export interface ChatInviteResponse {
+  invite_id: string;
+  chat_id?: string;
+  message?: string;
 }
 
 export interface UserSearchResult {
