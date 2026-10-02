@@ -103,6 +103,8 @@ export default function ChatScreen() {
     conv: ChatConversation;
   } | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  // Giới hạn retry của onScrollToIndexFailed (index offscreen chưa render kịp).
+  const scrollFailCountRef = useRef(0);
 
   // Message actions state
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
@@ -481,6 +483,7 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
+        scrollFailCountRef.current = 0;
         (flatListRef.current as any)?.scrollToIndex?.({
           index: idx,
           animated: true,
@@ -495,6 +498,7 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
+        scrollFailCountRef.current = 0;
         (flatListRef.current as any)?.scrollToIndex?.({
           index: idx,
           animated: true,
@@ -504,6 +508,20 @@ export default function ChatScreen() {
     },
     [findIndexInGrouped],
   );
+
+  // FlatList không có getItemLayout (item cao độ biến thiên) → index offscreen
+  // chưa được đo sẽ fail; retry có biên để tránh loop vô hạn nếu index không tồn tại.
+  const handleScrollToIndexFailed = useCallback((info: { index: number }) => {
+    if (scrollFailCountRef.current >= 5) return;
+    scrollFailCountRef.current += 1;
+    setTimeout(() => {
+      (flatListRef.current as any)?.scrollToIndex?.({
+        index: info.index,
+        animated: true,
+        viewPosition: 0.3,
+      });
+    }, 300);
+  }, []);
 
   const handleOpenPost = useCallback(
     (postId: string) => {
@@ -602,6 +620,15 @@ export default function ChatScreen() {
   }, [room.messages.length]);
 
   const partner = conversation?.partner;
+
+  // Tên người nhắn trong ô phản hồi — server không gửi sender_name cho chat
+  // 1-1 (omitempty rỗng) → tự resolve: mình hiện "Bạn", đối phương lấy tên
+  // từ partner, thiếu nữa mới hiện "Không xác định".
+  const replySenderLabel = replyingTo
+    ? replyingTo.sender_id === myUserId
+      ? t("chat.you")
+      : replyingTo.sender_name || partner?.display_name || t("chat.unknown")
+    : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -897,7 +924,9 @@ export default function ChatScreen() {
                         ]}>
                         {item.sender_id === myUserId
                           ? t("chat.you")
-                          : item.sender_name || t("chat.unknown")}
+                          : item.sender_name ||
+                            partner?.display_name ||
+                            t("chat.unknown")}
                       </ThemedText>
                       <ThemedText
                         style={[
@@ -951,6 +980,7 @@ export default function ChatScreen() {
                       : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
                     : item.id
                 }
+                onScrollToIndexFailed={handleScrollToIndexFailed}
                 renderItem={({
                   item,
                   index,
@@ -1112,6 +1142,7 @@ export default function ChatScreen() {
           onSend={handleSend}
           onTyping={handleTyping}
           replyingTo={replyingTo}
+          replySenderLabel={replySenderLabel}
           onClearReply={() => setReplyingTo(null)}
           forwarding={forwardDraft}
           onClearForward={() => setForwardDraft(null)}

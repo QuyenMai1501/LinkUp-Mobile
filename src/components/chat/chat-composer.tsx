@@ -25,6 +25,9 @@ interface Props {
   onSend: (text: string, attachments?: AttachmentItem[], gifUrl?: string) => void;
   onTyping: (isTyping: boolean) => void;
   replyingTo?: ChatMessage | null;
+  /** Tên người nhắn đã được màn chat resolve (sender_name server luôn rỗng
+   *  với chat 1-1) — "Bạn" cho tin của mình, tên partner cho tin đối phương. */
+  replySenderLabel?: string;
   onClearReply?: () => void;
   /** B1: draft chuyển tiếp — prefill nội dung + hiện bar "Đang chuyển tiếp". */
   forwarding?: { content: string; emojiId?: string } | null;
@@ -35,6 +38,7 @@ export function ChatComposer({
   onSend,
   onTyping,
   replyingTo,
+  replySenderLabel,
   onClearReply,
   forwarding,
   onClearForward,
@@ -124,7 +128,7 @@ export function ChatComposer({
             <View style={styles.replyLabel}>
               <Icon name="reply" size={12} color={theme.textSecondary} />
               <ThemedText style={[styles.replyName, { color: theme.primary }]} numberOfLines={1}>
-                {replyingTo.sender_name || t('chat.unknown')}
+                {replySenderLabel || replyingTo.sender_name || t('chat.unknown')}
               </ThemedText>
             </View>
             <ThemedText style={[styles.replySnippet, { color: theme.textSecondary }]} numberOfLines={1}>
