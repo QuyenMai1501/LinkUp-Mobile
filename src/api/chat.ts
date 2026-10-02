@@ -1,6 +1,8 @@
 import { request, API_BASE } from './client';
 import { tokenStorage } from './token-storage';
 import type {
+  ChatInviteItem,
+  ChatInviteResponse,
   ChatListResponse,
   CreateDirectChatResponse,
   UserSearchResult,
@@ -34,6 +36,16 @@ export const createChatInvite = (targetUserId: string) =>
 export const deleteChat = (chatId: string) =>
   request<{ message: string }>(`/chats/${chatId}`, {
     method: 'DELETE',
+  });
+
+// Lời mời kết bạn chat đang chờ mình phản hồi.
+export const listChatInvites = () =>
+  request<{ data: ChatInviteItem[] }>('/chats/invites');
+
+export const respondChatInvite = (inviteId: string, accept: boolean) =>
+  request<ChatInviteResponse>('/chats/invite/respond', {
+    method: 'POST',
+    body: JSON.stringify({ invite_id: inviteId, accept }),
   });
 
 export const searchFriends = (keyword: string) =>

@@ -22,6 +22,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'home', icon: 'home', href: 'index' },
+  { key: 'messages', label: 'messages', icon: 'chat', href: 'messages' },
   { key: 'friends', label: 'friends', icon: 'people', href: 'friends' },
   { key: 'communities', label: 'community', icon: 'globe', href: 'communities' },
   { key: 'saved', label: 'saved', icon: 'bookmark', href: 'saved' },

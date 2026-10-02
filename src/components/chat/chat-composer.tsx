@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -26,9 +26,19 @@ interface Props {
   onTyping: (isTyping: boolean) => void;
   replyingTo?: ChatMessage | null;
   onClearReply?: () => void;
+  /** B1: draft chuyển tiếp — prefill nội dung + hiện bar "Đang chuyển tiếp". */
+  forwarding?: { content: string; emojiId?: string } | null;
+  onClearForward?: () => void;
 }
 
-export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Props) {
+export function ChatComposer({
+  onSend,
+  onTyping,
+  replyingTo,
+  onClearReply,
+  forwarding,
+  onClearForward,
+}: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const [text, setText] = useState('');
@@ -37,9 +47,26 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const inputRef = useRef<TextInput>(null);
 
+  // B1: nhận draft → prefill nội dung gốc (reference ổn định từ state cha).
+  // setState sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      if (forwarding) setText(forwarding.content);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [forwarding]);
+
+  // Sticker chuyển tiếp (emoji_id, không text) vẫn cho phép gửi.
+  const forwardStickerReady = !!forwarding?.emojiId && !text.trim();
+
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed && attachments.length === 0) return;
+    if (!trimmed && attachments.length === 0 && !forwardStickerReady) return;
     onSend(trimmed, attachments.length > 0 ? attachments : undefined);
     setText('');
     setAttachments([]);
@@ -105,6 +132,34 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
             </ThemedText>
           </View>
           <Pressable onPress={onClearReply} hitSlop={8} style={styles.replyCancel}>
+            <Icon name="close" size={14} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+      )}
+
+      {/* B1: forward bar */}
+      {forwarding && (
+        <View
+          style={[
+            styles.replyBar,
+            { backgroundColor: theme.bgSecondary, borderLeftColor: theme.primary },
+          ]}>
+          <View style={styles.replyContent}>
+            <View style={styles.replyLabel}>
+              <Icon name="share" size={12} color={theme.textSecondary} />
+              <ThemedText
+                style={[styles.replyName, { color: theme.primary }]}
+                numberOfLines={1}>
+                {t('chat.forwarding')}
+              </ThemedText>
+            </View>
+            <ThemedText
+              style={[styles.replySnippet, { color: theme.textSecondary }]}
+              numberOfLines={1}>
+              {forwarding.content || t('chat.attachment')}
+            </ThemedText>
+          </View>
+          <Pressable onPress={onClearForward} hitSlop={8} style={styles.replyCancel}>
             <Icon name="close" size={14} color={theme.textSecondary} />
           </Pressable>
         </View>
@@ -184,13 +239,26 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
           style={({ pressed }) => [
             styles.sendBtn,
             {
-              backgroundColor: text.trim() || attachments.length > 0 ? theme.primary : theme.bgSecondary,
+              backgroundColor:
+                text.trim() || attachments.length > 0 || forwardStickerReady
+                  ? theme.primary
+                  : theme.bgSecondary,
               opacity: pressed ? 0.7 : 1,
             },
           ]}
-          disabled={!text.trim() && attachments.length === 0}>
+          disabled={!text.trim() && attachments.length === 0 && !forwardStickerReady}>
           <View>
-            <View style={[styles.sendIcon, { borderColor: text.trim() || attachments.length > 0 ? '#FFF' : theme.textSecondary }]} />
+            <View
+              style={[
+                styles.sendIcon,
+                {
+                  borderColor:
+                    text.trim() || attachments.length > 0 || forwardStickerReady
+                      ? '#FFF'
+                      : theme.textSecondary,
+                },
+              ]}
+            />
           </View>
         </Pressable>
       </View>

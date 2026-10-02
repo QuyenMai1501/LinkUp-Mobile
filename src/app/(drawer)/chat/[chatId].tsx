@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Fragment,
   useCallback,
@@ -27,6 +28,7 @@ import { deleteChat, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
 import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
+import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
 import { MediaStack } from "@/components/chat/media-stack";
 import { MessageActions } from "@/components/chat/message-actions";
@@ -45,10 +47,14 @@ import { useChatCallHistory } from "@/hooks/useChatCallHistory";
 import { useChatE2E } from "@/hooks/useChatE2E";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatSocket } from "@/hooks/useChatSocket";
+import { useE2ERecovery } from "@/hooks/useE2ERecovery";
+import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
 import type { ChatConversation, ChatMessage } from "@/types/chat";
 import { formatChatDate } from "@/utils/chat";
+import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
+import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import {
   groupMediaTimeline,
   type MediaGroupItem,
@@ -103,8 +109,20 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
+  // B1: draft chuyển tiếp (rút từ forward-draft store — navigate sang instance
+  // mới nên state không truyền trực tiếp được) + tin đang chọn để chuyển.
+  const [forwardDraft, setForwardDraft] = useState<{
+    messageId: string;
+    content: string;
+    emojiId?: string;
+  } | null>(null);
+  const [forwardPickerFor, setForwardPickerFor] = useState<ChatMessage | null>(
+    null,
+  );
   // A4: online của đối phương — batch presence khi mở + presence:update realtime.
   const [partnerOnline, setPartnerOnline] = useState(false);
+  // B5: nhấp nháy highlight khi nhảy tới tin từ kết quả tìm kiếm.
+  const [flashId, setFlashId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{
     msgs: ChatMessage[];
     index: number;
@@ -157,6 +175,56 @@ export default function ChatScreen() {
     activeCall,
   });
 
+  // Emoji server (sticker render + reaction chip) — cache module.
+  const { byId: serverEmojis } = useServerEmojis();
+
+  // B6: deep-link vào chat khi cổng khôi phục E2E chưa mở → đá về danh sách
+  // (RecoveryGateModal chỉ render ở messages.tsx).
+  const e2eRecovery = useE2ERecovery();
+  useEffect(() => {
+    if (!chatId || e2eRecovery.meta === null) return;
+    let cancelled = false;
+    void (async () => {
+      let seen = false;
+      try {
+        seen =
+          (await AsyncStorage.getItem(RECOVERY_RESOLVED_KEY)) === "1";
+      } catch {
+        /* storage lỗi → coi như chưa thấy */
+      }
+      if (cancelled || seen) return;
+      if (e2eRecovery.meta?.has_blob && e2eRecovery.meta?.salt) {
+        router.replace("/(drawer)/messages");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, e2eRecovery.meta, router]);
+
+  // B1: rút draft chuyển tiếp khi đổi chat (null nếu không có → dọn state cũ).
+  // setState sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      const taken = takeForwardDraft(chatId ?? "");
+      setForwardDraft(
+        taken
+          ? {
+              messageId: taken.messageId,
+              content: taken.content,
+              emojiId: taken.emojiId,
+            }
+          : null,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId]);
+
   // A4: lần đầu biết partner → batch query trạng thái online.
   // Reset về offline sau await — tránh react-hooks/set-state-in-effect.
   useEffect(() => {
@@ -189,6 +257,13 @@ export default function ChatScreen() {
     });
     return unsub;
   }, [socket, partnerUserId]);
+
+  // B5: tự tắt highlight sau một nhịp.
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = setTimeout(() => setFlashId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [flashId]);
 
   // Timeline gộp messages (đã group media) + lịch sử cuộc gọi, sort theo thời gian.
   const timeline = useMemo<GroupedItem[]>(() => {
@@ -249,6 +324,7 @@ export default function ChatScreen() {
 
       // GIF từ GIPHY -> gửi ngay dưới dạng gif_url (server tạo media từ URL).
       if (gifUrl) {
+        setForwardDraft(null); // gif + forward không gửi cùng — bỏ draft
         room.sendMessage("", { gifUrl, replyToMessageId: replyingTo?.id });
         setReplyingTo(null);
         setTimeout(() => {
@@ -258,6 +334,7 @@ export default function ChatScreen() {
       }
 
       if (attachments && attachments.length > 0 && chatId) {
+        setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
 
         for (let i = 0; i < attachments.length; i++) {
@@ -286,15 +363,19 @@ export default function ChatScreen() {
 
       // Text-only message — encrypt do useChatRoom.sendMessage đảm nhận.
       // Bubble tạm giữ plaintext, echo server về thay temp theo id.
+      // B1: sticker-forward gửi đúng emoji_id gốc (content rỗng).
       room.sendMessage(text, {
         replyToMessageId: replyingTo?.id,
+        forwardedFrom: forwardDraft?.messageId,
+        emojiId: forwardDraft?.emojiId,
       });
       setReplyingTo(null);
+      setForwardDraft(null);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption, replyingTo, chatId, t],
+    [room, encryption, replyingTo, forwardDraft, chatId, t],
   );
 
   const handleTyping = useCallback(
@@ -330,6 +411,14 @@ export default function ChatScreen() {
     [room],
   );
 
+  // B2: toggle reaction (từ chip trên bubble hoặc quick-react trong menu).
+  const handleReact = useCallback(
+    (messageId: string, emojiId: string) => {
+      room.reactToMessage(messageId, emojiId);
+    },
+    [room],
+  );
+
   // A2: gửi lại / bỏ tin thất bại.
   const handleRetry = useCallback(
     (msg: ChatMessage) => {
@@ -343,6 +432,27 @@ export default function ChatScreen() {
       room.discardMessage(msg.id);
     },
     [room],
+  );
+
+  // B1: mở picker chọn hội thoại đích.
+  const handleForward = useCallback((msg: ChatMessage) => {
+    setForwardPickerFor(msg);
+  }, []);
+
+  const handleForwardPick = useCallback(
+    (targetChatId: string) => {
+      const msg = forwardPickerFor;
+      setForwardPickerFor(null);
+      if (!msg) return;
+      stashForwardDraft({
+        chatId: targetChatId,
+        messageId: msg.id,
+        content: msg.deleted ? "" : (msg.content ?? ""),
+        emojiId: msg.emoji_id ?? undefined,
+      });
+      (router as any).push(`/(drawer)/chat/${targetChatId}`);
+    },
+    [forwardPickerFor, router],
   );
 
   const handleMediaPress = useCallback(
@@ -766,11 +876,20 @@ export default function ChatScreen() {
                   data={room.searchResults}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                    <View
+                    <Pressable
                       style={[
                         styles.searchResultItem,
                         { borderBottomColor: theme.border },
-                      ]}>
+                      ]}
+                      onPress={() => {
+                        // B5: đóng kết quả → nhảy tới tin gốc + highlight.
+                        setSearchInput("");
+                        room.clearSearch();
+                        setTimeout(() => {
+                          scrollToMessage(item.id);
+                          setFlashId(item.id);
+                        }, 80);
+                      }}>
                       <ThemedText
                         style={[
                           styles.searchResultSender,
@@ -790,7 +909,7 @@ export default function ChatScreen() {
                           ? t("chat.messageDeleted")
                           : item.content || t("chat.attachment")}
                       </ThemedText>
-                    </View>
+                    </Pressable>
                   )}
                 />
               )}
@@ -946,6 +1065,9 @@ export default function ChatScreen() {
                           msg.sender_id === myUserId &&
                           (msg.seen_by ?? []).some((uid) => uid !== myUserId)
                         }
+                        highlight={flashId === msg.id}
+                        emojis={serverEmojis}
+                        myUserId={myUserId}
                         avatarUri={
                           partner?.avatar_uri ?? msg.sender_avatar ?? null
                         }
@@ -954,6 +1076,7 @@ export default function ChatScreen() {
                         onReplyPress={handleReplyPress}
                         onMediaPress={handleMediaPress}
                         onOpenPost={handleOpenPost}
+                        onReact={handleReact}
                       />
                     </Fragment>
                   );
@@ -990,6 +1113,8 @@ export default function ChatScreen() {
           onTyping={handleTyping}
           replyingTo={replyingTo}
           onClearReply={() => setReplyingTo(null)}
+          forwarding={forwardDraft}
+          onClearForward={() => setForwardDraft(null)}
         />
       </KeyboardAvoidingView>
 
@@ -1002,14 +1127,24 @@ export default function ChatScreen() {
             ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id)
             : false
         }
-        canPin={room.pinnedMessages.length < 2}
+        canPin
         onClose={() => setActionTarget(null)}
         onReply={handleReply}
         onDelete={handleDeleteRequest}
         onPin={handlePin}
         onUnpin={handleUnpin}
+        onReact={handleReact}
+        onForward={handleForward}
         onRetry={handleRetry}
         onDiscard={handleDiscard}
+      />
+
+      {/* B1: chọn hội thoại đích khi chuyển tiếp */}
+      <ForwardPickerModal
+        visible={!!forwardPickerFor}
+        excludeChatId={chatId}
+        onClose={() => setForwardPickerFor(null)}
+        onPick={handleForwardPick}
       />
 
       {/* Delete conversation confirmation */}
