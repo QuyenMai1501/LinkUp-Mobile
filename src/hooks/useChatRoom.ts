@@ -566,6 +566,7 @@ export function useChatRoom({
         media_id: opts?.mediaId ?? null,
         media_uri: opts?.gifUrl ?? opts?.mediaUri ?? null,
         media_type: opts?.gifUrl ? 'image/gif' : opts?.mediaType ?? null,
+        duration_seconds: opts?.durationSeconds ?? null,
         is_anonymized: false,
         sending: true,
         forwarded_from: opts?.forwardedFrom ?? null,
@@ -599,6 +600,8 @@ export function useChatRoom({
         wire.media_id = opts?.mediaId;
         wire.gif_url = opts?.gifUrl ?? null;
         wire.reply_to_message_id = opts?.replyToMessageId;
+        // Server lấy duration từ media record (payload này chỉ để parity với Web).
+        if (opts?.durationSeconds) wire.duration_seconds = opts.durationSeconds;
         if (opts?.forwardedFrom) wire.forwarded_from = opts.forwardedFrom;
 
         // Giữ wire payload cho retry (không encrypt lại) + arm timeout A2.

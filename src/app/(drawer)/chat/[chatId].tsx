@@ -387,6 +387,47 @@ export default function ChatScreen() {
     [room],
   );
 
+  // Tin nhắn thoại: upload file ghi âm (kèm duration_seconds) rồi gửi như media.
+  const handleSendVoice = useCallback(
+    async (
+      file: { uri: string; name: string; type: string },
+      durationSec: number,
+    ) => {
+      if (!chatId) return;
+      // Cùng guard E2E với handleSend — chặn trước khi upload.
+      if (
+        encryption.status === "unavailable" ||
+        encryption.status === "loading"
+      ) {
+        Alert.alert(t("chat.e2eInitializing"));
+        return;
+      }
+      if (encryption.status === "partner_changed") {
+        Alert.alert(t("chat.e2ePartnerChanged"));
+        return;
+      }
+      setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft
+      try {
+        const res = await uploadChatMedia(file, chatId, durationSec);
+        room.sendMessage("", {
+          mediaId: res.data.id,
+          mediaUri: res.data.file_uri,
+          mediaType: res.data.file_type,
+          durationSeconds: res.data.duration_seconds ?? durationSec,
+          replyToMessageId: replyingTo?.id,
+        });
+        setReplyingTo(null);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
+      }
+    },
+    [chatId, encryption, room, replyingTo, t],
+  );
+
   const handleLongPress = useCallback((msg: ChatMessage) => {
     setActionTarget(msg);
   }, []);
@@ -460,8 +501,13 @@ export default function ChatScreen() {
   const handleMediaPress = useCallback(
     (msg: ChatMessage) => {
       // Find all media messages in sequence for lightbox navigation
+      // (tin nhắn thoại render bằng VoicePlayer — không vào lightbox).
       const mediaMsgs = room.messages.filter(
-        (m) => !m.deleted && !m.decrypt_failed && (m.media_id || m.media_uri),
+        (m) =>
+          !m.deleted &&
+          !m.decrypt_failed &&
+          (m.media_id || m.media_uri) &&
+          !m.media_type?.startsWith("audio/"),
       );
       const idx = mediaMsgs.findIndex((m) => m.id === msg.id);
       setLightbox({ msgs: mediaMsgs, index: idx >= 0 ? idx : 0 });
@@ -1140,6 +1186,7 @@ export default function ChatScreen() {
         {/* Composer */}
         <ChatComposer
           onSend={handleSend}
+          onSendVoice={handleSendVoice}
           onTyping={handleTyping}
           replyingTo={replyingTo}
           replySenderLabel={replySenderLabel}

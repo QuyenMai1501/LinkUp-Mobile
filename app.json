@@ -48,7 +48,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "LinkUp cần truy cập mic để phát chuông và thực hiện cuộc gọi."
+          "microphonePermission": "LinkUp cần truy cập mic để thực hiện cuộc gọi và gửi tin nhắn thoại."
         }
       ]
     ],

@@ -14,6 +14,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
 import MediaViewer from './media-viewer';
 import CommentSheet from './comment-sheet';
+import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
@@ -77,6 +78,9 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   // Comment sheet state
   const [commentSheetVisible, setCommentSheetVisible] = useState(false);
   const [commentSheetPost, setCommentSheetPost] = useState<FeedPost | null>(null);
+
+  // Share-to-chat modal state
+  const [sharePostId, setSharePostId] = useState<string | null>(null);
 
   const fetchNext = useCallback(async () => {
     if (loadingRef.current) return;
@@ -187,8 +191,8 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     setCommentSheetPost(null);
   }, []);
 
-  // Share handler
-  const handleShare = useCallback(async (post: FeedPost) => {
+  // Share handler: hiện action sheet — Đăng lại (repost) hoặc Gửi vào chat
+  const doRepost = useCallback(async (post: FeedPost) => {
     setPosts((prev) =>
       prev.map((p) =>
         p.id === post.id
@@ -210,6 +214,17 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
       Alert.alert(t('common.error'), t('common.error'));
     }
   }, [t]);
+
+  const handleShare = useCallback(
+    (post: FeedPost) => {
+      Alert.alert(t('post.share'), undefined, [
+        { text: t('post.repost'), onPress: () => doRepost(post) },
+        { text: t('post.shareToFriend'), onPress: () => setSharePostId(post.id) },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
+    },
+    [t, doRepost],
+  );
 
   // Media modal like/save handlers
   const handleMediaLike = useCallback(() => {
@@ -350,6 +365,13 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
           onClose={handleCloseComments}
         />
       )}
+
+      {/* Share post to chat */}
+      <ShareToChatModal
+        visible={sharePostId !== null}
+        postId={sharePostId ?? ''}
+        onClose={() => setSharePostId(null)}
+      />
     </View>
   );
 }

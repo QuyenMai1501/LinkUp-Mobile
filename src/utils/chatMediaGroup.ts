@@ -4,6 +4,8 @@ const MEDIA_GROUP_WINDOW_MS = 3000;
 
 export function isMediaMessage(msg: ChatMessage): boolean {
   if (msg.deleted || msg.decrypt_failed || msg.emoji_id || msg.shared_post_id) return false;
+  // Tin nhắn thoại render riêng (VoicePlayer) — không gộp vào media stack/lightbox.
+  if (msg.media_type?.startsWith('audio/')) return false;
   if (!(msg.media_id || msg.media_uri)) return false;
   return true;
 }

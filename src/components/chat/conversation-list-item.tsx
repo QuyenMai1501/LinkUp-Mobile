@@ -38,7 +38,9 @@ export function ConversationListItem({
   const previewText = !last_message
     ? t('chat.newChat')
     : last_message.media_id
-      ? t('chat.mediaMessage')
+      ? last_message.media_type?.startsWith('audio/')
+        ? t('chat.voiceMessage')
+        : t('chat.mediaMessage')
       : last_message.emoji_id
         ? t('chat.emojiMessage')
         : is_encrypted && !last_message.content

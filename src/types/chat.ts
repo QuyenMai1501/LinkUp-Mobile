@@ -18,6 +18,8 @@ export interface ChatMessage {
   reply_to?: ReplyPreview | null;
   media_uri?: string | null;
   media_type?: string | null;
+  // Server payload: thời lượng (giây) của tin nhắn thoại — lấy từ media record.
+  duration_seconds?: number | null;
   sender_name?: string;
   sender_avatar?: string;
   type?: string;
@@ -135,6 +137,8 @@ export interface SendMessageOptions {
   sharedPostId?: string;
   replyToMessageId?: string;
   forwardedFrom?: string;
+  // Thời lượng ghi âm (giây) — Optimistic bubble hiển thị khi chờ server echo.
+  durationSeconds?: number;
 }
 
 export interface ChatInviteResponse {

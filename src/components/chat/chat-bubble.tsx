@@ -293,6 +293,7 @@ export function ChatBubble({
             ) : message.media_id || message.media_uri ? (
               <MessageMedia
                 message={message}
+                isMine={isMine}
                 onPress={() => onMediaPress?.(message)}
               />
             ) : isSingleVideo ? (

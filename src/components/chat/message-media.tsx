@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import VideoPlayer from '@/components/video-player';
+import { VoicePlayer } from '@/components/chat/voice-player';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -14,17 +15,24 @@ import type { ChatMessage } from '@/types/chat';
 interface Props {
   message: ChatMessage;
   onPress?: () => void;
+  /** Chỉ dùng cho tin nhắn thoại (tông màu theo bubble mình/đối phương). */
+  isMine?: boolean;
 }
 
-export function MessageMedia({ message, onPress }: Props) {
+export function MessageMedia({ message, onPress, isMine }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { src, isVideo, failed, loading } = useMessageMedia(message);
   const [ratio, setRatio] = useState<{ width: number; height: number } | null>(null);
+  const isAudio = message.media_type?.startsWith('audio/') ?? false;
 
   if (loading) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.bgSecondary }]}>
+      <View
+        style={[
+          isAudio ? styles.audioLoading : styles.loading,
+          { backgroundColor: theme.bgSecondary },
+        ]}>
         <ActivityIndicator size="small" color={theme.primary} />
       </View>
     );
@@ -37,6 +45,16 @@ export function MessageMedia({ message, onPress }: Props) {
           {t('chat.mediaFailed')}
         </ThemedText>
       </View>
+    );
+  }
+
+  if (isAudio) {
+    return (
+      <VoicePlayer
+        uri={src}
+        durationSeconds={message.duration_seconds}
+        isMine={isMine}
+      />
     );
   }
 
@@ -74,6 +92,13 @@ const styles = StyleSheet.create({
   loading: {
     width: 200,
     height: 150,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioLoading: {
+    width: 200,
+    height: 44,
     borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
