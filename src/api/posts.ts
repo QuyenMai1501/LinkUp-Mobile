@@ -116,7 +116,7 @@ export const deletePost = (postId: string) =>
     method: 'DELETE',
   });
 
-export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId }: CreatePostInput): Promise<CreatePostResponse> => {
+export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId, clientKey }: CreatePostInput): Promise<CreatePostResponse> => {
   const token = await tokenStorage.getAccessToken();
   const formData = new FormData();
 
@@ -132,9 +132,13 @@ export const createPost = async ({ title, content, status, mediaUris = [], gifUr
     formData.append('media', blob, file.name);
   }
 
+  // Idempotency-Key: server dedupe khi user nhấn Đăng 2 lần / retry sau timeout.
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  if (clientKey) headers['Idempotency-Key'] = clientKey;
+
   const res = await fetch(`${API_BASE}/posts`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers,
     body: formData,
   });
 
