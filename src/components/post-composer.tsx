@@ -65,6 +65,16 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
   const [error, setError] = useState<string | null>(null);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const contentRef = useRef<TextInput>(null);
+  // Idempotency key cho lần đăng hiện tại: giữ qua retry/timeout để server
+  // dedupe, xoay key mới sau mỗi lần đăng thành công hoặc đóng composer.
+  const clientKeyRef = useRef<string | null>(null);
+
+  const newClientKey = () => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
   const [gifPickerVisible, setGifPickerVisible] = useState(false);
   const [gif, setGif] = useState<GiphyGif | null>(null);
   const [privacyMenuVisible, setPrivacyMenuVisible] = useState(false);
@@ -86,6 +96,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
     setGifPickerVisible(false);
     setGif(null);
     setPrivacyMenuVisible(false);
+    clientKeyRef.current = null;
   }, []);
 
   const handleClose = useCallback(() => {
@@ -170,15 +181,22 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
     setError(null);
     setSubmitting(true);
     try {
+      if (!clientKeyRef.current) {
+        clientKeyRef.current = newClientKey();
+      }
       const res = await createPost({
         title: title.trim(),
         content: content.trim(),
         status: privacy,
         mediaUris: media,
         gifUrl: gif?.full,
+        clientKey: clientKeyRef.current,
       });
       reset();
       onPosted(res.data);
+      if (res.warnings && res.warnings.length > 0) {
+        Alert.alert(t('composer.mediaWarning'), res.warnings.join('\n'));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
