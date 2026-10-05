@@ -131,7 +131,12 @@
     "subtitle": "Join communities you're interested in"
   },
   "saved": {
-    "subtitle": "Saved posts and content"
+    "title": "Saved",
+    "subtitle": "Saved posts and content",
+    "empty": "You haven't saved any posts yet.",
+    "emptyDesc": "Tap the bookmark icon on a post to save it and find it here.",
+    "end": "You've reached the end of saved posts.",
+    "explore": "Explore posts"
   },
   "feed": {
     "loadError": "Failed to load data",

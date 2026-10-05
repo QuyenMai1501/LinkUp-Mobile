@@ -131,7 +131,12 @@
     "subtitle": "Tham gia các cộng đồng quan tâm"
   },
   "saved": {
-    "subtitle": "Bài viết và nội dung đã lưu"
+    "title": "Đã lưu",
+    "subtitle": "Bài viết và nội dung đã lưu",
+    "empty": "Bạn chưa lưu bài viết nào.",
+    "emptyDesc": "Nhấn biểu tượng dấu trang trên bài viết để lưu lại và xem chúng ở đây.",
+    "end": "Đã xem hết bài viết đã lưu.",
+    "explore": "Khám phá bài viết"
   },
   "feed": {
     "loadError": "Lỗi tải dữ liệu",
