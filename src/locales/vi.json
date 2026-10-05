@@ -83,6 +83,17 @@
       "emailSentMessage": "Vui lòng kiểm tra email của bạn để đặt lại mật khẩu",
       "sendFailed": "Không thể gửi email"
     },
+    "google": {
+      "divider": "hoặc",
+      "button": "Tiếp tục với Google",
+      "failed": "Đăng nhập Google thất bại",
+      "missingToken": "Không nhận được token từ Google",
+      "notConfigured": "Đăng nhập Google chưa được cấu hình trên máy chủ",
+      "invalidToken": "Xác thực Google thất bại",
+      "mismatch": "Tài khoản Google không khớp với tài khoản hiện tại",
+      "registrationDisabled": "Đăng ký tài khoản hiện đang bị tắt",
+      "inactive": "Tài khoản đã bị vô hiệu hoá"
+    },
     "verifyEmail": {
       "title": "Xác minh email",
       "subtitle": "Kiểm tra email của bạn",

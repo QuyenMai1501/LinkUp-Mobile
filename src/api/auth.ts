@@ -14,6 +14,12 @@ export const register = (displayName: string, email: string, password: string) =
     body: JSON.stringify({ display_name: displayName, email, password }),
   });
 
+export const googleLogin = (idToken: string) =>
+  request<AuthResponse>('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ id_token: idToken }),
+  });
+
 export const refresh = (refreshToken: string) =>
   request<TokenResponse>('/auth/refresh', {
     method: 'POST',
