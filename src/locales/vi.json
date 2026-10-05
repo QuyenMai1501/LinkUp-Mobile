@@ -83,6 +83,17 @@
       "emailSentMessage": "Vui lòng kiểm tra email của bạn để đặt lại mật khẩu",
       "sendFailed": "Không thể gửi email"
     },
+    "google": {
+      "divider": "hoặc",
+      "button": "Tiếp tục với Google",
+      "failed": "Đăng nhập Google thất bại",
+      "missingToken": "Không nhận được token từ Google",
+      "notConfigured": "Đăng nhập Google chưa được cấu hình trên máy chủ",
+      "invalidToken": "Xác thực Google thất bại",
+      "mismatch": "Tài khoản Google không khớp với tài khoản hiện tại",
+      "registrationDisabled": "Đăng ký tài khoản hiện đang bị tắt",
+      "inactive": "Tài khoản đã bị vô hiệu hoá"
+    },
     "verifyEmail": {
       "title": "Xác minh email",
       "subtitle": "Kiểm tra email của bạn",
@@ -100,6 +111,7 @@
   },
   "sidebar": {
     "home": "Trang chủ",
+    "messages": "Tin nhắn",
     "friends": "Bạn bè",
     "community": "Cộng đồng",
     "saved": "Đã lưu",
@@ -130,7 +142,12 @@
     "subtitle": "Tham gia các cộng đồng quan tâm"
   },
   "saved": {
-    "subtitle": "Bài viết và nội dung đã lưu"
+    "title": "Đã lưu",
+    "subtitle": "Bài viết và nội dung đã lưu",
+    "empty": "Bạn chưa lưu bài viết nào.",
+    "emptyDesc": "Nhấn biểu tượng dấu trang trên bài viết để lưu lại và xem chúng ở đây.",
+    "end": "Đã xem hết bài viết đã lưu.",
+    "explore": "Khám phá bài viết"
   },
   "feed": {
     "loadError": "Lỗi tải dữ liệu",
@@ -148,6 +165,7 @@
     "saved": "Đã lưu",
     "liked": "Đã thích",
     "shareToFriend": "Gửi cho bạn bè",
+    "repost": "Đăng lại",
     "sharedPost": "đã chia sẻ",
     "justNow": "vừa xong",
     "minutesAgo": "{minutes} phút trước",
@@ -278,6 +296,17 @@
     "newChat": "Cuộc trò chuyện mới",
     "newMessage": "Tin nhắn mới",
     "unknown": "Không xác định",
+    "sendFailed": "Gửi tin thất bại",
+    "retry": "Thử lại",
+    "discard": "Xóa tin",
+    "forward": "Chuyển tiếp",
+    "forwarded": "Đã chuyển tiếp",
+    "forwarding": "Đang chuyển tiếp",
+    "emojiUnavailable": "Emoji không khả dụng",
+    "inviteTitle": "{name} muốn nhắn tin với bạn",
+    "accept": "Chấp nhận",
+    "decline": "Từ chối",
+    "emojiMessage": "Nhãn dán",
     "e2eBadge": "Bảo mật",
     "youPrefix": "Bạn: ",
     "reply": "Trả lời",
@@ -319,6 +348,12 @@
     "hoursAgo": "{hours} giờ trước",
     "sharedPost": "Đã chia sẻ bài viết",
     "postNotAvailable": "Bài viết không khả dụng",
+    "shareTitle": "Gửi bài viết",
+    "shareSend": "Gửi ({count})",
+    "shareSent": "Đã gửi đến {count} người",
+    "shareSomeFailed": "{count} người không thể gửi",
+    "voiceMessage": "Tin nhắn thoại",
+    "recording": "Đang ghi âm…",
     "systemMemberLeft": "{name} đã rời nhóm",
     "systemMemberJoined": "{name} đã tham gia nhóm",
     "systemMemberInvited": "{name} đã được mời vào nhóm",

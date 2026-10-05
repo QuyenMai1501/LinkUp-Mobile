@@ -17,6 +17,7 @@ import { RichContent } from '@/components/rich-content';
 import CommentItem, { buildCommentTree } from '@/components/comment-item';
 import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
+import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAuth } from '@/contexts/auth-context';
@@ -107,6 +108,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentSort, setCommentSort] = useState<CommentSort>('newest');
   const [mediaIndex, setMediaIndex] = useState(0);
+  const [shareToChatPostId, setShareToChatPostId] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
@@ -279,7 +281,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     }
   };
 
-  const handleShare = async () => {
+  const doRepost = async () => {
     if (!post) return;
     try {
       await sharePost(post.id);
@@ -292,6 +294,16 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     } catch {
       Alert.alert(t('common.error'), t('common.error'));
     }
+  };
+
+  // Hiện action sheet — Đăng lại (repost) hoặc Gửi vào chat
+  const handleShare = () => {
+    if (!post) return;
+    Alert.alert(t('post.share'), undefined, [
+      { text: t('post.repost'), onPress: doRepost },
+      { text: t('post.shareToFriend'), onPress: () => setShareToChatPostId(post.id) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const handleDelete = () => {
@@ -601,6 +613,13 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
           submitting={submittingComment}
+        />
+
+        {/* Share post to chat */}
+        <ShareToChatModal
+          visible={shareToChatPostId !== null}
+          postId={shareToChatPostId ?? ''}
+          onClose={() => setShareToChatPostId(null)}
         />
       </ThemedView>
     </KeyboardAvoidingView>

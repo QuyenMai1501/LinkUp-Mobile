@@ -83,6 +83,17 @@
       "emailSentMessage": "Please check your email to reset your password",
       "sendFailed": "Failed to send email"
     },
+    "google": {
+      "divider": "or",
+      "button": "Continue with Google",
+      "failed": "Google sign-in failed",
+      "missingToken": "No token received from Google",
+      "notConfigured": "Google sign-in is not configured on the server",
+      "invalidToken": "Google verification failed",
+      "mismatch": "Google account does not match the current account",
+      "registrationDisabled": "Registration is currently disabled",
+      "inactive": "Account has been deactivated"
+    },
     "verifyEmail": {
       "title": "Verify Email",
       "subtitle": "Check your email",
@@ -100,6 +111,7 @@
   },
   "sidebar": {
     "home": "Home",
+    "messages": "Messages",
     "friends": "Friends",
     "community": "Community",
     "saved": "Saved",
@@ -130,7 +142,12 @@
     "subtitle": "Join communities you're interested in"
   },
   "saved": {
-    "subtitle": "Saved posts and content"
+    "title": "Saved",
+    "subtitle": "Saved posts and content",
+    "empty": "You haven't saved any posts yet.",
+    "emptyDesc": "Tap the bookmark icon on a post to save it and find it here.",
+    "end": "You've reached the end of saved posts.",
+    "explore": "Explore posts"
   },
   "feed": {
     "loadError": "Failed to load data",
@@ -148,6 +165,7 @@
     "saved": "Saved",
     "liked": "Liked",
     "shareToFriend": "Send to friends",
+    "repost": "Repost",
     "sharedPost": "shared",
     "justNow": "just now",
     "minutesAgo": "{minutes}m ago",
@@ -278,6 +296,17 @@
     "newChat": "New conversation",
     "newMessage": "New message",
     "unknown": "Unknown",
+    "sendFailed": "Message failed to send",
+    "retry": "Retry",
+    "discard": "Discard",
+    "forward": "Forward",
+    "forwarded": "Forwarded",
+    "forwarding": "Forwarding",
+    "emojiUnavailable": "Emoji unavailable",
+    "inviteTitle": "{name} wants to message you",
+    "accept": "Accept",
+    "decline": "Decline",
+    "emojiMessage": "Sticker",
     "e2eBadge": "Encrypted",
     "youPrefix": "You: ",
     "reply": "Reply",
@@ -319,6 +348,12 @@
     "hoursAgo": "{hours}h ago",
     "sharedPost": "Shared a post",
     "postNotAvailable": "Post not available",
+    "shareTitle": "Send post",
+    "shareSend": "Send ({count})",
+    "shareSent": "Sent to {count} people",
+    "shareSomeFailed": "{count} people couldn't receive",
+    "voiceMessage": "Voice message",
+    "recording": "Recording…",
     "systemMemberLeft": "{name} left the group",
     "systemMemberJoined": "{name} joined the group",
     "systemMemberInvited": "{name} was invited to the group",

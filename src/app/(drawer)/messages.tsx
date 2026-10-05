@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,15 +18,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { useChatSocket } from '@/hooks/useChatSocket';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useE2ERecovery } from '@/hooks/useE2ERecovery';
-import { listChats, createDirectChat } from '@/api/chat';
+import { listChats, createDirectChat, listChatInvites, respondChatInvite } from '@/api/chat';
+import { batchGetPresence } from '@/api/presence';
 import { decryptChat, ensureChatKey, dbg } from '@/utils/e2ee';
+import { onChatListDirty } from '@/utils/chat-list-dirty';
+import { RECOVERY_RESOLVED_KEY } from '@/utils/e2e-flags';
 import { Spacing, Typography } from '@/constants/theme';
 import { Icon } from '@/components/ui/icon';
-import type { ChatConversation } from '@/types/chat';
-
-// Cờ đánh dấu "đã giải quyết cổng khôi phục" trên máy này (mở khóa hoặc bỏ qua)
-// — AsyncStorage vì mobile không có localStorage.
-const RECOVERY_RESOLVED_KEY = '@e2e:recoveryResolved';
+import type { ChatConversation, ChatInviteItem } from '@/types/chat';
 
 // Chạy fn trên từng item với tối đa `limit` song song, giữ nguyên thứ tự.
 async function mapLimited<T, R>(
@@ -67,6 +67,10 @@ export default function MessagesScreen() {
   const [filter, setFilter] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
+  // B4: lời mời kết bạn chat đang chờ phản hồi.
+  const [invites, setInvites] = useState<ChatInviteItem[]>([]);
+  // A3: chống double-load khi focus event + load effect cùng chạy.
+  const lastRefreshAtRef = useRef(0);
 
   // Cổng khôi phục khóa E2E (thiết bị mới): chặn hydrate cho tới khi mở khóa
   // bằng PIN/recovery key hoặc bỏ qua. useE2ERecovery tự fetch meta khi mount.
@@ -172,6 +176,7 @@ export default function MessagesScreen() {
   useEffect(() => {
     if (recoveryGate === 'checking') return;
     let cancelled = false;
+    lastRefreshAtRef.current = Date.now();
     listChats()
       .then(async (res) => {
         const hydrated = await hydrateConversations(res.data);
@@ -181,20 +186,55 @@ export default function MessagesScreen() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    // B4: song song tải lời mời chat.
+    listChatInvites()
+      .then((res) => {
+        if (!cancelled) setInvites(res.data ?? []);
+      })
+      .catch(() => {
+        /* silent */
+      });
     return () => { cancelled = true; };
   }, [hydrateConversations, recoveryGate]);
+
+  // A4: batch presence khi danh sách hội thoại đổi (online của các partner).
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    const ids = [
+      ...new Set(conversations.map((c) => c.partner.user_id).filter(Boolean)),
+    ].slice(0, 100);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    batchGetPresence(ids)
+      .then((res) => {
+        if (cancelled) return;
+        setOnlineUsers((prev) => {
+          const next = new Set(prev);
+          for (const [uid, p] of Object.entries(res.data ?? {})) {
+            if (p.status === 'online') next.add(uid);
+            else next.delete(uid);
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        /* silent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversations]);
 
   // Listen for presence updates via socket
   useEffect(() => {
     const unsub = socket.subscribe('presence:update', (payload: any) => {
-      if (payload.user_id && payload.is_online !== undefined) {
-        setOnlineUsers((prev) => {
-          const next = new Set(prev);
-          if (payload.is_online) next.add(payload.user_id);
-          else next.delete(payload.user_id);
-          return next;
-        });
-      }
+      if (!payload.user_id || !payload.status) return;
+      setOnlineUsers((prev) => {
+        const next = new Set(prev);
+        if (payload.status === 'online') next.add(payload.user_id);
+        else next.delete(payload.user_id);
+        return next;
+      });
     });
     return unsub;
   }, [socket]);
@@ -220,16 +260,74 @@ export default function MessagesScreen() {
     : conversations;
 
   const refreshList = useCallback(async () => {
-    try {
-      const res = await listChats();
-      const hydrated = await hydrateConversations(res.data);
+    const [chats, inv] = await Promise.allSettled([
+      listChats(),
+      listChatInvites(),
+    ]);
+    if (chats.status === 'fulfilled') {
+      const hydrated = await hydrateConversations(chats.value.data);
       setConversations(hydrated);
-    } catch {
-      // silent
+    }
+    if (inv.status === 'fulfilled') {
+      setInvites(inv.value.data ?? []);
     }
   }, [hydrateConversations]);
 
+  // A3: refresh "mềm" — chống spam khi focus + notification dirty cùng lúc.
+  const softRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefreshAtRef.current < 1500) return;
+    lastRefreshAtRef.current = now;
+    void refreshList();
+  }, [refreshList]);
+
+  // A3: quay lại màn danh sách → refetch (tin mới trong lúc đang ở chat khác).
+  useEffect(() => {
+    const sub = navigation.addListener('focus', () => {
+      if (recoveryGate === 'checking') return;
+      softRefresh();
+    });
+    return sub;
+  }, [navigation, softRefresh, recoveryGate]);
+
+  // A3: có notification type='message' tới (notification WS) → debounce refresh.
+  useEffect(() => {
+    if (recoveryGate === 'checking') return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = onChatListDirty(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        softRefresh();
+      }, 600);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
+  }, [softRefresh, recoveryGate]);
+
   const { refreshing, onRefresh } = usePullToRefresh(refreshList);
+
+  // B4: phản hồi lời mời — chấp nhận thì mở chat ngay.
+  const handleInviteResponse = useCallback(
+    async (inviteId: string, accept: boolean) => {
+      setInvites((prev) => prev.filter((i) => i.invite_id !== inviteId));
+      try {
+        const res = await respondChatInvite(inviteId, accept);
+        if (accept && res.chat_id) {
+          await refreshList();
+          (router as any).push(`/(drawer)/chat/${res.chat_id}`);
+        }
+      } catch {
+        // Lỗi → tải lại danh sách mời để hiển thị lại.
+        listChatInvites()
+          .then((r) => setInvites(r.data ?? []))
+          .catch(() => {});
+      }
+    },
+    [refreshList, router],
+  );
 
   const markRecoveryResolved = useCallback(() => {
     void AsyncStorage.setItem(RECOVERY_RESOLVED_KEY, '1').catch(() => {
@@ -309,6 +407,38 @@ export default function MessagesScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* B4: lời mời nhắn tin đang chờ phản hồi */}
+      {invites.map((inv) => (
+        <View
+          key={inv.invite_id}
+          style={[styles.inviteRow, { backgroundColor: theme.primaryLight, borderBottomColor: theme.border }]}>
+          {inv.requester_avatar ? (
+            <Image source={{ uri: inv.requester_avatar }} style={styles.inviteAvatar} contentFit="cover" />
+          ) : (
+            <View style={[styles.inviteAvatar, styles.inviteAvatarFallback, { backgroundColor: theme.bgHover }]}>
+              <ThemedText style={styles.inviteAvatarLetter}>
+                {(inv.requester_name || '?').charAt(0).toUpperCase()}
+              </ThemedText>
+            </View>
+          )}
+          <ThemedText style={[styles.inviteText, { color: theme.text }]} numberOfLines={1}>
+            {t('chat.inviteTitle', { name: inv.requester_name || t('chat.unknown') })}
+          </ThemedText>
+          <Pressable
+            onPress={() => void handleInviteResponse(inv.invite_id, true)}
+            style={[styles.inviteBtn, { backgroundColor: colors.primary }]}>
+            <ThemedText style={styles.inviteBtnAccept}>{t('chat.accept')}</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => void handleInviteResponse(inv.invite_id, false)}
+            style={[styles.inviteBtnGhost, { borderColor: theme.border }]}>
+            <ThemedText style={[styles.inviteBtnDecline, { color: theme.textSecondary }]}>
+              {t('chat.decline')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      ))}
 
       {/* List */}
       {loading ? (
@@ -431,5 +561,56 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 76,
+  },
+  inviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderRadius: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  inviteAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  inviteAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteAvatarLetter: {
+    ...Typography.body,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  inviteText: {
+    ...Typography.body,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+  },
+  inviteBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  inviteBtnAccept: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  inviteBtnGhost: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  inviteBtnDecline: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

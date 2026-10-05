@@ -7,7 +7,9 @@ type ChatSocketStatus = 'connecting' | 'open' | 'closed';
 
 export interface ChatSocket {
   status: ChatSocketStatus;
-  send: (type: string, payload?: unknown) => void;
+  // Trả về false khi socket chưa OPEN (caller đánh dấu gửi thất bại thay vì
+  // lặng lẽ nuốt frame).
+  send: (type: string, payload?: unknown) => boolean;
   subscribe: (type: string, handler: EventHandler) => () => void;
   connect: () => void;
   close: () => void;
@@ -87,8 +89,9 @@ export function useChatSocket(): ChatSocket {
 
   const send = useCallback((type: string, payload?: unknown) => {
     const ws = wsRef.current;
-    if (ws?.readyState !== WebSocket.OPEN) return;
+    if (ws?.readyState !== WebSocket.OPEN) return false;
     ws.send(JSON.stringify({ type, ...(payload ? { payload } : {}) }));
+    return true;
   }, []);
 
   const subscribe = useCallback(

@@ -1,29 +1,430 @@
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRouter } from 'expo-router';
 
+import CommentSheet from '@/components/comment-sheet';
+import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
+import { feedPostCache } from '@/components/feed';
+import MediaViewer from '@/components/media-viewer';
+import PostCard from '@/components/post-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
-import { Spacing } from '@/constants/spacing';
+import { getEmojis, getSavedPosts, reactPost, savePost, sharePost } from '@/api/posts';
+import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { EmojiItem, FeedPost } from '@/types/post';
+
+const PAGE_SIZE = 10;
+
+async function ensureLikeEmojiId(): Promise<string | undefined> {
+  try {
+    const res = await getEmojis();
+    const emoji = res.data.find((e: EmojiItem) => e.code === ':like:');
+    if (emoji) return emoji.id;
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+function SkeletonCard() {
+  return (
+    <View style={styles.skeleton}>
+      <View style={styles.skelHeader}>
+        <View style={styles.skelAvatar} />
+        <View style={styles.skelLines}>
+          <View style={[styles.skelLine, { width: '40%' }]} />
+          <View style={[styles.skelLine, { width: '25%' }]} />
+        </View>
+      </View>
+      <View style={[styles.skelLine, { width: '60%', marginTop: 12 }]} />
+      <View style={[styles.skelLine, { width: '80%' }]} />
+      <View style={styles.skelMedia} />
+    </View>
+  );
+}
 
 export default function SavedScreen() {
-  const { t } = useTranslation();
   const theme = useTheme();
+  const { t } = useTranslation();
+  const navigation = useNavigation();
+  const router = useRouter();
+
+  const openDrawer = () => {
+    (navigation as any).openDrawer?.();
+  };
+
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const cursorRef = useRef<string | null>(null);
+  const loadingRef = useRef(false);
+
+  // Media viewer state
+  const [mediaModalVisible, setMediaModalVisible] = useState(false);
+  const [mediaModalPost, setMediaModalPost] = useState<FeedPost | null>(null);
+  const [mediaModalIndex, setMediaModalIndex] = useState(0);
+
+  // Comment sheet state
+  const [commentSheetVisible, setCommentSheetVisible] = useState(false);
+  const [commentSheetPost, setCommentSheetPost] = useState<FeedPost | null>(null);
+
+  // Share-to-chat state
+  const [sharePostId, setSharePostId] = useState<string | null>(null);
+
+  const fetchNext = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    setError(null);
+    const isFirst = cursorRef.current === null;
+    try {
+      const res = await getSavedPosts(cursorRef.current, PAGE_SIZE);
+      setPosts((prev) => {
+        const list = isFirst ? res.data : [...prev, ...res.data];
+        const seen = new Set<string>();
+        return list.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
+      });
+      // Populate cache so post detail screen can render immediately
+      for (const p of res.data) {
+        feedPostCache.set(p.id, p);
+      }
+      cursorRef.current = res.next_cursor;
+      setHasMore(res.next_cursor !== null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('feed.loadError'));
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
+      loadingRef.current = false;
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchNext();
+  }, [fetchNext]);
+
+  const handleRefresh = useCallback(async () => {
+    cursorRef.current = null;
+    setError(null);
+    await fetchNext();
+  }, [fetchNext]);
+
+  const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
+
+  const handleLike = useCallback(
+    async (postId: string) => {
+      const emojiId = await ensureLikeEmojiId();
+      if (!emojiId) return;
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, is_liked: !p.is_liked, likes_count: p.is_liked ? p.likes_count - 1 : p.likes_count + 1 }
+            : p,
+        ),
+      );
+
+      try {
+        await reactPost(postId, emojiId);
+      } catch {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, is_liked: !p.is_liked, likes_count: p.is_liked ? p.likes_count - 1 : p.likes_count + 1 }
+              : p,
+          ),
+        );
+      }
+    },
+    [],
+  );
+
+  const handleSave = useCallback(
+    async (postId: string) => {
+      // Optimistic: bỏ lưu ngay, khôi phục nếu lỗi
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: false } : p)));
+
+      try {
+        const res = await savePost(postId);
+        if (res.action === 'removed') {
+          setPosts((prev) => prev.filter((p) => p.id !== postId));
+        }
+      } catch (e) {
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: true } : p)));
+        Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
+      }
+    },
+    [t],
+  );
+
+  const handleEndReached = useCallback(() => {
+    if (hasMore && !loadingRef.current) {
+      fetchNext();
+    }
+  }, [hasMore, fetchNext]);
+
+  // Media viewer handlers
+  const handleOpenMedia = useCallback((post: FeedPost, index: number) => {
+    setMediaModalPost(post);
+    setMediaModalIndex(index);
+    setMediaModalVisible(true);
+  }, []);
+
+  const handleCloseMedia = useCallback(() => {
+    setMediaModalVisible(false);
+    setMediaModalPost(null);
+    setMediaModalIndex(0);
+  }, []);
+
+  // Comment sheet handlers
+  const handleOpenComments = useCallback((post: FeedPost) => {
+    setCommentSheetPost(post);
+    setCommentSheetVisible(true);
+  }, []);
+
+  const handleCloseComments = useCallback(() => {
+    setCommentSheetVisible(false);
+    setCommentSheetPost(null);
+  }, []);
+
+  // Share handler: Đăng lại (repost) hoặc Gửi vào chat
+  const doRepost = useCallback(
+    async (post: FeedPost) => {
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id ? { ...p, is_shared: true, shares_count: p.shares_count + 1 } : p,
+        ),
+      );
+      try {
+        await sharePost(post.id);
+        Alert.alert(t('postDetail.shared'));
+      } catch {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === post.id
+              ? { ...p, is_shared: false, shares_count: Math.max(0, p.shares_count - 1) }
+              : p,
+          ),
+        );
+        Alert.alert(t('common.error'), t('common.error'));
+      }
+    },
+    [t],
+  );
+
+  const handleShare = useCallback(
+    (post: FeedPost) => {
+      Alert.alert(t('post.share'), undefined, [
+        { text: t('post.repost'), onPress: () => doRepost(post) },
+        { text: t('post.shareToFriend'), onPress: () => setSharePostId(post.id) },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
+    },
+    [t, doRepost],
+  );
+
+  // Media viewer like/save handlers
+  const handleMediaLike = useCallback(() => {
+    if (mediaModalPost) handleLike(mediaModalPost.id);
+  }, [mediaModalPost, handleLike]);
+
+  const handleMediaSave = useCallback(() => {
+    if (mediaModalPost) handleSave(mediaModalPost.id);
+  }, [mediaModalPost, handleSave]);
+
+  const handleMediaCommentPress = useCallback(() => {
+    setMediaModalVisible(false);
+    if (mediaModalPost) {
+      setCommentSheetPost(mediaModalPost);
+      setCommentSheetVisible(true);
+    }
+  }, [mediaModalPost]);
+
+  const handleMediaSharePress = useCallback(() => {
+    setMediaModalVisible(false);
+    if (mediaModalPost) {
+      handleShare(mediaModalPost);
+    }
+  }, [mediaModalPost, handleShare]);
+
+  const handlePostPress = useCallback(
+    (postId: string) => {
+      (router as any).push(`/(drawer)/post/${postId}`);
+    },
+    [router],
+  );
+
+  if (initialLoading) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.safeArea}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <Pressable style={styles.menuBtn} onPress={openDrawer}>
+              <Icon name="menu" size={20} color={theme.text} />
+            </Pressable>
+            <ThemedText style={styles.headerTitle}>{t('saved.title')}</ThemedText>
+          </View>
+          <View style={styles.listContent}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </View>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+
+  if (error && posts.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.safeArea}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <Pressable style={styles.menuBtn} onPress={openDrawer}>
+              <Icon name="menu" size={20} color={theme.text} />
+            </Pressable>
+            <ThemedText style={styles.headerTitle}>{t('saved.title')}</ThemedText>
+          </View>
+          <View style={styles.centerContent}>
+            <Icon name="warning" size={48} color="#FB8C00" />
+            <ThemedText style={styles.emptyTitle}>{error}</ThemedText>
+            <Pressable
+              onPress={() => {
+                cursorRef.current = null;
+                fetchNext();
+              }}
+              style={({ pressed }) => [styles.retryBtn, { backgroundColor: theme.primary }, pressed && { opacity: 0.7 }]}>
+              <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.center}>
-          <Icon name="bookmarkFilled" size={48} color={theme.primary} />
-          <ThemedText style={styles.title}>{t('sidebar.saved')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-            {t('saved.subtitle')}
-          </ThemedText>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        {/* Header */}
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <Pressable style={styles.menuBtn} onPress={openDrawer}>
+            <Icon name="menu" size={20} color={theme.text} />
+          </Pressable>
+          <ThemedText style={styles.headerTitle}>{t('saved.title')}</ThemedText>
         </View>
+
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <PostCard
+              post={item}
+              onPress={handlePostPress}
+              onLike={handleLike}
+              onSave={handleSave}
+              onMediaPress={(index, targetPost) => handleOpenMedia(targetPost ?? item, index)}
+              onCommentPress={() => handleOpenComments(item)}
+              onSharePress={() => handleShare(item)}
+            />
+          )}
+          onEndReached={commentSheetVisible ? undefined : handleEndReached}
+          onEndReachedThreshold={1}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.centerContent}>
+              <Icon name="bookmarkFilled" size={48} color={theme.primary} />
+              <ThemedText style={styles.emptyTitle}>{t('saved.empty')}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
+                {t('saved.emptyDesc')}
+              </ThemedText>
+              <Pressable
+                onPress={() => (router as any).push('/(drawer)')}
+                style={({ pressed }) => [
+                  styles.exploreBtn,
+                  { backgroundColor: theme.primary },
+                  pressed && { opacity: 0.7 },
+                ]}>
+                <ThemedText style={styles.exploreText}>{t('saved.explore')}</ThemedText>
+              </Pressable>
+            </View>
+          }
+          ListFooterComponent={
+            loading && !initialLoading ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <ThemedText themeColor="textSecondary" style={styles.loadingText}>
+                  {t('common.loading')}
+                </ThemedText>
+              </View>
+            ) : !hasMore && posts.length > 0 ? (
+              <ThemedText themeColor="textSecondary" style={styles.endMessage}>
+                {t('saved.end')}
+              </ThemedText>
+            ) : null
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            posts.length === 0 && styles.listContentEmpty,
+          ]}
+        />
       </SafeAreaView>
+
+      {/* Media Viewer Modal */}
+      {mediaModalPost && (
+        <MediaViewer
+          visible={mediaModalVisible}
+          media={mediaModalPost.media}
+          post={mediaModalPost}
+          initialIndex={mediaModalIndex}
+          onClose={handleCloseMedia}
+          onLike={handleMediaLike}
+          onSave={handleMediaSave}
+          onCommentPress={handleMediaCommentPress}
+          onSharePress={handleMediaSharePress}
+        />
+      )}
+
+      {/* Comment Sheet */}
+      {commentSheetPost && (
+        <CommentSheet
+          visible={commentSheetVisible}
+          postId={commentSheetPost.id}
+          postUserId={commentSheetPost.user_id}
+          onClose={handleCloseComments}
+        />
+      )}
+
+      {/* Share post to chat */}
+      <ShareToChatModal
+        visible={sharePostId !== null}
+        postId={sharePostId ?? ''}
+        onClose={() => setSharePostId(null)}
+      />
     </ThemedView>
   );
 }
@@ -31,7 +432,109 @@ export default function SavedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  title: { ...Typography.h1, textAlign: 'center' },
-  subtitle: { ...Typography.body, textAlign: 'center', paddingHorizontal: Spacing.xl },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    gap: Spacing.sm,
+  },
+  menuBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    ...Typography.h1,
+    fontSize: 22,
+  },
+  listContent: {
+    padding: Spacing.md,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  centerContent: {
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingTop: Spacing.xl * 2,
+    paddingHorizontal: Spacing.xl,
+  },
+  emptyTitle: { ...Typography.h2, textAlign: 'center' },
+  emptySubtitle: { ...Typography.body, textAlign: 'center' },
+  retryBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.pill,
+  },
+  retryText: {
+    ...Typography.body,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  exploreBtn: {
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.pill,
+  },
+  exploreText: {
+    ...Typography.body,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  loadingMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  endMessage: {
+    textAlign: 'center',
+    paddingVertical: Spacing.lg,
+    fontSize: 14,
+  },
+  skeleton: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  skelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  skelAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E0E0E0',
+  },
+  skelLines: {
+    flex: 1,
+    gap: 6,
+  },
+  skelLine: {
+    height: 14,
+    borderRadius: 8,
+    backgroundColor: '#E0E0E0',
+  },
+  skelMedia: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#E0E0E0',
+    marginTop: 12,
+  },
 });

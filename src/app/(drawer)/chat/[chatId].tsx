@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Fragment,
   useCallback,
@@ -22,10 +23,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { batchGetPresence } from "@/api/presence";
 import { deleteChat, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
 import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
+import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
 import { MediaStack } from "@/components/chat/media-stack";
 import { MessageActions } from "@/components/chat/message-actions";
@@ -44,10 +47,14 @@ import { useChatCallHistory } from "@/hooks/useChatCallHistory";
 import { useChatE2E } from "@/hooks/useChatE2E";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatSocket } from "@/hooks/useChatSocket";
+import { useE2ERecovery } from "@/hooks/useE2ERecovery";
+import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
 import type { ChatConversation, ChatMessage } from "@/types/chat";
 import { formatChatDate } from "@/utils/chat";
+import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
+import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import {
   groupMediaTimeline,
   type MediaGroupItem,
@@ -96,12 +103,28 @@ export default function ChatScreen() {
     conv: ChatConversation;
   } | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  // Giới hạn retry của onScrollToIndexFailed (index offscreen chưa render kịp).
+  const scrollFailCountRef = useRef(0);
 
   // Message actions state
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
+  // B1: draft chuyển tiếp (rút từ forward-draft store — navigate sang instance
+  // mới nên state không truyền trực tiếp được) + tin đang chọn để chuyển.
+  const [forwardDraft, setForwardDraft] = useState<{
+    messageId: string;
+    content: string;
+    emojiId?: string;
+  } | null>(null);
+  const [forwardPickerFor, setForwardPickerFor] = useState<ChatMessage | null>(
+    null,
+  );
+  // A4: online của đối phương — batch presence khi mở + presence:update realtime.
+  const [partnerOnline, setPartnerOnline] = useState(false);
+  // B5: nhấp nháy highlight khi nhảy tới tin từ kết quả tìm kiếm.
+  const [flashId, setFlashId] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{
     msgs: ChatMessage[];
     index: number;
@@ -153,6 +176,96 @@ export default function ChatScreen() {
     callPhase,
     activeCall,
   });
+
+  // Emoji server (sticker render + reaction chip) — cache module.
+  const { byId: serverEmojis } = useServerEmojis();
+
+  // B6: deep-link vào chat khi cổng khôi phục E2E chưa mở → đá về danh sách
+  // (RecoveryGateModal chỉ render ở messages.tsx).
+  const e2eRecovery = useE2ERecovery();
+  useEffect(() => {
+    if (!chatId || e2eRecovery.meta === null) return;
+    let cancelled = false;
+    void (async () => {
+      let seen = false;
+      try {
+        seen =
+          (await AsyncStorage.getItem(RECOVERY_RESOLVED_KEY)) === "1";
+      } catch {
+        /* storage lỗi → coi như chưa thấy */
+      }
+      if (cancelled || seen) return;
+      if (e2eRecovery.meta?.has_blob && e2eRecovery.meta?.salt) {
+        router.replace("/(drawer)/messages");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, e2eRecovery.meta, router]);
+
+  // B1: rút draft chuyển tiếp khi đổi chat (null nếu không có → dọn state cũ).
+  // setState sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      const taken = takeForwardDraft(chatId ?? "");
+      setForwardDraft(
+        taken
+          ? {
+              messageId: taken.messageId,
+              content: taken.content,
+              emojiId: taken.emojiId,
+            }
+          : null,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId]);
+
+  // A4: lần đầu biết partner → batch query trạng thái online.
+  // Reset về offline sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    if (!partnerUserId) return;
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setPartnerOnline(false);
+      try {
+        const res = await batchGetPresence([partnerUserId]);
+        if (cancelled) return;
+        setPartnerOnline(res.data[partnerUserId]?.status === "online");
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [partnerUserId]);
+
+  // A4: realtime — server broadcast presence:update cho toàn bộ client.
+  useEffect(() => {
+    if (!partnerUserId) return;
+    const unsub = socket.subscribe("presence:update", (payload: any) => {
+      if (payload.user_id === partnerUserId) {
+        setPartnerOnline(payload.status === "online");
+      }
+    });
+    return unsub;
+  }, [socket, partnerUserId]);
+
+  // B5: tự tắt highlight sau một nhịp.
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = setTimeout(() => setFlashId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [flashId]);
 
   // Timeline gộp messages (đã group media) + lịch sử cuộc gọi, sort theo thời gian.
   const timeline = useMemo<GroupedItem[]>(() => {
@@ -213,6 +326,7 @@ export default function ChatScreen() {
 
       // GIF từ GIPHY -> gửi ngay dưới dạng gif_url (server tạo media từ URL).
       if (gifUrl) {
+        setForwardDraft(null); // gif + forward không gửi cùng — bỏ draft
         room.sendMessage("", { gifUrl, replyToMessageId: replyingTo?.id });
         setReplyingTo(null);
         setTimeout(() => {
@@ -222,6 +336,7 @@ export default function ChatScreen() {
       }
 
       if (attachments && attachments.length > 0 && chatId) {
+        setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
 
         for (let i = 0; i < attachments.length; i++) {
@@ -250,15 +365,19 @@ export default function ChatScreen() {
 
       // Text-only message — encrypt do useChatRoom.sendMessage đảm nhận.
       // Bubble tạm giữ plaintext, echo server về thay temp theo id.
+      // B1: sticker-forward gửi đúng emoji_id gốc (content rỗng).
       room.sendMessage(text, {
         replyToMessageId: replyingTo?.id,
+        forwardedFrom: forwardDraft?.messageId,
+        emojiId: forwardDraft?.emojiId,
       });
       setReplyingTo(null);
+      setForwardDraft(null);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption, replyingTo, chatId, t],
+    [room, encryption, replyingTo, forwardDraft, chatId, t],
   );
 
   const handleTyping = useCallback(
@@ -266,6 +385,47 @@ export default function ChatScreen() {
       room.sendTyping(isTyping);
     },
     [room],
+  );
+
+  // Tin nhắn thoại: upload file ghi âm (kèm duration_seconds) rồi gửi như media.
+  const handleSendVoice = useCallback(
+    async (
+      file: { uri: string; name: string; type: string },
+      durationSec: number,
+    ) => {
+      if (!chatId) return;
+      // Cùng guard E2E với handleSend — chặn trước khi upload.
+      if (
+        encryption.status === "unavailable" ||
+        encryption.status === "loading"
+      ) {
+        Alert.alert(t("chat.e2eInitializing"));
+        return;
+      }
+      if (encryption.status === "partner_changed") {
+        Alert.alert(t("chat.e2ePartnerChanged"));
+        return;
+      }
+      setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft
+      try {
+        const res = await uploadChatMedia(file, chatId, durationSec);
+        room.sendMessage("", {
+          mediaId: res.data.id,
+          mediaUri: res.data.file_uri,
+          mediaType: res.data.file_type,
+          durationSeconds: res.data.duration_seconds ?? durationSec,
+          replyToMessageId: replyingTo?.id,
+        });
+        setReplyingTo(null);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
+      }
+    },
+    [chatId, encryption, room, replyingTo, t],
   );
 
   const handleLongPress = useCallback((msg: ChatMessage) => {
@@ -294,11 +454,60 @@ export default function ChatScreen() {
     [room],
   );
 
+  // B2: toggle reaction (từ chip trên bubble hoặc quick-react trong menu).
+  const handleReact = useCallback(
+    (messageId: string, emojiId: string) => {
+      room.reactToMessage(messageId, emojiId);
+    },
+    [room],
+  );
+
+  // A2: gửi lại / bỏ tin thất bại.
+  const handleRetry = useCallback(
+    (msg: ChatMessage) => {
+      room.retryMessage(msg.id);
+    },
+    [room],
+  );
+
+  const handleDiscard = useCallback(
+    (msg: ChatMessage) => {
+      room.discardMessage(msg.id);
+    },
+    [room],
+  );
+
+  // B1: mở picker chọn hội thoại đích.
+  const handleForward = useCallback((msg: ChatMessage) => {
+    setForwardPickerFor(msg);
+  }, []);
+
+  const handleForwardPick = useCallback(
+    (targetChatId: string) => {
+      const msg = forwardPickerFor;
+      setForwardPickerFor(null);
+      if (!msg) return;
+      stashForwardDraft({
+        chatId: targetChatId,
+        messageId: msg.id,
+        content: msg.deleted ? "" : (msg.content ?? ""),
+        emojiId: msg.emoji_id ?? undefined,
+      });
+      (router as any).push(`/(drawer)/chat/${targetChatId}`);
+    },
+    [forwardPickerFor, router],
+  );
+
   const handleMediaPress = useCallback(
     (msg: ChatMessage) => {
       // Find all media messages in sequence for lightbox navigation
+      // (tin nhắn thoại render bằng VoicePlayer — không vào lightbox).
       const mediaMsgs = room.messages.filter(
-        (m) => !m.deleted && !m.decrypt_failed && (m.media_id || m.media_uri),
+        (m) =>
+          !m.deleted &&
+          !m.decrypt_failed &&
+          (m.media_id || m.media_uri) &&
+          !m.media_type?.startsWith("audio/"),
       );
       const idx = mediaMsgs.findIndex((m) => m.id === msg.id);
       setLightbox({ msgs: mediaMsgs, index: idx >= 0 ? idx : 0 });
@@ -320,6 +529,7 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
+        scrollFailCountRef.current = 0;
         (flatListRef.current as any)?.scrollToIndex?.({
           index: idx,
           animated: true,
@@ -334,6 +544,7 @@ export default function ChatScreen() {
     (messageId: string) => {
       const idx = findIndexInGrouped(messageId);
       if (idx >= 0) {
+        scrollFailCountRef.current = 0;
         (flatListRef.current as any)?.scrollToIndex?.({
           index: idx,
           animated: true,
@@ -343,6 +554,20 @@ export default function ChatScreen() {
     },
     [findIndexInGrouped],
   );
+
+  // FlatList không có getItemLayout (item cao độ biến thiên) → index offscreen
+  // chưa được đo sẽ fail; retry có biên để tránh loop vô hạn nếu index không tồn tại.
+  const handleScrollToIndexFailed = useCallback((info: { index: number }) => {
+    if (scrollFailCountRef.current >= 5) return;
+    scrollFailCountRef.current += 1;
+    setTimeout(() => {
+      (flatListRef.current as any)?.scrollToIndex?.({
+        index: info.index,
+        animated: true,
+        viewPosition: 0.3,
+      });
+    }, 300);
+  }, []);
 
   const handleOpenPost = useCallback(
     (postId: string) => {
@@ -442,6 +667,15 @@ export default function ChatScreen() {
 
   const partner = conversation?.partner;
 
+  // Tên người nhắn trong ô phản hồi — server không gửi sender_name cho chat
+  // 1-1 (omitempty rỗng) → tự resolve: mình hiện "Bạn", đối phương lấy tên
+  // từ partner, thiếu nữa mới hiện "Không xác định".
+  const replySenderLabel = replyingTo
+    ? replyingTo.sender_id === myUserId
+      ? t("chat.you")
+      : replyingTo.sender_name || partner?.display_name || t("chat.unknown")
+    : undefined;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <KeyboardAvoidingView
@@ -485,11 +719,23 @@ export default function ChatScreen() {
             <ThemedText style={styles.headerName} numberOfLines={1}>
               {partner?.display_name || t("chat.unknown")}
             </ThemedText>
-            {encryption.ready && (
-              <ThemedText style={styles.e2eBadge}>
-                <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
-              </ThemedText>
-            )}
+            <View style={styles.headerMetaRow}>
+              {encryption.ready && (
+                <ThemedText style={styles.e2eBadge}>
+                  <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
+                </ThemedText>
+              )}
+              {/* A4: trạng thái online/offline của đối phương */}
+              {partner && (
+                <ThemedText
+                  style={[
+                    styles.presenceBadge,
+                    { color: partnerOnline ? "#22C55E" : theme.textSecondary },
+                  ]}>
+                  {partnerOnline ? t("chat.online") : t("chat.offline")}
+                </ThemedText>
+              )}
+            </View>
           </View>
 
           {partner && (
@@ -703,11 +949,20 @@ export default function ChatScreen() {
                   data={room.searchResults}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                    <View
+                    <Pressable
                       style={[
                         styles.searchResultItem,
                         { borderBottomColor: theme.border },
-                      ]}>
+                      ]}
+                      onPress={() => {
+                        // B5: đóng kết quả → nhảy tới tin gốc + highlight.
+                        setSearchInput("");
+                        room.clearSearch();
+                        setTimeout(() => {
+                          scrollToMessage(item.id);
+                          setFlashId(item.id);
+                        }, 80);
+                      }}>
                       <ThemedText
                         style={[
                           styles.searchResultSender,
@@ -715,7 +970,9 @@ export default function ChatScreen() {
                         ]}>
                         {item.sender_id === myUserId
                           ? t("chat.you")
-                          : item.sender_name || t("chat.unknown")}
+                          : item.sender_name ||
+                            partner?.display_name ||
+                            t("chat.unknown")}
                       </ThemedText>
                       <ThemedText
                         style={[
@@ -727,7 +984,7 @@ export default function ChatScreen() {
                           ? t("chat.messageDeleted")
                           : item.content || t("chat.attachment")}
                       </ThemedText>
-                    </View>
+                    </Pressable>
                   )}
                 />
               )}
@@ -762,14 +1019,21 @@ export default function ChatScreen() {
               <FlatList
                 ref={flatListRef}
                 data={timeline}
-                keyExtractor={(item) =>
+                keyExtractor={(item: GroupedItem) =>
                   "kind" in item
                     ? item.kind === "call"
                       ? `call-${item.item.id}`
                       : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
                     : item.id
                 }
-                renderItem={({ item, index }) => {
+                onScrollToIndexFailed={handleScrollToIndexFailed}
+                renderItem={({
+                  item,
+                  index,
+                }: {
+                  item: GroupedItem;
+                  index: number;
+                }) => {
                   const prev = resolvePrevMsg(timeline, index);
                   const dateSep = (createdAt: string) => (
                     <View style={styles.dateSep}>
@@ -873,6 +1137,13 @@ export default function ChatScreen() {
                         isPinned={room.pinnedMessages.some(
                           (p) => p.message_id === msg.id,
                         )}
+                        seen={
+                          msg.sender_id === myUserId &&
+                          (msg.seen_by ?? []).some((uid) => uid !== myUserId)
+                        }
+                        highlight={flashId === msg.id}
+                        emojis={serverEmojis}
+                        myUserId={myUserId}
                         avatarUri={
                           partner?.avatar_uri ?? msg.sender_avatar ?? null
                         }
@@ -881,6 +1152,7 @@ export default function ChatScreen() {
                         onReplyPress={handleReplyPress}
                         onMediaPress={handleMediaPress}
                         onOpenPost={handleOpenPost}
+                        onReact={handleReact}
                       />
                     </Fragment>
                   );
@@ -914,9 +1186,13 @@ export default function ChatScreen() {
         {/* Composer */}
         <ChatComposer
           onSend={handleSend}
+          onSendVoice={handleSendVoice}
           onTyping={handleTyping}
           replyingTo={replyingTo}
+          replySenderLabel={replySenderLabel}
           onClearReply={() => setReplyingTo(null)}
+          forwarding={forwardDraft}
+          onClearForward={() => setForwardDraft(null)}
         />
       </KeyboardAvoidingView>
 
@@ -929,12 +1205,24 @@ export default function ChatScreen() {
             ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id)
             : false
         }
-        canPin={room.pinnedMessages.length < 2}
+        canPin
         onClose={() => setActionTarget(null)}
         onReply={handleReply}
         onDelete={handleDeleteRequest}
         onPin={handlePin}
         onUnpin={handleUnpin}
+        onReact={handleReact}
+        onForward={handleForward}
+        onRetry={handleRetry}
+        onDiscard={handleDiscard}
+      />
+
+      {/* B1: chọn hội thoại đích khi chuyển tiếp */}
+      <ForwardPickerModal
+        visible={!!forwardPickerFor}
+        excludeChatId={chatId}
+        onClose={() => setForwardPickerFor(null)}
+        onPick={handleForwardPick}
       />
 
       {/* Delete conversation confirmation */}
@@ -1079,6 +1367,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   headerName: {
     ...Typography.body,
     fontWeight: 600,
@@ -1087,6 +1380,11 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 10,
     opacity: 0.7,
+  },
+  presenceBadge: {
+    ...Typography.caption,
+    fontSize: 10,
+    fontWeight: "600",
   },
   headerAction: {
     padding: Spacing.xs,

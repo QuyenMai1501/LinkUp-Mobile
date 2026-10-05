@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import type { ChatMessage, HistoryCursor, PinnedMessage, SendMessageOptions } from '@/types/chat';
+import type {
+  ChatMessage,
+  HistoryCursor,
+  MessageReaction,
+  PinnedMessage,
+  SendMessageOptions,
+} from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatSocket } from './useChatSocket';
 import type { ChatE2E } from './useChatE2E';
@@ -100,6 +106,12 @@ export interface ChatRoom {
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
   pinMessage: (messageId: string) => void;
   unpinMessage: (messageId: string) => void;
+  // Gửi lại tin đã thất bại (wire payload còn lưu — không encrypt lại).
+  retryMessage: (messageId: string) => void;
+  // Bỏ tin thất bại khỏi danh sách.
+  discardMessage: (messageId: string) => void;
+  // Toggle reaction emoji trên một tin nhắn.
+  reactToMessage: (messageId: string, emojiId: string) => void;
   loadMoreMessages: () => void;
   searchMessages: (keyword: string) => void;
   clearSearch: () => void;
@@ -140,6 +152,10 @@ export function useChatRoom({
   // sẽ shift() từng id để thay đúng temp (Web cũng làm vậy). Không so content:
   // temp plaintext vs echo plaintext sau decrypt có thể lệch khi lỗi/đổi nội dung.
   const pendingIdsRef = useRef<string[]>([]);
+  // Wire payload (đã encrypt) theo tempId → retry gửi lại không cần encrypt.
+  const pendingPayloadsRef = useRef<Map<string, Record<string, unknown>>>(new Map());
+  // Timer timeout đánh dấu tin gửi thất bại theo tempId.
+  const sendTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const activeChatIdRef = useRef<string | null>(null);
@@ -156,6 +172,45 @@ export function useChatRoom({
   useEffect(() => {
     pinnedMessagesRef.current = pinnedMessages;
   }, [pinnedMessages]);
+
+  const clearSendTimeout = useCallback((tempId: string) => {
+    const timer = sendTimeoutsRef.current.get(tempId);
+    if (timer) clearTimeout(timer);
+    sendTimeoutsRef.current.delete(tempId);
+  }, []);
+
+  // Đánh dấu tin optimistic gửi thất bại (timeout / socket đóng). Giữ wire
+  // payload lại để retryMessage gửi lại được.
+  const markSendFailed = useCallback(
+    (tempId: string) => {
+      clearSendTimeout(tempId);
+      pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== tempId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId && m.sending ? { ...m, sending: false, failed: true } : m,
+        ),
+      );
+    },
+    [clearSendTimeout],
+  );
+
+  // Không có xác nhận từ server sau SEND_TIMEOUT → coi như thất bại.
+  const armSendTimeout = useCallback(
+    (tempId: string) => {
+      clearSendTimeout(tempId);
+      const timer = setTimeout(() => {
+        sendTimeoutsRef.current.delete(tempId);
+        pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== tempId);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId && m.sending ? { ...m, sending: false, failed: true } : m,
+          ),
+        );
+      }, 6000);
+      sendTimeoutsRef.current.set(tempId, timer);
+    },
+    [clearSendTimeout],
+  );
 
   const decryptIncoming = useCallback(
     async (list: ChatMessage[]): Promise<ChatMessage[]> => {
@@ -265,6 +320,11 @@ export function useChatRoom({
       hasMoreRef.current = false;
       loadingMoreRef.current = false;
       e2eReadyChatRef.current = null;
+      // Dọn trạng thái gửi dở của chat cũ (timer + hàng đợi echo).
+      sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
+      sendTimeoutsRef.current.clear();
+      pendingPayloadsRef.current.clear();
+      pendingIdsRef.current = [];
       setLoading(true);
     }
 
@@ -282,6 +342,16 @@ export function useChatRoom({
         // Render ngay (tin E2E hiện placeholder), rồi giải mã dần từng cụm
         const pending = sortByCreatedAt(dedupeByID(markPendingDecrypt(msgs)));
         setMessages(pending);
+
+        // A1: báo server mình đã đọc tới tin mới nhất trong lịch sử — server
+        // broadcast message:read cho cả room để đối phương thấy ✓✓.
+        const newest = msgs.reduce<ChatMessage | null>(
+          (acc, m) => (!acc || m.created_at > acc.created_at ? m : acc),
+          null,
+        );
+        if (newest) {
+          socket.send('message:read', { chat_id: chatId, last_message_id: newest.id });
+        }
 
         // Giải mã batch 10 tin
         const size = 10;
@@ -318,13 +388,18 @@ export function useChatRoom({
         const msg = payload as ChatMessage;
 
         void decryptIncoming([msg]).then(([resolved]) => {
+          // Xác định temp cần thay TRƯỚC khi setState (side effect ngoài updater
+          // để StrictMode/dev không shift nhầm lần hai).
+          let echoTempId: string | null = null;
+          if (resolved.sender_id === myUserId && pendingIdsRef.current.length > 0) {
+            echoTempId = pendingIdsRef.current.shift()!;
+          }
           setMessages((prev) => {
             // Thay optimistic temp message theo hàng đợi id (không so content —
             // content của temp và echo luôn là plaintext nhưng so sánh từng ký tự
             // dễ sai khi gửi trùng nội dung / decrypt fail).
-            if (resolved.sender_id === myUserId && pendingIdsRef.current.length > 0) {
-              const tempId = pendingIdsRef.current.shift()!;
-              const idx = prev.findIndex((m) => m.id === tempId);
+            if (echoTempId) {
+              const idx = prev.findIndex((m) => m.id === echoTempId);
               if (idx >= 0) {
                 const next = [...prev];
                 next[idx] = resolved;
@@ -333,8 +408,49 @@ export function useChatRoom({
             }
             return sortByCreatedAt(dedupeByID([...prev, resolved]));
           });
+          if (echoTempId) {
+            clearSendTimeout(echoTempId);
+            pendingPayloadsRef.current.delete(echoTempId);
+          }
+          // A1: tin từ đối phương → báo đã đọc để họ thấy ✓✓ ngay.
+          if (resolved.sender_id !== myUserId) {
+            socket.send('message:read', {
+              chat_id: chatId,
+              last_message_id: resolved.id,
+            });
+          }
           onNewMessage?.();
         });
+      }),
+
+      // A1: đối phương đã đọc → bổ sung user_id vào seen_by của tin mình gửi.
+      socket.subscribe('message:read', (payload: any) => {
+        if (payload.chat_id !== chatId) return;
+        const readerId: string = payload.user_id;
+        if (!readerId || readerId === myUserId || !payload.last_read_at) return;
+        const lastReadAt = new Date(payload.last_read_at).getTime();
+        if (Number.isNaN(lastReadAt)) return;
+        setMessages((prev) => {
+          let changed = false;
+          const next = prev.map((m) => {
+            if (m.sender_id !== myUserId || m.id.startsWith('temp-')) return m;
+            if (new Date(m.created_at).getTime() > lastReadAt) return m;
+            const seen = m.seen_by ?? [];
+            if (seen.includes(readerId)) return m;
+            changed = true;
+            return { ...m, seen_by: [...seen, readerId] };
+          });
+          return changed ? next : prev;
+        });
+      }),
+
+      // B2: reaction đã toggle → server gửi danh sách reactions mới nhất.
+      socket.subscribe('message:reacted', (payload: any) => {
+        if (payload.chat_id !== chatId) return;
+        const reactions = (payload.reactions as MessageReaction[] | undefined) ?? [];
+        setMessages((prev) =>
+          prev.map((m) => (m.id === payload.message_id ? { ...m, reactions } : m)),
+        );
       }),
 
       socket.subscribe('typing', (payload: any) => {
@@ -378,7 +494,7 @@ export function useChatRoom({
         setPinnedMessages((prev) => {
           const exists = prev.some((p) => p.message_id === pin.message_id);
           if (exists) return prev;
-          return [pin, ...prev].slice(0, 2);
+          return [pin, ...prev];
         });
         void decryptPinned([pin]).then(([decrypted]) => {
           if (activeChatIdRef.current !== chatId) return;
@@ -394,7 +510,7 @@ export function useChatRoom({
 
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- socket.subscribe is stable
-  }, [chatId, socket.subscribe, myUserId, onNewMessage, decryptIncoming, decryptPinned]);
+  }, [chatId, socket.subscribe, myUserId, onNewMessage, decryptIncoming, decryptPinned, clearSendTimeout]);
 
   // Effect 2: Send chat:join when WebSocket is open.
   useEffect(() => {
@@ -446,10 +562,14 @@ export function useChatRoom({
         chat_id: chatId,
         sender_id: myUserId,
         content,
+        emoji_id: opts?.emojiId ?? null,
         media_id: opts?.mediaId ?? null,
         media_uri: opts?.gifUrl ?? opts?.mediaUri ?? null,
         media_type: opts?.gifUrl ? 'image/gif' : opts?.mediaType ?? null,
+        duration_seconds: opts?.durationSeconds ?? null,
         is_anonymized: false,
+        sending: true,
+        forwarded_from: opts?.forwardedFrom ?? null,
         created_at: new Date().toISOString(),
       };
       pendingIdsRef.current.push(tempId);
@@ -471,30 +591,68 @@ export function useChatRoom({
           }
         }
 
-        if (e2eEncrypted) {
-          socket.send('message:send', {
-            chat_id: chatId,
-            content: wireContent,
-            e2e_version: 1,
-            emoji_id: opts?.emojiId,
-            media_id: opts?.mediaId,
-            gif_url: opts?.gifUrl ?? null,
-            reply_to_message_id: opts?.replyToMessageId,
-          });
+        const wire: Record<string, unknown> = {
+          chat_id: chatId,
+          content: wireContent,
+        };
+        if (e2eEncrypted) wire.e2e_version = 1;
+        wire.emoji_id = opts?.emojiId;
+        wire.media_id = opts?.mediaId;
+        wire.gif_url = opts?.gifUrl ?? null;
+        wire.reply_to_message_id = opts?.replyToMessageId;
+        // Server lấy duration từ media record (payload này chỉ để parity với Web).
+        if (opts?.durationSeconds) wire.duration_seconds = opts.durationSeconds;
+        if (opts?.forwardedFrom) wire.forwarded_from = opts.forwardedFrom;
+
+        // Giữ wire payload cho retry (không encrypt lại) + arm timeout A2.
+        pendingPayloadsRef.current.set(tempId, wire);
+        if (!socket.send('message:send', wire)) {
+          markSendFailed(tempId);
         } else {
-          // Không encrypt (legacy / content rỗng) → gửi plaintext KHÔNG có e2e_version
-          socket.send('message:send', {
-            chat_id: chatId,
-            content: wireContent,
-            emoji_id: opts?.emojiId,
-            media_id: opts?.mediaId,
-            gif_url: opts?.gifUrl ?? null,
-            reply_to_message_id: opts?.replyToMessageId,
-          });
+          armSendTimeout(tempId);
         }
       })();
     },
-    [chatId, myUserId, socket, encryption, e2eStatus, t],
+    [chatId, myUserId, socket, encryption, e2eStatus, t, markSendFailed, armSendTimeout],
+  );
+
+  const retryMessage = useCallback(
+    (messageId: string) => {
+      const wire = pendingPayloadsRef.current.get(messageId);
+      if (!wire) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, sending: true, failed: false } : m)),
+      );
+      pendingIdsRef.current.push(messageId);
+      if (!socket.send('message:send', wire)) {
+        markSendFailed(messageId);
+      } else {
+        armSendTimeout(messageId);
+      }
+    },
+    [socket, markSendFailed, armSendTimeout],
+  );
+
+  const discardMessage = useCallback(
+    (messageId: string) => {
+      clearSendTimeout(messageId);
+      pendingPayloadsRef.current.delete(messageId);
+      pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    },
+    [clearSendTimeout],
+  );
+
+  const reactToMessage = useCallback(
+    (messageId: string, emojiId: string) => {
+      if (!chatId || socket.status !== 'open') return;
+      socket.send('message:react', {
+        chat_id: chatId,
+        message_id: messageId,
+        emoji_id: emojiId,
+      });
+    },
+    [chatId, socket],
   );
 
   const sendTyping = useCallback(
@@ -591,6 +749,9 @@ export function useChatRoom({
       deleteMessage,
       pinMessage,
       unpinMessage,
+      retryMessage,
+      discardMessage,
+      reactToMessage,
       loadMoreMessages,
       searchMessages,
       clearSearch,
@@ -609,6 +770,9 @@ export function useChatRoom({
       deleteMessage,
       pinMessage,
       unpinMessage,
+      retryMessage,
+      discardMessage,
+      reactToMessage,
       loadMoreMessages,
       searchMessages,
       clearSearch,

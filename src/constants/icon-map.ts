@@ -36,6 +36,7 @@ export const icons = {
   gif: 'film-outline' as const,
   send: 'paper-plane-outline' as const,
   sendFilled: 'paper-plane' as const,
+  refresh: 'refresh-outline' as const,
 
   // Close / Cancel
   close: 'close-outline' as const,
@@ -73,6 +74,8 @@ export const icons = {
   palette: 'color-palette-outline' as const,
   laptop: 'laptop-outline' as const,
   play: 'play-outline' as const,
+  pause: 'pause' as const,
+  stop: 'stop' as const,
   expand: 'expand-outline' as const,
   compass: 'compass-outline' as const,
   compassFilled: 'compass' as const,

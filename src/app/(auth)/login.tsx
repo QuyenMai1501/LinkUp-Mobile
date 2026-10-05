@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { login } from '@/api/auth';
+import GoogleAuthButton from '@/components/google-auth-button';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
@@ -94,6 +95,8 @@ export default function LoginScreen() {
               </Pressable>
 
               <Button label={t('auth.login.loginButton')} onPress={handleSubmit} loading={loading} />
+
+              <GoogleAuthButton />
 
               <View style={styles.footerRow}>
                 <ThemedText themeColor="textSecondary">{t('auth.login.noAccount')}</ThemedText>

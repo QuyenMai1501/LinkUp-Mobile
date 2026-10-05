@@ -1,14 +1,16 @@
-import { useRef, useState } from 'react';
-import { Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
+import { VoicePlayer, formatAudioTime } from '@/components/chat/voice-player';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useVoiceRecorder, type VoiceRecording } from '@/hooks/use-voice-recorder';
 import type { GiphyGif } from '@/api/giphy';
 import type { EmojiOption } from '@/api/emojifyi';
 import type { ChatMessage } from '@/types/chat';
@@ -23,12 +25,32 @@ export interface AttachmentItem {
 
 interface Props {
   onSend: (text: string, attachments?: AttachmentItem[], gifUrl?: string) => void;
+  /** Gửi tin nhắn thoại đã ghi (file local + thời lượng giây). */
+  onSendVoice: (
+    file: { uri: string; name: string; type: string },
+    durationSec: number,
+  ) => void;
   onTyping: (isTyping: boolean) => void;
   replyingTo?: ChatMessage | null;
+  /** Tên người nhắn đã được màn chat resolve (sender_name server luôn rỗng
+   *  với chat 1-1) — "Bạn" cho tin của mình, tên partner cho tin đối phương. */
+  replySenderLabel?: string;
   onClearReply?: () => void;
+  /** B1: draft chuyển tiếp — prefill nội dung + hiện bar "Đang chuyển tiếp". */
+  forwarding?: { content: string; emojiId?: string } | null;
+  onClearForward?: () => void;
 }
 
-export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Props) {
+export function ChatComposer({
+  onSend,
+  onSendVoice,
+  onTyping,
+  replyingTo,
+  replySenderLabel,
+  onClearReply,
+  forwarding,
+  onClearForward,
+}: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const [text, setText] = useState('');
@@ -37,9 +59,30 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const inputRef = useRef<TextInput>(null);
 
+  // —— Tin nhắn thoại ——
+  const voice = useVoiceRecorder();
+  const [voicePreview, setVoicePreview] = useState<VoiceRecording | null>(null);
+
+  // B1: nhận draft → prefill nội dung gốc (reference ổn định từ state cha).
+  // setState sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      if (forwarding) setText(forwarding.content);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [forwarding]);
+
+  // Sticker chuyển tiếp (emoji_id, không text) vẫn cho phép gửi.
+  const forwardStickerReady = !!forwarding?.emojiId && !text.trim();
+
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed && attachments.length === 0) return;
+    if (!trimmed && attachments.length === 0 && !forwardStickerReady) return;
     onSend(trimmed, attachments.length > 0 ? attachments : undefined);
     setText('');
     setAttachments([]);
@@ -62,6 +105,49 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
     onSend('', undefined, gif.preview);
     onTyping(false);
   };
+
+  // Mic chỉ hiện khi ô nhập trống (đổi vai trò với nút gửi).
+  const canRecordVoice = !text.trim() && attachments.length === 0 && !forwardStickerReady;
+
+  const handleMicPress = () => {
+    setEmojiOpen(false);
+    setGifOpen(false);
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+    void (async () => {
+      const started = await voice.start();
+      if (!started) Alert.alert(t('common.error'), t('call.permissionDenied'));
+    })();
+  };
+
+  const handleStopRecording = () => {
+    void (async () => {
+      const rec = await voice.stop();
+      if (rec) setVoicePreview(rec);
+    })();
+  };
+
+  const handleCancelRecording = () => {
+    setVoicePreview(null);
+    void voice.cancel();
+  };
+
+  const handleSendVoice = () => {
+    if (!voicePreview) return;
+    const last = voicePreview.uri.split('/').pop() ?? '';
+    const ext = (last.includes('.') ? (last.split('.').pop() ?? 'm4a') : 'm4a').toLowerCase();
+    onSendVoice(
+      { uri: voicePreview.uri, name: `voice.${ext}`, type: `audio/${ext}` },
+      voicePreview.durationSec,
+    );
+    setVoicePreview(null);
+  };
+
+  // Tự dừng khi chạm giới hạn 5 phút (server chặn audio > 300s).
+  useEffect(() => {
+    if (voice.recording && voice.maxReached) handleStopRecording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.recording, voice.maxReached]);
 
   const handlePickImage = async () => {
     const allowed = MAX_ATTACHMENTS - attachments.length;
@@ -97,7 +183,7 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
             <View style={styles.replyLabel}>
               <Icon name="reply" size={12} color={theme.textSecondary} />
               <ThemedText style={[styles.replyName, { color: theme.primary }]} numberOfLines={1}>
-                {replyingTo.sender_name || t('chat.unknown')}
+                {replySenderLabel || replyingTo.sender_name || t('chat.unknown')}
               </ThemedText>
             </View>
             <ThemedText style={[styles.replySnippet, { color: theme.textSecondary }]} numberOfLines={1}>
@@ -105,6 +191,34 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
             </ThemedText>
           </View>
           <Pressable onPress={onClearReply} hitSlop={8} style={styles.replyCancel}>
+            <Icon name="close" size={14} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+      )}
+
+      {/* B1: forward bar */}
+      {forwarding && (
+        <View
+          style={[
+            styles.replyBar,
+            { backgroundColor: theme.bgSecondary, borderLeftColor: theme.primary },
+          ]}>
+          <View style={styles.replyContent}>
+            <View style={styles.replyLabel}>
+              <Icon name="share" size={12} color={theme.textSecondary} />
+              <ThemedText
+                style={[styles.replyName, { color: theme.primary }]}
+                numberOfLines={1}>
+                {t('chat.forwarding')}
+              </ThemedText>
+            </View>
+            <ThemedText
+              style={[styles.replySnippet, { color: theme.textSecondary }]}
+              numberOfLines={1}>
+              {forwarding.content || t('chat.attachment')}
+            </ThemedText>
+          </View>
+          <Pressable onPress={onClearForward} hitSlop={8} style={styles.replyCancel}>
             <Icon name="close" size={14} color={theme.textSecondary} />
           </Pressable>
         </View>
@@ -137,63 +251,133 @@ export function ChatComposer({ onSend, onTyping, replyingTo, onClearReply }: Pro
         <EmojiPicker onClose={() => setEmojiOpen(false)} onSelect={handleEmojiSelect} />
       )}
 
-      <View style={styles.inputRow}>
-        {/* Attachment button */}
-        <Pressable
-          onPress={handlePickImage}
-          style={styles.emojiBtn}>
-          <Icon name="attach" size={20} color={theme.textSecondary} />
-        </Pressable>
+      {/* Đang ghi âm — thay ô nhập */}
+      {voice.recording ? (
+        <View
+          style={[
+            styles.recordBar,
+            { backgroundColor: theme.bgSecondary, borderColor: theme.border },
+          ]}>
+          <View style={[styles.recDot, { backgroundColor: theme.danger }]} />
+          <ThemedText style={[styles.recTime, { color: theme.text }]}>
+            {t('chat.recording')} {formatAudioTime(voice.elapsedSec)}
+          </ThemedText>
+          <View style={styles.barSpacer} />
+          <Pressable onPress={handleCancelRecording} hitSlop={8} style={styles.barAction}>
+            <Icon name="close" size={22} color={theme.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={handleStopRecording}
+            style={[styles.barAction, { backgroundColor: theme.primary }]}>
+            <Icon name="stop" size={18} color="#FFF" />
+          </Pressable>
+        </View>
+      ) : voicePreview ? (
+        /* Đã ghi xong — nghe lại trước khi gửi */
+        <View style={styles.previewRow}>
+          <VoicePlayer
+            uri={voicePreview.uri}
+            durationSeconds={voicePreview.durationSec}
+            style={styles.previewPlayer}
+          />
+          <View style={styles.barSpacer} />
+          <Pressable
+            onPress={() => setVoicePreview(null)}
+            hitSlop={8}
+            style={styles.barAction}>
+            <Icon name="close" size={22} color={theme.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={handleSendVoice}
+            style={[styles.barAction, { backgroundColor: theme.primary }]}>
+            <Icon name="sendFilled" size={18} color="#FFF" />
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.inputRow}>
+          {/* Attachment button */}
+          <Pressable
+            onPress={handlePickImage}
+            style={styles.emojiBtn}>
+            <Icon name="attach" size={20} color={theme.textSecondary} />
+          </Pressable>
 
-        {/* Emoji button — mở panel inline phía trên ô nhập (bàn phím tắt trước) */}
-        <Pressable
-          onPress={() => {
-            setGifOpen(false);
-            inputRef.current?.blur();
-            Keyboard.dismiss();
-            setEmojiOpen((prev) => !prev);
-          }}
-          style={[styles.emojiBtn, emojiOpen && { backgroundColor: theme.bgSecondary }]}>
-          <Icon name="smile" size={20} color={theme.textSecondary} />
-        </Pressable>
+          {/* Emoji button — mở panel inline phía trên ô nhập (bàn phím tắt trước) */}
+          <Pressable
+            onPress={() => {
+              setGifOpen(false);
+              inputRef.current?.blur();
+              Keyboard.dismiss();
+              setEmojiOpen((prev) => !prev);
+            }}
+            style={[styles.emojiBtn, emojiOpen && { backgroundColor: theme.bgSecondary }]}>
+            <Icon name="smile" size={20} color={theme.textSecondary} />
+          </Pressable>
 
-        {/* GIF button */}
-        <Pressable
-          onPress={() => {
-            setEmojiOpen(false);
-            setGifOpen((prev) => !prev);
-          }}
-          accessibilityLabel={t('composer.gif')}
-          style={[styles.emojiBtn, gifOpen && { backgroundColor: theme.bgSecondary }]}>
-          <Icon name="gif" size={20} color={theme.textSecondary} />
-        </Pressable>
+          {/* GIF button */}
+          <Pressable
+            onPress={() => {
+              setEmojiOpen(false);
+              setGifOpen((prev) => !prev);
+            }}
+            accessibilityLabel={t('composer.gif')}
+            style={[styles.emojiBtn, gifOpen && { backgroundColor: theme.bgSecondary }]}>
+            <Icon name="gif" size={20} color={theme.textSecondary} />
+          </Pressable>
 
-        <TextInput
-          ref={inputRef}
-          style={[styles.input, { color: theme.text, backgroundColor: theme.bgSecondary, borderColor: theme.border }]}
-          value={text}
-          onChangeText={handleChangeText}
-          onFocus={() => setEmojiOpen(false)}
-          placeholder={t('chat.placeholder')}
-          placeholderTextColor={theme.textSecondary}
-          multiline
-          maxLength={2000}
-        />
-        <Pressable
-          onPress={handleSend}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            {
-              backgroundColor: text.trim() || attachments.length > 0 ? theme.primary : theme.bgSecondary,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-          disabled={!text.trim() && attachments.length === 0}>
-          <View>
-            <View style={[styles.sendIcon, { borderColor: text.trim() || attachments.length > 0 ? '#FFF' : theme.textSecondary }]} />
-          </View>
-        </Pressable>
-      </View>
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: theme.text, backgroundColor: theme.bgSecondary, borderColor: theme.border }]}
+            value={text}
+            onChangeText={handleChangeText}
+            onFocus={() => setEmojiOpen(false)}
+            placeholder={t('chat.placeholder')}
+            placeholderTextColor={theme.textSecondary}
+            multiline
+            maxLength={2000}
+          />
+          {canRecordVoice ? (
+            /* Ô nhập trống → mic ghi âm (giống WhatsApp/Telegram) */
+            <Pressable
+              onPress={handleMicPress}
+              accessibilityLabel={t('chat.voiceMessage')}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                { backgroundColor: theme.primary, opacity: pressed ? 0.7 : 1 },
+              ]}>
+              <Icon name="mic" size={20} color="#FFF" />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleSend}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                {
+                  backgroundColor:
+                    text.trim() || attachments.length > 0 || forwardStickerReady
+                      ? theme.primary
+                      : theme.bgSecondary,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+              disabled={!text.trim() && attachments.length === 0 && !forwardStickerReady}>
+              <View>
+                <View
+                  style={[
+                    styles.sendIcon,
+                    {
+                      borderColor:
+                        text.trim() || attachments.length > 0 || forwardStickerReady
+                          ? '#FFF'
+                          : theme.textSecondary,
+                    },
+                  ]}
+                />
+              </View>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* GIF picker */}
       <GiphyGifPicker visible={gifOpen} onClose={() => setGifOpen(false)} onSelect={handleGifSelect} />
@@ -304,6 +488,47 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.sm,
+    marginVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  recDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  recTime: {
+    ...Typography.body,
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  previewPlayer: {
+    width: 160,
+  },
+  barSpacer: {
+    flex: 1,
+  },
+  barAction: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
