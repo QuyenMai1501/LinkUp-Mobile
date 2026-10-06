@@ -13,6 +13,7 @@ import { useNavigation, useRouter } from 'expo-router';
 
 import CommentSheet from '@/components/comment-sheet';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
+import { ShareOptionsSheet } from '@/components/share-options-sheet';
 import { feedPostCache } from '@/components/feed';
 import MediaViewer from '@/components/media-viewer';
 import PostCard from '@/components/post-card';
@@ -86,6 +87,9 @@ export default function SavedScreen() {
 
   // Share-to-chat state
   const [sharePostId, setSharePostId] = useState<string | null>(null);
+
+  // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
+  const [shareSheetPost, setShareSheetPost] = useState<FeedPost | null>(null);
 
   const fetchNext = useCallback(async () => {
     if (loadingRef.current) return;
@@ -205,14 +209,14 @@ export default function SavedScreen() {
 
   // Share handler: Đăng lại (repost) hoặc Gửi vào chat
   const doRepost = useCallback(
-    async (post: FeedPost) => {
+    async (post: FeedPost, content?: string) => {
       setPosts((prev) =>
         prev.map((p) =>
           p.id === post.id ? { ...p, is_shared: true, shares_count: p.shares_count + 1 } : p,
         ),
       );
       try {
-        await sharePost(post.id);
+        await sharePost(post.id, content);
         Alert.alert(t('postDetail.shared'));
       } catch {
         setPosts((prev) =>
@@ -228,16 +232,9 @@ export default function SavedScreen() {
     [t],
   );
 
-  const handleShare = useCallback(
-    (post: FeedPost) => {
-      Alert.alert(t('post.share'), undefined, [
-        { text: t('post.repost'), onPress: () => doRepost(post) },
-        { text: t('post.shareToFriend'), onPress: () => setSharePostId(post.id) },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
-    },
-    [t, doRepost],
-  );
+  const handleShare = useCallback((post: FeedPost) => {
+    setShareSheetPost(post);
+  }, []);
 
   // Media viewer like/save handlers
   const handleMediaLike = useCallback(() => {
@@ -418,6 +415,18 @@ export default function SavedScreen() {
           onClose={handleCloseComments}
         />
       )}
+
+      {/* Share options: Đăng lại / Gửi cho bạn bè */}
+      <ShareOptionsSheet
+        visible={shareSheetPost !== null}
+        onClose={() => setShareSheetPost(null)}
+        onRepost={(content) => {
+          if (shareSheetPost) doRepost(shareSheetPost, content);
+        }}
+        onSendToFriend={() => {
+          if (shareSheetPost) setSharePostId(shareSheetPost.id);
+        }}
+      />
 
       {/* Share post to chat */}
       <ShareToChatModal

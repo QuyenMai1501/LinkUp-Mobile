@@ -18,6 +18,7 @@ import CommentItem, { buildCommentTree } from '@/components/comment-item';
 import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
+import { ShareOptionsSheet } from '@/components/share-options-sheet';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAuth } from '@/contexts/auth-context';
@@ -109,6 +110,8 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const [commentSort, setCommentSort] = useState<CommentSort>('newest');
   const [mediaIndex, setMediaIndex] = useState(0);
   const [shareToChatPostId, setShareToChatPostId] = useState<string | null>(null);
+  // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
@@ -281,10 +284,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     }
   };
 
-  const doRepost = async () => {
+  const doRepost = async (content?: string) => {
     if (!post) return;
     try {
-      await sharePost(post.id);
+      await sharePost(post.id, content);
       setPost((prev) =>
         prev
           ? { ...prev, shares_count: prev.shares_count + 1, is_shared: true }
@@ -296,14 +299,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     }
   };
 
-  // Hiện action sheet — Đăng lại (repost) hoặc Gửi vào chat
+  // Hiện bottom sheet — Đăng lại (repost) hoặc Gửi vào chat
   const handleShare = () => {
     if (!post) return;
-    Alert.alert(t('post.share'), undefined, [
-      { text: t('post.repost'), onPress: doRepost },
-      { text: t('post.shareToFriend'), onPress: () => setShareToChatPostId(post.id) },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    setShareSheetVisible(true);
   };
 
   const handleDelete = () => {
@@ -613,6 +612,18 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
           submitting={submittingComment}
+        />
+
+        {/* Share options: Đăng lại / Gửi cho bạn bè */}
+        <ShareOptionsSheet
+          visible={shareSheetVisible}
+          onClose={() => setShareSheetVisible(false)}
+          onRepost={(content) => {
+            doRepost(content);
+          }}
+          onSendToFriend={() => {
+            if (post) setShareToChatPostId(post.id);
+          }}
         />
 
         {/* Share post to chat */}

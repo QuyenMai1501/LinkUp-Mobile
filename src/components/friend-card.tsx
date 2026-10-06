@@ -16,6 +16,10 @@ type FriendCardProps = {
   actionLoading?: boolean;
   actionVariant?: 'primary' | 'danger' | 'ghost';
   actionDisabled?: boolean;
+  /** Bấm vào cả thẻ (dùng cho selection, vd chọn bạn bè để chia sẻ). */
+  onPress?: () => void;
+  /** Thay nút hành động mặc định bằng node tùy chọn (vd ô tick chọn). */
+  action?: ReactNode;
 };
 
 export default function FriendCard({
@@ -28,6 +32,8 @@ export default function FriendCard({
   actionLoading = false,
   actionVariant = 'primary',
   actionDisabled = false,
+  onPress,
+  action,
 }: FriendCardProps) {
   const theme = useTheme();
 
@@ -51,7 +57,13 @@ export default function FriendCard({
         : '#FFFFFF';
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: theme.card, borderColor: theme.border },
+        pressed && onPress && styles.cardPressed,
+      ]}>
       <View style={[styles.avatar, { backgroundColor: theme.primaryLight }]}>
         {avatarUri ? (
           <Image
@@ -77,35 +89,37 @@ export default function FriendCard({
         ) : null}
       </View>
 
-      <Pressable
-        onPress={onAction}
-        disabled={actionDisabled || actionLoading}
-        style={({ pressed }) => [
-          styles.actionBtn,
-          {
-            backgroundColor: actionBg,
-            borderColor: actionBorder,
-          },
-          pressed && !actionDisabled && styles.actionPressed,
-          actionDisabled && styles.actionDisabled,
-        ]}>
-        {actionLoading ? (
-          <ActivityIndicator color={actionTextColor} size="small" />
-        ) : (
-          <ThemedText style={[styles.actionLabel, { color: actionTextColor }]}>
-            {actionIcon ? (
-              <>
-                {actionIcon}
-                {' '}
-                {actionLabel}
-              </>
-            ) : (
-              actionLabel
-            )}
-          </ThemedText>
-        )}
-      </Pressable>
-    </View>
+      {action ?? (
+        <Pressable
+          onPress={onAction}
+          disabled={actionDisabled || actionLoading}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            {
+              backgroundColor: actionBg,
+              borderColor: actionBorder,
+            },
+            pressed && !actionDisabled && styles.actionPressed,
+            actionDisabled && styles.actionDisabled,
+          ]}>
+          {actionLoading ? (
+            <ActivityIndicator color={actionTextColor} size="small" />
+          ) : (
+            <ThemedText style={[styles.actionLabel, { color: actionTextColor }]}>
+              {actionIcon ? (
+                <>
+                  {actionIcon}
+                  {' '}
+                  {actionLabel}
+                </>
+              ) : (
+                actionLabel
+              )}
+            </ThemedText>
+          )}
+        </Pressable>
+      )}
+    </Pressable>
   );
 }
 
@@ -117,6 +131,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     gap: Spacing.md,
+  },
+  cardPressed: {
+    opacity: 0.7,
   },
   avatar: {
     width: 48,
