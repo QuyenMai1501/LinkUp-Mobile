@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   runOnJS,
 } from 'react-native-reanimated';
 
@@ -32,6 +34,11 @@ import type { CommentItem as CommentItemType, EmojiItem, CommentSort } from '../
 
 const COMMENT_PAGE_SIZE = 10;
 const DISMISS_THRESHOLD = 100;
+// Đóng nhanh như media-viewer: ~0,22s thay vì spring nặng (1-2s).
+const CLOSE_TIMING = { duration: 220, easing: Easing.out(Easing.cubic) } as const;
+const OPEN_TIMING = { duration: 260, easing: Easing.out(Easing.cubic) } as const;
+// Tham chiếu kéo để backdrop mờ dần / sheet scale (px).
+const DRAG_REFERENCE = 300;
 
 let likeEmojiIdPromise: Promise<string | undefined> | undefined;
 
@@ -77,7 +84,10 @@ export default function CommentSheet({
   const loadingMoreRef = useRef(false);
   const commentsLenRef = useRef(0);
 
-  const translateY = useSharedValue(400);
+  // Khởi tạo ngoài màn hình (900) để mở vào slide-up thay vì nhảy ra.
+  const translateY = useSharedValue(900);
+  const backdropOpacity = useSharedValue(1);
+  const scale = useSharedValue(1);
 
   const handleDismiss = useCallback(() => {
     onClose();
@@ -86,50 +96,93 @@ export default function CommentSheet({
   const dismissWorklet = useCallback(() => {
     'worklet';
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = withSpring(800, { damping: 30, stiffness: 300 }, (finished) => {
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
       if (finished) {
         runOnJS(handleDismiss)();
       }
     });
-  }, [handleDismiss, translateY]);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetY(10)
-    .onUpdate((e) => {
-      if (e.translationY > 0 && scrollOffsetY.current <= 0) {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = e.translationY;
-      }
-    })
-    .onEnd((e) => {
-      if (
-        (e.translationY > DISMISS_THRESHOLD && scrollOffsetY.current <= 0) ||
-        (e.velocityY > 500 && scrollOffsetY.current <= 0)
-      ) {
-        dismissWorklet();
-      } else {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = withSpring(0, { damping: 20 });
-      }
-    });
+  // Gesture cuộn native của FlatList — pan của sheet chạy song song với nó
+  // (pattern y hệt media-viewer) để vuốt xuống không bị gesture cuộn nuốt.
+  const nativeScrollGesture = useMemo(() => Gesture.Native(), []);
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(10)
+        .simultaneousWithExternalGesture(nativeScrollGesture)
+        .onUpdate((e) => {
+          if (e.translationY > 0 && scrollOffsetY.current <= 2) {
+            // eslint-disable-next-line react-hooks/immutability
+            translateY.value = e.translationY;
+
+            const progress = Math.min(e.translationY / DRAG_REFERENCE, 1);
+
+            // eslint-disable-next-line react-hooks/immutability
+            backdropOpacity.value = 1 - progress * 0.85;
+            // eslint-disable-next-line react-hooks/immutability
+            scale.value = 1 - progress * 0.02;
+          }
+        })
+        .onEnd((e) => {
+          const atTop = scrollOffsetY.current <= 2;
+
+          if (
+            e.translationY > 0 &&
+            atTop &&
+            (e.translationY >= DISMISS_THRESHOLD || e.velocityY >= 500)
+          ) {
+            dismissWorklet();
+            return;
+          }
+
+          // eslint-disable-next-line react-hooks/immutability
+          translateY.value = withSpring(0, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          backdropOpacity.value = withSpring(1, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          scale.value = withSpring(1, { damping: 20 });
+        }),
+    [nativeScrollGesture, translateY, backdropOpacity, scale, dismissWorklet],
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
   }));
 
   const handleOpen = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = 0;
-  }, [translateY]);
+    translateY.value = withTiming(0, OPEN_TIMING);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = 1;
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = 1;
+  }, [translateY, backdropOpacity, scale]);
 
   const handleClose = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = withSpring(800, { damping: 30, stiffness: 300 }, (finished) => {
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
       if (finished) {
         runOnJS(handleDismiss)();
       }
     });
-  }, [handleDismiss, translateY]);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
 
   useEffect(() => {
     if (visible) {
@@ -247,8 +300,10 @@ export default function CommentSheet({
 
   return (
     <Modal visible={visible} transparent statusBarTranslucent>
-      {/* Backdrop — absolute, taps to close */}
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+      {/* Backdrop — bấm để đóng; opacity animate theo mức vuốt */}
+      <Pressable style={styles.backdropHit} onPress={handleClose}>
+        <Animated.View style={[styles.backdrop, backdropAnimatedStyle]} />
+      </Pressable>
 
       {/* Sheet container — flex child, KeyboardAvoidingView pushes up when keyboard opens */}
       <KeyboardAvoidingView
@@ -272,41 +327,44 @@ export default function CommentSheet({
               <ThemedText style={styles.headerTitle}>{t('postDetail.comments')}</ThemedText>
             </View>
 
-            {/* Comments list — FlatList handles its own scrolling */}
-            <FlatList
-              ref={flatListRef}
-              data={commentTree}
-              keyExtractor={(item) => item.comment.id}
-              renderItem={({ item }) => (
-                <CommentItem
-                  node={item}
-                  postUserId={postUserId}
-                  allComments={comments}
-                  onLike={handleToggleCommentLike}
-                  onReply={setReplyingTo}
-                />
-              )}
-              onScroll={handleScroll}
-              onEndReached={() => {
-                if (hasMoreRef.current) loadMoreComments();
-              }}
-              onEndReachedThreshold={0.5}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                !commentsLoading ? (
-                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                    {t('postDetail.noComments')}
-                  </ThemedText>
-                ) : null
-              }
-              ListFooterComponent={
-                commentsLoading && hasMoreRef.current ? (
-                  <View style={styles.loadingMore}>
-                    <ThemedText themeColor="textSecondary">⏳</ThemedText>
-                  </View>
-                ) : null
-              }
-            />
+            {/* Comments list — FlatList cuộn qua Gesture.Native riêng,
+                pan dismiss chạy song song (không tranh chấp) */}
+            <GestureDetector gesture={nativeScrollGesture}>
+              <FlatList
+                ref={flatListRef}
+                data={commentTree}
+                keyExtractor={(item) => item.comment.id}
+                renderItem={({ item }) => (
+                  <CommentItem
+                    node={item}
+                    postUserId={postUserId}
+                    allComments={comments}
+                    onLike={handleToggleCommentLike}
+                    onReply={setReplyingTo}
+                  />
+                )}
+                onScroll={handleScroll}
+                onEndReached={() => {
+                  if (hasMoreRef.current) loadMoreComments();
+                }}
+                onEndReachedThreshold={0.5}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                  !commentsLoading ? (
+                    <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                      {t('postDetail.noComments')}
+                    </ThemedText>
+                  ) : null
+                }
+                ListFooterComponent={
+                  commentsLoading && hasMoreRef.current ? (
+                    <View style={styles.loadingMore}>
+                      <ThemedText themeColor="textSecondary">⏳</ThemedText>
+                    </View>
+                  ) : null
+                }
+              />
+            </GestureDetector>
 
             {/* Comment input */}
             <CommentInput
@@ -326,6 +384,9 @@ export default function CommentSheet({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  backdropHit: {
+    ...StyleSheet.absoluteFill,
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',
