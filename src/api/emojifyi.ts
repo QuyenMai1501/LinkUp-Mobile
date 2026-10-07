@@ -17,9 +17,6 @@
 const EMOJIFYI_API = 'https://emojifyi.com/api';
 const EMOJIFYI_CDN = 'https://cdn.emojifyi.com/images/platforms';
 
-/** Số emoji trả mỗi lần gọi (browse slice / search slice). */
-const PAGE_SIZE = 50;
-
 export interface EmojiOption {
   /** slug emojifyi (vd "grinning-face") — dùng làm key. */
   id: string;
@@ -78,23 +75,20 @@ interface SearchResponse {
   results?: SearchItem[];
 }
 
-interface CategorySummary {
+/** 1 category từ /api/categories/ — `icon` là ký tự unicode (vd "😀"). */
+export interface EmojiCategory {
   slug: string;
   name: string;
+  icon: string;
   emoji_count: number;
 }
 
 interface CategoriesResponse {
-  categories?: CategorySummary[];
+  categories?: EmojiCategory[];
 }
 
 interface CategoryDetail {
   emojis?: SearchItem[];
-}
-
-export interface FetchEmojisResult {
-  items: EmojiOption[];
-  hasMore: boolean;
 }
 
 function toOption(r: SearchItem): EmojiOption {
@@ -113,13 +107,10 @@ async function emojifyiGet<T>(path: string, params: Record<string, string> = {})
 // --- Cache (bắt buộc: rate limit 60 req/phút/IP) ---
 
 const searchCache = new Map<string, EmojiOption[]>();
-let categoriesCache: CategorySummary[] | null = null;
+let categoriesCache: EmojiCategory[] | null = null;
 const categoryCache = new Map<string, EmojiOption[]>();
-/** Danh sách browse dồn lại (các category nạp dần theo scroll). */
-let browseItems: EmojiOption[] | null = null;
-let browseSlugs: Set<string> | null = null;
-/** Index category kế tiếp sẽ nạp vào browseItems. */
-let browseCategoryIdx = 0;
+/** Request đang chạy per-slug — dedup khi user bấm tab đúng lúc prefetch. */
+const categoryInflight = new Map<string, Promise<EmojiOption[]>>();
 
 async function searchCached(query: string): Promise<EmojiOption[]> {
   const hit = searchCache.get(query);
@@ -130,7 +121,7 @@ async function searchCached(query: string): Promise<EmojiOption[]> {
   return items;
 }
 
-async function getCategories(): Promise<CategorySummary[]> {
+async function getCategories(): Promise<EmojiCategory[]> {
   if (categoriesCache) return categoriesCache;
   const data = await emojifyiGet<CategoriesResponse>('/categories/');
   categoriesCache = (data.categories ?? []).filter((c) => c.emoji_count > 0);
@@ -140,56 +131,45 @@ async function getCategories(): Promise<CategorySummary[]> {
 async function getCategoryEmojis(slug: string): Promise<EmojiOption[]> {
   const hit = categoryCache.get(slug);
   if (hit) return hit;
-  const data = await emojifyiGet<CategoryDetail>(`/category/${slug}/`);
-  const items = (data.emojis ?? []).map(toOption);
-  categoryCache.set(slug, items);
-  return items;
+  const inflight = categoryInflight.get(slug);
+  if (inflight) return inflight;
+  const promise = emojifyiGet<CategoryDetail>(`/category/${slug}/`)
+    .then((data) => {
+      const items = (data.emojis ?? []).map(toOption);
+      categoryCache.set(slug, items);
+      return items;
+    })
+    .finally(() => {
+      categoryInflight.delete(slug);
+    });
+  categoryInflight.set(slug, promise);
+  return promise;
 }
 
-/** Nạp tiếp 1 category vào cuối danh sách browse. Trả false khi hết category. */
-async function appendNextCategory(): Promise<boolean> {
-  const cats = await getCategories();
-  if (browseCategoryIdx >= cats.length) return false;
-  const emojis = await getCategoryEmojis(cats[browseCategoryIdx].slug);
-  browseCategoryIdx += 1;
-  for (const e of emojis) {
-    if (!browseSlugs!.has(e.id)) {
-      browseSlugs!.add(e.id);
-      browseItems!.push(e);
-    }
-  }
-  return true;
+/** Danh sách category cho tab bar (đã lọc category rỗng, cache 1 lần/phiên). */
+export async function fetchEmojiCategories(): Promise<EmojiCategory[]> {
+  return getCategories();
+}
+
+/** Emoji của 1 category (cache per-slug — mở lại là tức thì). */
+export async function fetchCategoryEmojis(slug: string): Promise<EmojiOption[]> {
+  return getCategoryEmojis(slug);
 }
 
 /**
- * Lấy emoji cho picker — cùng contract với fetchGiphyEmojis cũ:
- *  - có q  -> /api/search/ (tối đa 50 kq, slice theo offset)
- *  - không q -> browse: nạp category dần khi scroll (không fetch lại đã xem)
+ * Tìm emoji — /api/search/ trả tối đa 50 kq, KHÔNG pagination.
+ * Giữ nguyên contract trả thẳng mảng (không slice theo offset).
  */
-export async function fetchEmojifyiEmojis(
-  opts: { q?: string; offset?: number } = {},
-): Promise<FetchEmojisResult> {
-  const query = opts.q?.trim();
-  const offset = opts.offset ?? 0;
+export async function searchEmojis(query: string): Promise<EmojiOption[]> {
+  return searchCached(query.trim());
+}
 
-  if (query) {
-    const all = await searchCached(query);
-    const page = all.slice(offset, offset + PAGE_SIZE);
-    return { items: page, hasMore: offset + page.length < all.length };
-  }
-
-  if (!browseItems) {
-    browseItems = [];
-    browseSlugs = new Set();
-    browseCategoryIdx = 0;
-  }
-  // Đảm bảo đủ dữ liệu cho trang kế tiếp.
-  while (browseItems.length < offset + PAGE_SIZE && (await appendNextCategory())) {
-    // tiếp tục nạp category
-  }
-  const page = browseItems.slice(offset, offset + PAGE_SIZE);
-  const moreCategories = browseCategoryIdx < (categoriesCache?.length ?? 0);
-  return { items: page, hasMore: offset + page.length < browseItems.length || moreCategories };
+/**
+ * Nạp sẵn 1 category vào cache (fire-and-forget, nuốt lỗi).
+ * Dùng cho prefetch nền — không setState, không ảnh hưởng UI.
+ */
+export function prefetchCategoryEmojis(slug: string): void {
+  void getCategoryEmojis(slug).catch(() => {});
 }
 
 /** Xóa toàn bộ cache (dùng cho test/reset). */
@@ -197,7 +177,5 @@ export function clearEmojifyiCache(): void {
   searchCache.clear();
   categoriesCache = null;
   categoryCache.clear();
-  browseItems = null;
-  browseSlugs = null;
-  browseCategoryIdx = 0;
+  categoryInflight.clear();
 }

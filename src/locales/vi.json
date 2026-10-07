@@ -609,6 +609,7 @@
     "emoji": "Biểu tượng cảm xúc",
     "emojiSearch": "Tìm emoji...",
     "emojiEmpty": "Không tìm thấy emoji nào",
+    "emojiRetry": "Chạm để thử lại",
     "gifError": "Không tải được GIF, thử lại sau",
     "gifMissingKey": "Thiếu GIPHY_API_KEY",
     "gif": "GIF",
