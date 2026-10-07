@@ -39,6 +39,8 @@ export interface ChatMessage {
   // Client-only: trạng thái gửi optimistic (không có trên server).
   sending?: boolean;
   failed?: boolean;
+  // Client-only: đang upload file media local (bubble hiện trước khi WS gửi).
+  uploading?: boolean;
   created_at: string;
 }
 

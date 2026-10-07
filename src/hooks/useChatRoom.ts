@@ -5,6 +5,7 @@ import type {
   HistoryCursor,
   MessageReaction,
   PinnedMessage,
+  ReplyPreview,
   SendMessageOptions,
 } from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -94,6 +95,25 @@ function mergePinned(prev: PinnedMessage[], chunk: PinnedMessage[]): PinnedMessa
   return changed ? [...byId.values()] : prev;
 }
 
+// Options cho luồng upload media 2 phase: bubble hiện ngay với file local,
+// upload chạy nền, WS gửi sau khi upload xong.
+export interface BeginMediaUploadOptions {
+  localUri: string;
+  mediaType: string;
+  content?: string;
+  durationSeconds?: number;
+  replyTo?: ReplyPreview | null;
+  replyToMessageId?: string;
+}
+
+// Kết quả upload server trả về, ghi vào bubble rồi mới gửi wire.
+export interface UploadedMediaInfo {
+  mediaId: string;
+  mediaUri: string;
+  mediaType: string;
+  durationSeconds?: number;
+}
+
 export interface ChatRoom {
   messages: ChatMessage[];
   loading: boolean;
@@ -110,6 +130,18 @@ export interface ChatRoom {
   retryMessage: (messageId: string) => void;
   // Bỏ tin thất bại khỏi danh sách.
   discardMessage: (messageId: string) => void;
+  // Luồng media 2 phase: append bubble local trước (uploading=true, chưa đưa
+  // vào hàng đợi echo), upload nền do caller chạy, xong mới complete để gửi WS.
+  beginMediaUpload: (opts: BeginMediaUploadOptions) => string | null;
+  completeMediaUpload: (
+    tempId: string,
+    uploaded: UploadedMediaInfo,
+    opts?: { content?: string; replyToMessageId?: string },
+  ) => Promise<void>;
+  // Upload thất bại → bubble failed (job do caller giữ để retry upload lại).
+  failUpload: (tempId: string) => void;
+  // Đánh dấu bubble failed của upload quay lại trạng thái uploading (retry).
+  markSending: (tempId: string) => void;
   // Toggle reaction emoji trên một tin nhắn.
   reactToMessage: (messageId: string, emojiId: string) => void;
   loadMoreMessages: () => void;
@@ -156,6 +188,9 @@ export function useChatRoom({
   const pendingPayloadsRef = useRef<Map<string, Record<string, unknown>>>(new Map());
   // Timer timeout đánh dấu tin gửi thất bại theo tempId.
   const sendTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // chatId gốc của từng bubble upload dở — complete phải gửi đúng chat đã bắt
+  // đầu upload kể cả khi người dùng đã điều hướng sang chat khác.
+  const mediaUploadChatsRef = useRef<Map<string, string>>(new Map());
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const activeChatIdRef = useRef<string | null>(null);
@@ -187,7 +222,9 @@ export function useChatRoom({
       pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== tempId);
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === tempId && m.sending ? { ...m, sending: false, failed: true } : m,
+          m.id === tempId && m.sending
+            ? { ...m, sending: false, failed: true, uploading: false }
+            : m,
         ),
       );
     },
@@ -210,6 +247,26 @@ export function useChatRoom({
       sendTimeoutsRef.current.set(tempId, timer);
     },
     [clearSendTimeout],
+  );
+
+  // Gửi wire payload: push hàng đợi echo + lưu payload retry + socket.send.
+  // push XẢY RA Ở ĐÂY (tại thời điểm gửi) — nếu push từ lúc append bubble,
+  // echo của tin gửi sau có thể shift nhầm temp khi tin trước còn upload/encrypt.
+  const sendWire = useCallback(
+    (tempId: string, wire: Record<string, unknown>, wireChatId: string) => {
+      pendingPayloadsRef.current.set(tempId, wire);
+      // Đang ở chat khác → echo bị lọc theo chat_id và hàng đợi thuộc chat hiện
+      // tại, không được push (tránh rò queue); vẫn gửi để không mất tin.
+      if (chatIdRef.current === wireChatId) {
+        pendingIdsRef.current.push(tempId);
+      }
+      if (!socket.send('message:send', wire)) {
+        markSendFailed(tempId);
+      } else {
+        armSendTimeout(tempId);
+      }
+    },
+    [socket, markSendFailed, armSendTimeout],
   );
 
   const decryptIncoming = useCallback(
@@ -572,7 +629,6 @@ export function useChatRoom({
         forwarded_from: opts?.forwardedFrom ?? null,
         created_at: new Date().toISOString(),
       };
-      pendingIdsRef.current.push(tempId);
       setMessages((prev) => [...prev, optimistic]);
 
       void (async () => {
@@ -604,16 +660,12 @@ export function useChatRoom({
         if (opts?.durationSeconds) wire.duration_seconds = opts.durationSeconds;
         if (opts?.forwardedFrom) wire.forwarded_from = opts.forwardedFrom;
 
-        // Giữ wire payload cho retry (không encrypt lại) + arm timeout A2.
-        pendingPayloadsRef.current.set(tempId, wire);
-        if (!socket.send('message:send', wire)) {
-          markSendFailed(tempId);
-        } else {
-          armSendTimeout(tempId);
-        }
+        // Giữ wire payload cho retry (không encrypt lại) + push hàng đợi echo
+        // + arm timeout A2 — làm tại thời điểm gửi (xem sendWire).
+        sendWire(tempId, wire, chatId);
       })();
     },
-    [chatId, myUserId, socket, encryption, e2eStatus, t, markSendFailed, armSendTimeout],
+    [chatId, myUserId, encryption, e2eStatus, t, sendWire],
   );
 
   const retryMessage = useCallback(
@@ -623,24 +675,126 @@ export function useChatRoom({
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, sending: true, failed: false } : m)),
       );
-      pendingIdsRef.current.push(messageId);
-      if (!socket.send('message:send', wire)) {
-        markSendFailed(messageId);
-      } else {
-        armSendTimeout(messageId);
-      }
+      sendWire(messageId, wire, chatId ?? '');
     },
-    [socket, markSendFailed, armSendTimeout],
+    [chatId, sendWire],
   );
 
   const discardMessage = useCallback(
     (messageId: string) => {
       clearSendTimeout(messageId);
       pendingPayloadsRef.current.delete(messageId);
+      mediaUploadChatsRef.current.delete(messageId);
       pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     },
     [clearSendTimeout],
+  );
+
+  // PHASE 1: append bubble optimistic với file local, CHƯNG push hàng đợi echo
+  // và CHƯNG arm timeout — chờ completeMediaUpload sau khi upload xong.
+  const beginMediaUpload = useCallback(
+    (opts: BeginMediaUploadOptions): string | null => {
+      if (!chatId) return null;
+      tempSeqRef.current += 1;
+      const tempId = `temp-${tempSeqRef.current}`;
+      const optimistic: ChatMessage = {
+        id: tempId,
+        chat_id: chatId,
+        sender_id: myUserId,
+        content: opts.content ?? '',
+        media_id: null,
+        media_uri: opts.localUri,
+        media_type: opts.mediaType,
+        duration_seconds: opts.durationSeconds ?? null,
+        reply_to: opts.replyTo ?? null,
+        reply_to_message_id: opts.replyToMessageId ?? null,
+        is_anonymized: false,
+        sending: true,
+        uploading: true,
+        created_at: new Date().toISOString(),
+      };
+      mediaUploadChatsRef.current.set(tempId, chatId);
+      setMessages((prev) => [...prev, optimistic]);
+      return tempId;
+    },
+    [chatId, myUserId],
+  );
+
+  // PHASE 2: upload xong → ghi media server vào bubble rồi gửi WS.
+  const completeMediaUpload = useCallback(
+    async (
+      tempId: string,
+      uploaded: UploadedMediaInfo,
+      opts?: { content?: string; replyToMessageId?: string },
+    ): Promise<void> => {
+      const wireChatId = mediaUploadChatsRef.current.get(tempId) ?? chatIdRef.current ?? '';
+      mediaUploadChatsRef.current.delete(tempId);
+
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === tempId);
+        if (idx < 0) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          media_id: uploaded.mediaId,
+          media_uri: uploaded.mediaUri,
+          media_type: uploaded.mediaType,
+          duration_seconds: uploaded.durationSeconds ?? next[idx].duration_seconds,
+          content: opts?.content ?? next[idx].content,
+          uploading: false,
+          sending: true,
+        };
+        return next;
+      });
+
+      let wireContent = opts?.content ?? '';
+      let e2eEncrypted = false;
+      if (encryption?.ready && wireContent !== '') {
+        try {
+          wireContent = await encryption.encrypt(wireContent);
+          e2eEncrypted = true;
+        } catch {
+          // Encrypt fail → gỡ bubble tạm, KHÔNG gửi plaintext âm thầm.
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          Alert.alert(t('chat.e2eEncryptFailed'));
+          return;
+        }
+      }
+
+      const wire: Record<string, unknown> = {
+        chat_id: wireChatId,
+        content: wireContent,
+      };
+      if (e2eEncrypted) wire.e2e_version = 1;
+      wire.media_id = uploaded.mediaId;
+      wire.gif_url = null;
+      wire.reply_to_message_id = opts?.replyToMessageId;
+      if (uploaded.durationSeconds) wire.duration_seconds = uploaded.durationSeconds;
+
+      sendWire(tempId, wire, wireChatId);
+    },
+    [encryption, sendWire, t],
+  );
+
+  const failUpload = useCallback(
+    (tempId: string) => {
+      mediaUploadChatsRef.current.delete(tempId);
+      markSendFailed(tempId);
+    },
+    [markSendFailed],
+  );
+
+  const markSending = useCallback(
+    (tempId: string) => {
+      if (chatId) mediaUploadChatsRef.current.set(tempId, chatId);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId ? { ...m, sending: true, failed: false, uploading: true } : m,
+        ),
+      );
+    },
+    [chatId],
   );
 
   const reactToMessage = useCallback(
@@ -751,6 +905,10 @@ export function useChatRoom({
       unpinMessage,
       retryMessage,
       discardMessage,
+      beginMediaUpload,
+      completeMediaUpload,
+      failUpload,
+      markSending,
       reactToMessage,
       loadMoreMessages,
       searchMessages,
@@ -772,6 +930,10 @@ export function useChatRoom({
       unpinMessage,
       retryMessage,
       discardMessage,
+      beginMediaUpload,
+      completeMediaUpload,
+      failUpload,
+      markSending,
       reactToMessage,
       loadMoreMessages,
       searchMessages,

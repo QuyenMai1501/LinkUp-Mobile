@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { isSingleEmojifyiUrl } from "@/api/emojifyi";
 import {
@@ -429,6 +429,12 @@ export function ChatBubble({
                   {t("chat.sendFailed")}
                 </ThemedText>
               </View>
+            ) : isMine && message.uploading ? (
+              // Đang upload media local (chưa tới lượt WS gửi) — spinner thay ✓.
+              <ActivityIndicator
+                size={11}
+                color={bareBg ? theme.textSecondary : "rgba(255,255,255,0.7)"}
+              />
             ) : isMine && !message.sending ? (
               <ThemedText
                 style={[
