@@ -89,8 +89,10 @@ export interface CreatePostInput {
   mediaUris?: { uri: string; type: string; name: string }[];
   gifUrl?: string;
   communityId?: string;
+  clientKey?: string;
 }
 
 export interface CreatePostResponse {
   data: FeedPost;
+  warnings?: string[];
 }

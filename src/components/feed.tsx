@@ -14,13 +14,18 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
 import MediaViewer from './media-viewer';
 import CommentSheet from './comment-sheet';
-import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
-import { ShareOptionsSheet } from '@/components/share-options-sheet';
-import { getFeedPosts, reactPost, savePost, sharePost, getEmojis } from '../api/posts';
+import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
 const INITIAL_PAGE_SIZE = 2;
 const PAGE_SIZE = 10;
+
+// Ngưỡng impression chuẩn viewable (theo X/MRC cho video):
+// bài hiện ≥50% liên tục 2s mới tính 1 view.
+const VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 50,
+  minimumViewTime: 2000,
+};
 
 // Module-level cache: feed posts keyed by ID, for passing to detail screen
 export const feedPostCache = new Map<string, FeedPost>();
@@ -171,6 +176,16 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     }
   };
 
+  // Báo impression khi bài hiển thị đủ ngưỡng (khách vãng lai không tính —
+  // trackPostView tự bỏ qua khi không có token).
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: FeedPost }> }) => {
+      for (const { item } of viewableItems) {
+        trackPostView(item.id, 'feed');
+      }
+    },
+  );
+
   // Media modal handlers
   const handleOpenMedia = useCallback((post: FeedPost, index: number) => {
     setMediaModalPost(post);
@@ -301,6 +316,8 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
         }
         onEndReached={commentSheetVisible ? undefined : handleEndReached}
         onEndReachedThreshold={1}
+        viewabilityConfig={VIEWABILITY_CONFIG}
+        onViewableItemsChanged={onViewableItemsChanged.current}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={5}

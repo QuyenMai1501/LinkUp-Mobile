@@ -624,6 +624,7 @@
     "errorTitleLength": "Tiêu đề phải từ 5 đến 150 ký tự",
     "errorContentRequired": "Vui lòng nhập nội dung bài viết",
     "errorMaxLength": "Nội dung không được vượt quá 5000 ký tự",
+    "mediaWarning": "Một số file đính kèm bị bỏ qua",
     "confirmTitle": "Đăng bài viết?",
     "confirmMessage": "Bạn có chắc muốn đăng bài viết này?",
     "success": "Đăng bài thành công!"

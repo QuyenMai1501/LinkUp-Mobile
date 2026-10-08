@@ -624,6 +624,7 @@
     "errorTitleLength": "Title must be between 5 and 150 characters",
     "errorContentRequired": "Please enter post content",
     "errorMaxLength": "Content cannot exceed 5000 characters",
+    "mediaWarning": "Some attachments were skipped",
     "confirmTitle": "Publish post?",
     "confirmMessage": "Are you sure you want to publish this post?",
     "success": "Post created successfully!"
