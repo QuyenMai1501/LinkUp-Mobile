@@ -14,6 +14,8 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import PostCard from './post-card';
 import MediaViewer from './media-viewer';
 import CommentSheet from './comment-sheet';
+import { ShareOptionsSheet } from './share-options-sheet';
+import { ShareToChatModal } from './chat/share-to-chat-modal';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
 import type { FeedPost, EmojiItem } from '../types/post';
 
