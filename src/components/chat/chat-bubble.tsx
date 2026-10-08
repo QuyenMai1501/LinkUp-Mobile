@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { isSingleEmojifyiUrl } from "@/api/emojifyi";
 import {
@@ -190,6 +190,20 @@ export function ChatBubble({
     isSticker ||
     (!isSharedPost &&
       (singleEmoji || singleUnicode || singleEmojiUrl || singleGiphy));
+  // Media thuần (không caption, không thoại), video preview 1 link, gif đơn
+  // -> không khung bọc (cả bg lẫn padding). Có reply/forward (chữ trắng mờ)
+  // thì vẫn giữ khung để đọc được.
+  const hasCaption = !!message.content?.trim();
+  const isVoice = message.media_type?.startsWith('audio/') ?? false;
+  const mediaOnly =
+    !isSharedPost &&
+    (!!message.media_id || !!message.media_uri) &&
+    !hasCaption &&
+    !isVoice;
+  const noFrameBare = mediaOnly || isSingleVideo || singleGiphy;
+  const noFrame = noFrameBare && !message.reply_to && !message.forwarded_from;
+  // Nền trong suốt: các case transparent cũ (sticker/emoji/gif) + case không khung.
+  const bareBg = transparentBubble || noFrame;
   // B5: highlight nhảy tới từ kết quả tìm kiếm — đổi nền để mắt dễ bắt.
   const pressedBg = highlight ? theme.primaryLight : null;
 
@@ -202,11 +216,11 @@ export function ChatBubble({
         style={[
           styles.bubble,
           {
-            backgroundColor:
-              pressedBg ?? (transparentBubble ? "transparent" : bgColor),
+            backgroundColor: pressedBg ?? (bareBg ? "transparent" : bgColor),
             borderBottomRightRadius: isMine ? Radius.sm : Radius.lg,
             borderBottomLeftRadius: isMine ? Radius.lg : Radius.sm,
           },
+          noFrame && styles.bubbleNoFrame,
         ]}>
         {/* Reply snippet */}
         {message.reply_to && (
@@ -351,10 +365,11 @@ export function ChatBubble({
                 style={[
                   styles.reactionChip,
                   {
+                    // bareBg: chip trung tính (chữ trắng 18% sẽ chìm trên nền chat nhạt).
                     backgroundColor: chip.mine
-                      ? isMine
-                        ? "rgba(255,255,255,0.18)"
-                        : theme.primaryLight
+                      ? bareBg || !isMine
+                        ? theme.primaryLight
+                        : "rgba(255,255,255,0.18)"
                       : theme.bgSecondary,
                     borderColor: chip.mine ? theme.primary : theme.border,
                   },
@@ -368,7 +383,10 @@ export function ChatBubble({
                   <ThemedText
                     style={[
                       styles.reactionChipCount,
-                      { color: isMine ? "#FFFFFF" : theme.text },
+                      {
+                        color:
+                          !bareBg && isMine ? "#FFFFFF" : theme.text,
+                      },
                     ]}>
                     {chip.count}
                   </ThemedText>
@@ -393,7 +411,12 @@ export function ChatBubble({
                 style={[
                   styles.time,
                   {
-                    color: isMine ? "rgba(255,255,255,0.7)" : theme.textSecondary,
+                    // bareBg: xám thay vì trắng 70% (trắng biến mất trên nền chat nhạt).
+                    color: bareBg
+                      ? theme.textSecondary
+                      : isMine
+                        ? "rgba(255,255,255,0.7)"
+                        : theme.textSecondary,
                   },
                 ]}>
                 {formatChatTime(message.created_at, t)}
@@ -406,12 +429,18 @@ export function ChatBubble({
                   {t("chat.sendFailed")}
                 </ThemedText>
               </View>
+            ) : isMine && message.uploading ? (
+              // Đang upload media local (chưa tới lượt WS gửi) — spinner thay ✓.
+              <ActivityIndicator
+                size={11}
+                color={bareBg ? theme.textSecondary : "rgba(255,255,255,0.7)"}
+              />
             ) : isMine && !message.sending ? (
               <ThemedText
                 style={[
                   styles.tick,
                   {
-                    color: transparentBubble
+                    color: bareBg
                       ? theme.textSecondary
                       : seen
                         ? "#A5F3FC"
@@ -480,6 +509,10 @@ const styles = StyleSheet.create({
   },
   bubbleDeleted: {
     opacity: 0.6,
+  },
+  bubbleNoFrame: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   replySnippet: {
     borderLeftWidth: 3,

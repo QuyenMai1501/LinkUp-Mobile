@@ -51,7 +51,11 @@ import { useE2ERecovery } from "@/hooks/useE2ERecovery";
 import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
-import type { ChatConversation, ChatMessage } from "@/types/chat";
+import type {
+  ChatConversation,
+  ChatMessage,
+  ReplyPreview,
+} from "@/types/chat";
 import { formatChatDate } from "@/utils/chat";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
@@ -83,6 +87,31 @@ function resolvePrevMsg(
       : undefined;
   }
   return { createdAt: prev.created_at, senderId: prev.sender_id };
+}
+
+// Job upload media local — giữ file để retry nếu upload thất bại (chưa có
+// wire payload trên server nên retryMessage gửi lại không được).
+type UploadJob = {
+  file: { uri: string; name: string; type: string };
+  durationSeconds?: number;
+  caption?: string;
+  replyToMessageId?: string;
+};
+
+// Preview reply cho bubble optimistic — content trong list tin đã giải mã
+// nên render raw (không set e2e_version/decrypting).
+function buildReplyPreview(
+  m: ChatMessage,
+  senderLabel: string,
+): ReplyPreview {
+  return {
+    id: m.id,
+    content: m.content ?? "",
+    sender_id: m.sender_id,
+    sender_name: senderLabel,
+    sender_avatar: m.sender_avatar ?? "",
+    decrypted: true,
+  };
 }
 
 export default function ChatScreen() {
@@ -303,6 +332,49 @@ export default function ChatScreen() {
     [timeline],
   );
 
+  const partner = conversation?.partner;
+
+  // Tên người nhắn trong ô phản hồi — server không gửi sender_name cho chat
+  // 1-1 (omitempty rỗng) → tự resolve: mình hiện "Bạn", đối phương lấy tên
+  // từ partner, thiếu nữa mới hiện "Không xác định".
+  const replySenderLabel = replyingTo
+    ? replyingTo.sender_id === myUserId
+      ? t("chat.you")
+      : replyingTo.sender_name || partner?.display_name || t("chat.unknown")
+    : undefined;
+
+  // Job upload đang chạy / lỗi — retry upload lại từ job này (chưa có wire).
+  const uploadJobsRef = useRef<Map<string, UploadJob>>(new Map());
+
+  // Upload nền: xong → completeMediaUpload (ghi media + gửi WS); lỗi → bubble
+  // failed, giữ job để retry. Nếu bubble đã bị bỏ trong lúc upload → hủy.
+  const runUpload = useCallback(
+    async (tempId: string, job: UploadJob): Promise<void> => {
+      if (!chatId) return;
+      try {
+        const res = await uploadChatMedia(job.file, chatId, job.durationSeconds);
+        if (!uploadJobsRef.current.has(tempId)) return; // đã bị bỏ
+        uploadJobsRef.current.delete(tempId);
+        await room.completeMediaUpload(
+          tempId,
+          {
+            mediaId: res.data.id,
+            mediaUri: res.data.file_uri,
+            mediaType: res.data.file_type,
+            durationSeconds: res.data.duration_seconds ?? job.durationSeconds,
+          },
+          { content: job.caption, replyToMessageId: job.replyToMessageId },
+        );
+      } catch (err) {
+        if (!uploadJobsRef.current.has(tempId)) return; // đã bị bỏ — khỏi báo lỗi
+        room.failUpload(tempId);
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
+      }
+    },
+    [chatId, room, t],
+  );
+
   const handleSend = useCallback(
     async (
       text: string,
@@ -341,20 +413,28 @@ export default function ChatScreen() {
 
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
-          try {
-            const res = await uploadChatMedia(att, chatId);
-            // Encrypt do useChatRoom.sendMessage đảm nhận (sau khi append bubble
-            // tạm plaintext) — không encrypt ở đây.
-            room.sendMessage(i === 0 ? caption : "", {
-              mediaId: res.data.id,
-              mediaUri: res.data.file_uri,
-              mediaType: res.data.file_type,
-              replyToMessageId: i === 0 ? replyingTo?.id : undefined,
-            });
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
-          }
+          const isFirst = i === 0;
+          // Bubble hiện NGAY với file local; upload chạy nền rồi mới gửi WS
+          // (completeMediaUpload lo encrypt caption + append hàng đợi echo).
+          const tempId = room.beginMediaUpload({
+            localUri: att.uri,
+            mediaType: att.type,
+            content: isFirst ? caption : "",
+            replyTo:
+              isFirst && replyingTo && replySenderLabel
+                ? buildReplyPreview(replyingTo, replySenderLabel)
+                : null,
+            replyToMessageId: isFirst ? replyingTo?.id : undefined,
+          });
+          if (!tempId) continue;
+          const job: UploadJob = {
+            file: att,
+            caption: isFirst ? caption : "",
+            replyToMessageId: isFirst ? replyingTo?.id : undefined,
+          };
+          uploadJobsRef.current.set(tempId, job);
+          // Upload tuần tự (await) — thứ tự bubble = thứ tự wire/echo.
+          await runUpload(tempId, job);
         }
         setReplyingTo(null);
         setTimeout(() => {
@@ -377,7 +457,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption, replyingTo, forwardDraft, chatId, t],
+    [room, encryption, replyingTo, replySenderLabel, forwardDraft, chatId, t, runUpload],
   );
 
   const handleTyping = useCallback(
@@ -387,9 +467,10 @@ export default function ChatScreen() {
     [room],
   );
 
-  // Tin nhắn thoại: upload file ghi âm (kèm duration_seconds) rồi gửi như media.
+  // Tin nhắn thoại: append bubble NGAY với file local (uploading), upload
+  // nền rồi mới gửi WS — không để người dùng chờ upload trong im lặng.
   const handleSendVoice = useCallback(
-    async (
+    (
       file: { uri: string; name: string; type: string },
       durationSec: number,
     ) => {
@@ -407,25 +488,30 @@ export default function ChatScreen() {
         return;
       }
       setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft
-      try {
-        const res = await uploadChatMedia(file, chatId, durationSec);
-        room.sendMessage("", {
-          mediaId: res.data.id,
-          mediaUri: res.data.file_uri,
-          mediaType: res.data.file_type,
-          durationSeconds: res.data.duration_seconds ?? durationSec,
-          replyToMessageId: replyingTo?.id,
-        });
-        setReplyingTo(null);
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
-      }
+      const tempId = room.beginMediaUpload({
+        localUri: file.uri,
+        mediaType: file.type,
+        durationSeconds: durationSec,
+        replyTo:
+          replyingTo && replySenderLabel
+            ? buildReplyPreview(replyingTo, replySenderLabel)
+            : null,
+        replyToMessageId: replyingTo?.id,
+      });
+      if (!tempId) return;
+      const job: UploadJob = {
+        file,
+        durationSeconds: durationSec,
+        replyToMessageId: replyingTo?.id,
+      };
+      uploadJobsRef.current.set(tempId, job);
+      setReplyingTo(null); // bubble optimistic đã chứa preview reply
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      void runUpload(tempId, job);
     },
-    [chatId, encryption, room, replyingTo, t],
+    [chatId, encryption, room, replyingTo, replySenderLabel, t, runUpload],
   );
 
   const handleLongPress = useCallback((msg: ChatMessage) => {
@@ -462,16 +548,24 @@ export default function ChatScreen() {
     [room],
   );
 
-  // A2: gửi lại / bỏ tin thất bại.
+  // A2: gửi lại tin thất bại — upload fail → chạy lại upload (còn job local);
+  // WS fail → gửi lại wire payload đã lưu.
   const handleRetry = useCallback(
     (msg: ChatMessage) => {
+      const job = uploadJobsRef.current.get(msg.id);
+      if (job) {
+        room.markSending(msg.id);
+        void runUpload(msg.id, job);
+        return;
+      }
       room.retryMessage(msg.id);
     },
-    [room],
+    [room, runUpload],
   );
 
   const handleDiscard = useCallback(
     (msg: ChatMessage) => {
+      uploadJobsRef.current.delete(msg.id); // hủy upload đang chạy (nếu có)
       room.discardMessage(msg.id);
     },
     [room],
@@ -664,17 +758,6 @@ export default function ChatScreen() {
     }
     prevMsgCountRef.current = count;
   }, [room.messages.length]);
-
-  const partner = conversation?.partner;
-
-  // Tên người nhắn trong ô phản hồi — server không gửi sender_name cho chat
-  // 1-1 (omitempty rỗng) → tự resolve: mình hiện "Bạn", đối phương lấy tên
-  // từ partner, thiếu nữa mới hiện "Không xác định".
-  const replySenderLabel = replyingTo
-    ? replyingTo.sender_id === myUserId
-      ? t("chat.you")
-      : replyingTo.sender_name || partner?.display_name || t("chat.unknown")
-    : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

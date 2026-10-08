@@ -10,7 +10,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "580467482346-dvs47i380uasmohcf5uc3sh0ttiifk74.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -21,7 +21,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "580467482346-dvs47i380uasmohcf5uc3sh0ttiifk74.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -29,7 +29,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "580467482346-dvs47i380uasmohcf5uc3sh0ttiifk74.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com"
       }
     }
   },

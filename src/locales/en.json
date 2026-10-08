@@ -609,6 +609,7 @@
     "emoji": "Emoji",
     "emojiSearch": "Search emoji...",
     "emojiEmpty": "No emoji found",
+    "emojiRetry": "Tap to retry",
     "gifError": "Could not load GIFs, try again later",
     "gifMissingKey": "Missing GIPHY_API_KEY",
     "gif": "GIF",

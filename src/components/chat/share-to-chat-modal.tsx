@@ -2,18 +2,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import FriendCard from '@/components/friend-card';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
-import { Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/spacing';
+import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getFriends } from '@/api/friends';
@@ -135,130 +139,108 @@ export function ShareToChatModal({ visible, onClose, postId }: Props) {
     ({ item }: { item: ShareUser }) => {
       const isSelected = selected.has(item.user_id);
       return (
-        <Pressable
-          style={({ pressed }) => [styles.row, { backgroundColor: pressed ? theme.bgHover : 'transparent' }]}
-          onPress={() => toggleFriend(item)}>
-          {item.avatar_uri ? (
-            <Image source={{ uri: item.avatar_uri }} style={styles.avatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: theme.primaryLight }]}>
-              <ThemedText style={[styles.avatarLetter, { color: theme.primary }]}>
-                {(item.display_name || '?')[0]?.toUpperCase()}
-              </ThemedText>
+        <FriendCard
+          avatarUri={item.avatar_uri || undefined}
+          displayName={item.display_name}
+          actionLabel=""
+          onAction={() => toggleFriend(item)}
+          onPress={() => toggleFriend(item)}
+          action={
+            <View
+              style={[
+                styles.check,
+                {
+                  borderColor: isSelected ? theme.primary : theme.border,
+                  backgroundColor: isSelected ? theme.primary : 'transparent',
+                },
+              ]}>
+              {isSelected && <Icon name="check" size={14} color="#FFFFFF" />}
             </View>
-          )}
-          <ThemedText style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-            {item.display_name}
-          </ThemedText>
-          <View
-            style={[
-              styles.check,
-              {
-                borderColor: isSelected ? theme.primary : theme.border,
-                backgroundColor: isSelected ? theme.primary : 'transparent',
-              },
-            ]}>
-            {isSelected && <Icon name="check" size={14} color="#fff" />}
-          </View>
-        </Pressable>
+          }
+        />
       );
     },
     [theme, selected, toggleFriend],
   );
 
-  const selectedList = Array.from(selected.values());
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
-      <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Pressable onPress={handleClose} hitSlop={8} style={styles.cancelBtn}>
-            <ThemedText style={[styles.cancelText, { color: theme.primary }]}>{t('common.cancel')}</ThemedText>
-          </Pressable>
-          <ThemedText style={[styles.title, { color: theme.text }]}>{t('chat.shareTitle')}</ThemedText>
-          <View style={styles.cancelBtn} />
-        </View>
-
-        <View style={[styles.searchWrap, { backgroundColor: theme.bgSecondary }]}>
-          <Icon name="search" size={14} color={theme.textSecondary} />
-          <TextInput
-            style={[styles.searchInput, { color: theme.text }]}
-            value={keyword}
-            onChangeText={handleChangeText}
-            placeholder={t('chat.searchPlaceholder')}
-            placeholderTextColor={theme.textSecondary}
-          />
-          {keyword.length > 0 && (
-            <Pressable onPress={() => handleChangeText('')} hitSlop={8}>
-              <Icon name="close" size={14} color={theme.textSecondary} />
+      <ThemedView style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.safe}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <Pressable onPress={handleClose} hitSlop={8} style={styles.cancelBtn}>
+              <ThemedText style={[styles.cancelText, { color: theme.primary }]}>{t('common.cancel')}</ThemedText>
             </Pressable>
-          )}
-        </View>
+            <ThemedText style={[styles.title, { color: theme.text }]}>{t('chat.shareTitle')}</ThemedText>
+            <View style={styles.cancelBtn} />
+          </View>
 
-        {selectedList.length > 0 && (
-          <ScrollView
-            horizontal
-            contentContainerStyle={styles.chips}
-            showsHorizontalScrollIndicator={false}>
-            {selectedList.map((u) => (
-              <Pressable
-                key={u.user_id}
-                onPress={() => toggleFriend(u)}
-                style={[styles.chip, { backgroundColor: theme.bgSecondary, borderColor: theme.border }]}>
-                <ThemedText style={[styles.chipText, { color: theme.text }]} numberOfLines={1}>
-                  {u.display_name}
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={[styles.searchWrap, { backgroundColor: theme.bgSecondary }]}>
+              <Icon name="search" size={14} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                value={keyword}
+                onChangeText={handleChangeText}
+                placeholder={t('chat.searchPlaceholder')}
+                placeholderTextColor={theme.textSecondary}
+              />
+              {keyword.length > 0 && (
+                <Pressable onPress={() => handleChangeText('')} hitSlop={8}>
+                  <Icon name="close" size={14} color={theme.textSecondary} />
+                </Pressable>
+              )}
+            </View>
+
+            {loading ? (
+              <View style={styles.center}>
+                <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
+              </View>
+            ) : friends.length === 0 ? (
+              <View style={styles.center}>
+                <ThemedText themeColor="textSecondary">
+                  {keyword ? t('chat.noResults') : t('chat.noChats')}
                 </ThemedText>
-                <Icon name="close" size={12} color={theme.textSecondary} />
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
-        {loading ? (
-          <View style={styles.center}>
-            <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
-          </View>
-        ) : friends.length === 0 ? (
-          <View style={styles.center}>
-            <ThemedText themeColor="textSecondary">
-              {keyword ? t('chat.noResults') : t('chat.noChats')}
-            </ThemedText>
-          </View>
-        ) : (
-          <FlatList
-            data={friends}
-            keyExtractor={(item) => item.user_id}
-            renderItem={renderItem}
-            ItemSeparatorComponent={() => (
-              <View style={[styles.separator, { backgroundColor: theme.border }]} />
+              </View>
+            ) : (
+              <FlatList
+                data={friends}
+                keyExtractor={(item) => item.user_id}
+                renderItem={renderItem}
+                contentContainerStyle={styles.listContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              />
             )}
-          />
-        )}
 
-        <View style={[styles.footer, { borderTopColor: theme.border }]}>
-          <Pressable
-            onPress={handleShare}
-            disabled={selected.size === 0 || sending}
-            style={({ pressed }) => [
-              styles.shareBtn,
-              {
-                backgroundColor:
-                  selected.size > 0 && !sending ? theme.primary : theme.bgSecondary,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}>
-            <ThemedText
-              style={[
-                styles.shareBtnText,
-                { color: selected.size > 0 && !sending ? '#fff' : theme.textSecondary },
-              ]}>
-              {sending
-                ? t('common.loading')
-                : t('chat.shareSend', { count: selected.size })}
-            </ThemedText>
-          </Pressable>
-        </View>
-      </View>
+            <View style={[styles.footer, { borderTopColor: theme.border }]}>
+              <Pressable
+                onPress={handleShare}
+                disabled={selected.size === 0 || sending}
+                style={({ pressed }) => [
+                  styles.shareBtn,
+                  {
+                    backgroundColor:
+                      selected.size > 0 && !sending ? theme.primary : theme.bgSecondary,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}>
+                <ThemedText
+                  style={[
+                    styles.shareBtnText,
+                    { color: selected.size > 0 && !sending ? '#FFFFFF' : theme.textSecondary },
+                  ]}>
+                  {sending
+                    ? t('common.loading')
+                    : t('chat.shareSend', { count: selected.size })}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </ThemedView>
     </Modal>
   );
 }
@@ -267,13 +249,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  safe: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
   },
   cancelBtn: {
     width: 60,
@@ -294,7 +282,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.sm,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     gap: Spacing.xs,
   },
   searchInput: {
@@ -303,55 +291,15 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: 14,
   },
-  chips: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: 160,
-  },
-  chipText: {
-    ...Typography.body,
-    fontSize: 13,
-  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+  listContent: {
+    padding: Spacing.md,
     gap: Spacing.sm,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    ...Typography.body,
-    fontWeight: 600,
-    fontSize: 16,
-  },
-  name: {
-    ...Typography.body,
-    flex: 1,
+    paddingBottom: Spacing.lg,
   },
   check: {
     width: 22,
@@ -361,17 +309,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 76,
-  },
   footer: {
     padding: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   shareBtn: {
-    borderRadius: 10,
-    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
   },
   shareBtnText: {

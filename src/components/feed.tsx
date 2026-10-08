@@ -88,6 +88,9 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   // Share-to-chat modal state
   const [sharePostId, setSharePostId] = useState<string | null>(null);
 
+  // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
+  const [shareSheetPost, setShareSheetPost] = useState<FeedPost | null>(null);
+
   const fetchNext = useCallback(async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
@@ -208,7 +211,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   }, []);
 
   // Share handler: hiện action sheet — Đăng lại (repost) hoặc Gửi vào chat
-  const doRepost = useCallback(async (post: FeedPost) => {
+  const doRepost = useCallback(async (post: FeedPost, content?: string) => {
     setPosts((prev) =>
       prev.map((p) =>
         p.id === post.id
@@ -217,7 +220,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
       ),
     );
     try {
-      await sharePost(post.id);
+      await sharePost(post.id, content);
       Alert.alert(t('postDetail.shared'));
     } catch {
       setPosts((prev) =>
@@ -231,16 +234,9 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     }
   }, [t]);
 
-  const handleShare = useCallback(
-    (post: FeedPost) => {
-      Alert.alert(t('post.share'), undefined, [
-        { text: t('post.repost'), onPress: () => doRepost(post) },
-        { text: t('post.shareToFriend'), onPress: () => setSharePostId(post.id) },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
-    },
-    [t, doRepost],
-  );
+  const handleShare = useCallback((post: FeedPost) => {
+    setShareSheetPost(post);
+  }, []);
 
   // Media modal like/save handlers
   const handleMediaLike = useCallback(() => {
@@ -383,6 +379,18 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
           onClose={handleCloseComments}
         />
       )}
+
+      {/* Share options: Đăng lại / Gửi cho bạn bè */}
+      <ShareOptionsSheet
+        visible={shareSheetPost !== null}
+        onClose={() => setShareSheetPost(null)}
+        onRepost={(content) => {
+          if (shareSheetPost) doRepost(shareSheetPost, content);
+        }}
+        onSendToFriend={() => {
+          if (shareSheetPost) setSharePostId(shareSheetPost.id);
+        }}
+      />
 
       {/* Share post to chat */}
       <ShareToChatModal

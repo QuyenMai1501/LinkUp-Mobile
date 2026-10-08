@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/refs */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -9,11 +9,17 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
   runOnJS,
 } from 'react-native-reanimated';
 
@@ -32,6 +38,11 @@ import type { CommentItem as CommentItemType, EmojiItem, CommentSort } from '../
 
 const COMMENT_PAGE_SIZE = 10;
 const DISMISS_THRESHOLD = 100;
+// Đóng nhanh như media-viewer: ~0,22s thay vì spring nặng (1-2s).
+const CLOSE_TIMING = { duration: 220, easing: Easing.out(Easing.cubic) } as const;
+const OPEN_TIMING = { duration: 260, easing: Easing.out(Easing.cubic) } as const;
+// Tham chiếu kéo để backdrop mờ dần / sheet scale (px).
+const DRAG_REFERENCE = 300;
 
 let likeEmojiIdPromise: Promise<string | undefined> | undefined;
 
@@ -72,12 +83,16 @@ export default function CommentSheet({
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentSort] = useState<CommentSort>('newest');
   const flatListRef = useRef<FlatList>(null);
-  const scrollOffsetY = useRef(0);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
   const commentsLenRef = useRef(0);
 
-  const translateY = useSharedValue(400);
+  // Khởi tạo ngoài màn hình (900) để mở vào slide-up thay vì nhảy ra.
+  const translateY = useSharedValue(900);
+  const backdropOpacity = useSharedValue(1);
+  const scale = useSharedValue(1);
+  // Dùng SharedValue thay vì ref để đọc an toàn từ worklet (giống pattern media-viewer)
+  const scrollY = useSharedValue(0);
 
   const handleDismiss = useCallback(() => {
     onClose();
@@ -86,56 +101,107 @@ export default function CommentSheet({
   const dismissWorklet = useCallback(() => {
     'worklet';
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = withSpring(800, { damping: 30, stiffness: 300 }, (finished) => {
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
       if (finished) {
         runOnJS(handleDismiss)();
       }
     });
-  }, [handleDismiss, translateY]);
-
-  const panGesture = Gesture.Pan()
-    .activeOffsetY(10)
-    .onUpdate((e) => {
-      if (e.translationY > 0 && scrollOffsetY.current <= 0) {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = e.translationY;
-      }
-    })
-    .onEnd((e) => {
-      if (
-        (e.translationY > DISMISS_THRESHOLD && scrollOffsetY.current <= 0) ||
-        (e.velocityY > 500 && scrollOffsetY.current <= 0)
-      ) {
-        dismissWorklet();
-      } else {
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = withSpring(0, { damping: 20 });
-      }
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
     });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
+
+  // Gesture cuộn native của FlatList — pan của sheet chạy song song với nó
+  // (pattern y hệt media-viewer) để vuốt xuống không bị gesture cuộn nuốt.
+  const nativeScrollGesture = useMemo(() => Gesture.Native(), []);
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        // Giống media-viewer: nhận cả 2 hướng, nhưng chỉ xử lý vuốt xuống
+        .activeOffsetY([-10, 10])
+        // Chặn khi vuốt ngang quá nhiều (tránh conflict)
+        .failOffsetX([-25, 25])
+        .simultaneousWithExternalGesture(nativeScrollGesture)
+        .onUpdate((e) => {
+          // Chỉ cho kéo sheet khi đang ở đầu list (scrollY ≈ 0)
+          if (e.translationY > 0 && scrollY.value <= 2) {
+            // eslint-disable-next-line react-hooks/immutability
+            translateY.value = e.translationY;
+
+            const progress = Math.min(e.translationY / DRAG_REFERENCE, 1);
+
+            // eslint-disable-next-line react-hooks/immutability
+            backdropOpacity.value = 1 - progress * 0.85;
+            // eslint-disable-next-line react-hooks/immutability
+            scale.value = 1 - progress * 0.02;
+          }
+        })
+        .onEnd((e) => {
+          const atTop = scrollY.value <= 2;
+
+          if (
+            e.translationY > 0 &&
+            atTop &&
+            (e.translationY >= DISMISS_THRESHOLD || e.velocityY >= 500)
+          ) {
+            dismissWorklet();
+            return;
+          }
+
+          // eslint-disable-next-line react-hooks/immutability
+          translateY.value = withSpring(0, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          backdropOpacity.value = withSpring(1, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          scale.value = withSpring(1, { damping: 20 });
+        }),
+    [nativeScrollGesture, translateY, backdropOpacity, scale, dismissWorklet, scrollY],
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
   }));
 
   const handleOpen = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = 0;
-  }, [translateY]);
+    translateY.value = withTiming(0, OPEN_TIMING);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = 1;
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = 1;
+  }, [translateY, backdropOpacity, scale]);
 
   const handleClose = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability
-    translateY.value = withSpring(800, { damping: 30, stiffness: 300 }, (finished) => {
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
       if (finished) {
         runOnJS(handleDismiss)();
       }
     });
-  }, [handleDismiss, translateY]);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
 
   useEffect(() => {
     if (visible) {
+      scrollY.value = 0;
       handleOpen();
     }
-  }, [visible, handleOpen]);
+  }, [visible, handleOpen, scrollY]);
 
   useEffect(() => {
     if (!visible) return;
@@ -240,92 +306,110 @@ export default function CommentSheet({
   const commentTree = buildCommentTree(comments, commentSort);
 
   const handleScroll = useCallback((e: any) => {
-    scrollOffsetY.current = e.nativeEvent.contentOffset.y;
-  }, []);
+    // Cập nhật SharedValue để worklet đọc được chính xác
+    scrollY.value = e.nativeEvent.contentOffset.y;
+  }, [scrollY]);
 
   if (!visible) return null;
 
   return (
     <Modal visible={visible} transparent statusBarTranslucent>
-      {/* Backdrop — absolute, taps to close */}
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+      {/* Bắt buộc có GestureHandlerRootView bên trong Modal (giống media-viewer) */}
+      <GestureHandlerRootView style={styles.flex}>
+        {/* Backdrop — bấm để đóng; opacity animate theo mức vuốt */}
+        <Pressable style={styles.backdropHit} onPress={handleClose}>
+          <Animated.View style={[styles.backdrop, backdropAnimatedStyle]} />
+        </Pressable>
 
-      {/* Sheet container — flex child, KeyboardAvoidingView pushes up when keyboard opens */}
-      <KeyboardAvoidingView
-        style={styles.sheetContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[
-              styles.sheet,
-              { backgroundColor: theme.card },
-              animatedStyle,
-            ]}
-          >
-            {/* Drag handle */}
-            <View style={styles.handleRow}>
-              <View style={[styles.handle, { backgroundColor: theme.border }]} />
-            </View>
+        {/* Sheet container — flex child, KeyboardAvoidingView pushes up when keyboard opens */}
+        <KeyboardAvoidingView
+          style={styles.sheetContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              style={[
+                styles.sheet,
+                { backgroundColor: theme.card },
+                animatedStyle,
+              ]}
+            >
+              {/* Drag handle */}
+              <View style={styles.handleRow}>
+                <View style={[styles.handle, { backgroundColor: theme.border }]} />
+              </View>
 
-            {/* Header */}
-            <View style={[styles.header, { borderBottomColor: theme.border }]}>
-              <ThemedText style={styles.headerTitle}>{t('postDetail.comments')}</ThemedText>
-            </View>
+              {/* Header */}
+              <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                <ThemedText style={styles.headerTitle}>
+                  {t('postDetail.comments')}
+                </ThemedText>
+              </View>
 
-            {/* Comments list — FlatList handles its own scrolling */}
-            <FlatList
-              ref={flatListRef}
-              data={commentTree}
-              keyExtractor={(item) => item.comment.id}
-              renderItem={({ item }) => (
-                <CommentItem
-                  node={item}
-                  postUserId={postUserId}
-                  allComments={comments}
-                  onLike={handleToggleCommentLike}
-                  onReply={setReplyingTo}
+              {/* Comments list — FlatList cuộn qua Gesture.Native riêng,
+                  pan dismiss chạy song song (không tranh chấp) */}
+              <GestureDetector gesture={nativeScrollGesture}>
+                <FlatList
+                  ref={flatListRef}
+                  data={commentTree}
+                  keyExtractor={(item) => item.comment.id}
+                  renderItem={({ item }) => (
+                    <CommentItem
+                      node={item}
+                      postUserId={postUserId}
+                      allComments={comments}
+                      onLike={handleToggleCommentLike}
+                      onReply={setReplyingTo}
+                    />
+                  )}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  onEndReached={() => {
+                    if (hasMoreRef.current) loadMoreComments();
+                  }}
+                  onEndReachedThreshold={0.5}
+                  contentContainerStyle={styles.listContent}
+                  ListEmptyComponent={
+                    !commentsLoading ? (
+                      <ThemedText
+                        themeColor="textSecondary"
+                        style={styles.emptyText}
+                      >
+                        {t('postDetail.noComments')}
+                      </ThemedText>
+                    ) : null
+                  }
+                  ListFooterComponent={
+                    commentsLoading && hasMoreRef.current ? (
+                      <View style={styles.loadingMore}>
+                        <ThemedText themeColor="textSecondary">⏳</ThemedText>
+                      </View>
+                    ) : null
+                  }
                 />
-              )}
-              onScroll={handleScroll}
-              onEndReached={() => {
-                if (hasMoreRef.current) loadMoreComments();
-              }}
-              onEndReachedThreshold={0.5}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={
-                !commentsLoading ? (
-                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                    {t('postDetail.noComments')}
-                  </ThemedText>
-                ) : null
-              }
-              ListFooterComponent={
-                commentsLoading && hasMoreRef.current ? (
-                  <View style={styles.loadingMore}>
-                    <ThemedText themeColor="textSecondary">⏳</ThemedText>
-                  </View>
-                ) : null
-              }
-            />
+              </GestureDetector>
 
-            {/* Comment input */}
-            <CommentInput
-              value={commentText}
-              onChangeText={setCommentText}
-              onSubmit={handleSubmitComment}
-              replyingTo={replyingTo}
-              onCancelReply={() => setReplyingTo(null)}
-              submitting={submittingComment}
-            />
-          </Animated.View>
-        </GestureDetector>
-      </KeyboardAvoidingView>
+              {/* Comment input */}
+              <CommentInput
+                value={commentText}
+                onChangeText={setCommentText}
+                onSubmit={handleSubmitComment}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
+                submitting={submittingComment}
+              />
+            </Animated.View>
+          </GestureDetector>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  backdropHit: {
+    ...StyleSheet.absoluteFill,
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.5)',

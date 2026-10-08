@@ -69,9 +69,15 @@ export const uploadChatMedia = async (
   const token = await tokenStorage.getAccessToken();
 
   const formData = new FormData();
-  // Append dạng object {uri,name,type} — RN tự set Content-Type của part theo `type`.
-  // Server lấy media.file_type từ part Content-Type và chỉ lưu duration khi type là audio/*.
-  formData.append('file', file as unknown as Blob);
+  // expo/fetch (Expo SDK 57) không chấp nhận part {uri,name,type} — nó ném
+  // "Unsupported FormDataPart implementation" trước khi gửi request. Phải đọc file
+  // thành Blob thật. slice(0, undefined, file.type) để ép Content-Type của part:
+  // server chỉ lưu duration_seconds khi type bắt đầu bằng "audio/*"
+  // (services/media.service.go) và File của RN không nhận ArrayBuffer trực tiếp.
+  const raw = await fetch(file.uri);
+  if (!raw.ok) throw new Error(`HTTP ${raw.status}`);
+  const blob = (await raw.blob()).slice(0, undefined, file.type);
+  formData.append('file', blob, file.name);
   formData.append('chat_id', chatId);
   if (durationSeconds && durationSeconds > 0) {
     formData.append('duration_seconds', String(Math.round(durationSeconds)));
