@@ -12,7 +12,12 @@
           "package_name": "com.linkup.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDqmQaJfJJXaPjtdex4XnShOxZ_9oHv5IU"
