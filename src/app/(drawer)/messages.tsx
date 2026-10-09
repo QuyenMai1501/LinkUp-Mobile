@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, SectionList, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -8,8 +8,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ConversationListItem } from '@/components/chat/conversation-list-item';
+import { GroupConversationListItem } from '@/components/chat/group-conversation-list-item';
 import { RecoveryGateModal } from '@/components/chat/recovery-gate-modal';
 import { UserPickerModal } from '@/components/chat/user-picker-modal';
+import { CreateGroupModal } from '@/components/group-chat/create-group-modal';
 import { Colors } from '@/constants/colors';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -19,6 +21,7 @@ import { useChatSocket } from '@/hooks/useChatSocket';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useE2ERecovery } from '@/hooks/useE2ERecovery';
 import { listChats, createDirectChat, listChatInvites, respondChatInvite } from '@/api/chat';
+import { listGroupChats } from '@/api/group-chat';
 import { batchGetPresence } from '@/api/presence';
 import { decryptChat, ensureChatKey, dbg } from '@/utils/e2ee';
 import { onChatListDirty } from '@/utils/chat-list-dirty';
@@ -26,6 +29,7 @@ import { RECOVERY_RESOLVED_KEY } from '@/utils/e2e-flags';
 import { Spacing, Typography } from '@/constants/theme';
 import { Icon } from '@/components/ui/icon';
 import type { ChatConversation, ChatInviteItem } from '@/types/chat';
+import type { GroupChatConversation } from '@/types/group-chat';
 
 // Chạy fn trên từng item với tối đa `limit` song song, giữ nguyên thứ tự.
 async function mapLimited<T, R>(
@@ -63,10 +67,12 @@ export default function MessagesScreen() {
   };
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [groups, setGroups] = useState<GroupChatConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   // B4: lời mời kết bạn chat đang chờ phản hồi.
   const [invites, setInvites] = useState<ChatInviteItem[]>([]);
   // A3: chống double-load khi focus event + load effect cùng chạy.
@@ -186,7 +192,14 @@ export default function MessagesScreen() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    // B4: song song tải lời mời chat.
+    // Song song tải nhóm + lời mời chat.
+    listGroupChats()
+      .then((res) => {
+        if (!cancelled) setGroups(res.data ?? []);
+      })
+      .catch(() => {
+        /* silent */
+      });
     listChatInvites()
       .then((res) => {
         if (!cancelled) setInvites(res.data ?? []);
@@ -248,10 +261,18 @@ export default function MessagesScreen() {
   useEffect(() => {
     if (!notifyChatId || loading || notifyChatOpenedRef.current) return;
     const conv = conversations.find((c) => c.chat_id === notifyChatId);
-    if (!conv) return;
-    notifyChatOpenedRef.current = true;
-    (router as any).push(`/(drawer)/chat/${conv.chat_id}`);
-  }, [notifyChatId, loading, conversations, router]);
+    if (conv) {
+      notifyChatOpenedRef.current = true;
+      (router as any).push(`/(drawer)/chat/${conv.chat_id}`);
+      return;
+    }
+    // Thông báo cũng có thể tới từ group chat.
+    const group = groups.find((g) => g.chat_id === notifyChatId);
+    if (group) {
+      notifyChatOpenedRef.current = true;
+      (router as any).push(`/(drawer)/group-chat/${group.chat_id}`);
+    }
+  }, [notifyChatId, loading, conversations, groups, router]);
 
   const filtered = filter.trim()
     ? conversations.filter((c) =>
@@ -259,14 +280,22 @@ export default function MessagesScreen() {
       )
     : conversations;
 
+  const filteredGroups = filter.trim()
+    ? groups.filter((g) => g.name.toLowerCase().includes(filter.toLowerCase()))
+    : groups;
+
   const refreshList = useCallback(async () => {
-    const [chats, inv] = await Promise.allSettled([
+    const [chats, grp, inv] = await Promise.allSettled([
       listChats(),
+      listGroupChats(),
       listChatInvites(),
     ]);
     if (chats.status === 'fulfilled') {
       const hydrated = await hydrateConversations(chats.value.data);
       setConversations(hydrated);
+    }
+    if (grp.status === 'fulfilled') {
+      setGroups(grp.value.data ?? []);
     }
     if (inv.status === 'fulfilled') {
       setInvites(inv.value.data ?? []);
@@ -370,12 +399,39 @@ export default function MessagesScreen() {
     [router, refreshList],
   );
 
+  const handleGroupCreated = useCallback(
+    (groupId: string) => {
+      void refreshList();
+      (router as any).push(`/(drawer)/group-chat/${groupId}`);
+    },
+    [refreshList, router],
+  );
+
   const handleSelect = useCallback(
     (conv: ChatConversation) => {
       (router as any).push(`/(drawer)/chat/${conv.chat_id}`);
     },
     [router],
   );
+
+  const handleSelectGroup = useCallback(
+    (group: GroupChatConversation) => {
+      (router as any).push(`/(drawer)/group-chat/${group.chat_id}`);
+    },
+    [router],
+  );
+
+  const sections = [
+    ...(filtered.length > 0
+      ? [{ title: t('chat.title'), data: filtered as (ChatConversation | GroupChatConversation)[] }]
+      : []),
+    ...(filteredGroups.length > 0
+      ? [{ title: t('chat.groupChats'), data: filteredGroups as (ChatConversation | GroupChatConversation)[] }]
+      : []),
+  ];
+  const isGroupItem = (
+    item: ChatConversation | GroupChatConversation,
+  ): item is GroupChatConversation => 'name' in item && !('partner' in item);
 
   return (
     <ThemedView style={styles.container}>
@@ -386,6 +442,9 @@ export default function MessagesScreen() {
             <Icon name="menu" size={20} color={colors.text} />
           </Pressable>
           <ThemedText style={[styles.title, { color: colors.text }]}>{t('chat.title')}</ThemedText>
+          <Pressable onPress={() => setCreateGroupOpen(true)} style={styles.headerIconBtn}>
+            <Icon name="people" size={20} color={colors.textSecondary} />
+          </Pressable>
           <Pressable onPress={() => setPickerOpen(true)} style={[styles.newChatBtn, { backgroundColor: colors.primary }]}>
             <Icon name="add" size={20} color="#FFF" />
           </Pressable>
@@ -445,7 +504,7 @@ export default function MessagesScreen() {
         <View style={styles.center}>
           <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
         </View>
-      ) : filtered.length === 0 ? (
+      ) : sections.length === 0 ? (
         <View style={styles.center}>
           <Icon name="chat" size={48} color={theme.textSecondary} />
           <ThemedText themeColor="textSecondary">
@@ -453,18 +512,39 @@ export default function MessagesScreen() {
           </ThemedText>
         </View>
       ) : (
-        <FlatList
-          data={filtered}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.chat_id}
-          renderItem={({ item }) => (
-            <ConversationListItem
-              conversation={item}
-              myUserId={myUserId}
-              isOnline={onlineUsers.has(item.partner.user_id)}
-              isActive={false}
-              onPress={() => handleSelect(item)}
-            />
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <View
+              style={[
+                styles.sectionHeader,
+                { backgroundColor: theme.bgSecondary, borderBottomColor: theme.border },
+              ]}>
+              <ThemedText
+                style={[styles.sectionHeaderText, { color: theme.textSecondary }]}>
+                {section.title}
+              </ThemedText>
+            </View>
           )}
+          renderItem={({ item }) =>
+            isGroupItem(item) ? (
+              <GroupConversationListItem
+                group={item}
+                myUserId={myUserId}
+                onPress={() => handleSelectGroup(item)}
+              />
+            ) : (
+              <ConversationListItem
+                conversation={item}
+                myUserId={myUserId}
+                isOnline={onlineUsers.has(item.partner.user_id)}
+                isActive={false}
+                onPress={() => handleSelect(item)}
+              />
+            )
+          }
           ItemSeparatorComponent={() => (
             <View style={[styles.separator, { backgroundColor: theme.border }]} />
           )}
@@ -484,6 +564,13 @@ export default function MessagesScreen() {
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onPick={handlePickUser}
+      />
+
+      {/* Tạo nhóm chat mới */}
+      <CreateGroupModal
+        visible={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        onCreated={handleGroupCreated}
       />
 
       {/* Cổng khôi phục E2E (thiết bị mới): mở khóa bằng PIN/recovery key */}
@@ -530,6 +617,14 @@ const styles = StyleSheet.create({
     ...Typography.h2,
     flex: 1,
   },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.xs,
+  },
   newChatBtn: {
     width: 36,
     height: 36,
@@ -557,6 +652,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+  },
+  sectionHeader: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sectionHeaderText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontSize: 11,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

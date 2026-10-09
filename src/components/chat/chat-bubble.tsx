@@ -38,6 +38,8 @@ interface Props {
   avatarUri?: string | null;
   /** true = tin đầu chuỗi → hiện avatar; false = hiện spacer để giữ căn lề. */
   showAvatar?: boolean;
+  /** Tên người gửi — chỉ hiển thị trong group chat (tin đầu chuỗi, của người khác). */
+  senderName?: string | null;
   /** true = đối phương đã đọc tin mình gửi → ✓✓ (A1). */
   seen?: boolean;
   /** true = nhấp nháy highlight khi nhảy tới từ kết quả tìm kiếm (B5). */
@@ -59,6 +61,7 @@ export function ChatBubble({
   isPinned,
   avatarUri,
   showAvatar = false,
+  senderName,
   seen = false,
   highlight = false,
   emojis,
@@ -210,7 +213,15 @@ export function ChatBubble({
   return (
     <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
       {avatarColumn}
-      <Pressable
+      <View style={styles.bubbleCol}>
+        {!isMine && showAvatar && !!senderName && (
+          <ThemedText
+            style={[styles.senderName, { color: theme.textSecondary }]}
+            numberOfLines={1}>
+            {senderName}
+          </ThemedText>
+        )}
+        <Pressable
         onLongPress={() => onLongPress?.(message)}
         delayLongPress={400}
         style={[
@@ -453,6 +464,7 @@ export function ChatBubble({
           </View>
         ) : null}
       </Pressable>
+      </View>
     </View>
   );
 }
@@ -506,6 +518,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: Radius.lg,
     gap: 2,
+  },
+  bubbleCol: {
+    maxWidth: "78%",
+    flexShrink: 1,
+  },
+  senderName: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 12,
+    marginBottom: 2,
   },
   bubbleDeleted: {
     opacity: 0.6,
