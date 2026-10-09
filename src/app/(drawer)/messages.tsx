@@ -655,7 +655,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    marginTop: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sectionHeaderText: {
