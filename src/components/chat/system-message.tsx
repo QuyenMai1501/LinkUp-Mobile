@@ -28,12 +28,26 @@ interface Props {
   myUserId: string;
   partnerUserId?: string | null;
   partnerName?: string | null;
+  /** Group chat: map user_id → tên hiển thị (server không gửi kèm system row). */
+  memberNames?: Record<string, string>;
 }
 
-export function SystemMessage({ message, myUserId, partnerUserId, partnerName }: Props) {
+export function SystemMessage({
+  message,
+  myUserId,
+  partnerUserId,
+  partnerName,
+  memberNames,
+}: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const text = getSystemMessageText(message, { myUserId, partnerUserId, partnerName, t });
+  const text = getSystemMessageText(message, {
+    myUserId,
+    partnerUserId,
+    partnerName,
+    memberNames,
+    t,
+  });
 
   return (
     <View style={styles.row}>
@@ -50,6 +64,7 @@ function getSystemMessageText(
     myUserId: string;
     partnerUserId?: string | null;
     partnerName?: string | null;
+    memberNames?: Record<string, string>;
     t: (key: string, params?: Record<string, string | number>) => string;
   },
 ): string {
@@ -61,14 +76,15 @@ function getSystemMessageText(
   const actorId = parts[1] || '';
   const extraParam = parts[2] || '';
 
-  // 1-1 không có memberNames map → resolve theo ngữ cảnh hội thoại.
+  // Ưu tiên map tên của group; 1-1 resolve theo ngữ cảnh hội thoại.
   const actorName = !actorId
     ? ''
     : actorId === ctx.myUserId
       ? t('chat.you')
-      : actorId === ctx.partnerUserId
-        ? ctx.partnerName || actorId
-        : actorId;
+      : ctx.memberNames?.[actorId] ||
+        (actorId === ctx.partnerUserId
+          ? ctx.partnerName || actorId
+          : actorId);
 
   switch (translationKey) {
     case 'member_left':

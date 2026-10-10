@@ -135,6 +135,8 @@ export interface SendMessageOptions {
   mediaId?: string;
   mediaUri?: string;
   mediaType?: string;
+  // Gộp media thành stack trong group chat (server GroupSendMessagePayload).
+  mediaGroupId?: string;
   gifUrl?: string;
   sharedPostId?: string;
   replyToMessageId?: string;

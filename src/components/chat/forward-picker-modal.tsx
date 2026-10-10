@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { listChats } from '@/api/chat';
 import { ThemedText } from '@/components/themed-text';
@@ -56,6 +57,7 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        <SafeAreaView edges={['top']} style={styles.flex}>
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <Pressable onPress={onClose} hitSlop={8} style={styles.cancelBtn}>
             <ThemedText style={[styles.cancelText, { color: theme.primary }]}>
@@ -68,6 +70,10 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
           <View style={styles.cancelBtn} />
         </View>
 
+        {/* Nội dung bị bàn phím đẩy — pattern share-to-chat-modal */}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.searchWrap, { backgroundColor: theme.bgSecondary }]}>
           <Icon name="search" size={14} color={theme.textSecondary} />
           <TextInput
@@ -131,8 +137,14 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
             ItemSeparatorComponent={() => (
               <View style={[styles.separator, { backgroundColor: theme.border }]} />
             )}
+            style={styles.flex}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           />
         )}
+        </KeyboardAvoidingView>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -141,6 +153,13 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  listContent: {
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.lg,
   },
   header: {
     flexDirection: 'row',

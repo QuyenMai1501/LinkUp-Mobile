@@ -211,18 +211,18 @@ Pattern for partial-screen overlays (CommentSheet, EmojiPicker):
 
 ### KeyboardAvoidingView Checklist
 
-| Screen | Has TextInput? | Has KBAvoid? |
+| Screen / modal | Has TextInput? | Has KBAvoid? |
 |--------|---------------|-------------|
-| login.tsx | Yes | Yes |
-| register.tsx | Yes | Yes |
-| forgot-password.tsx | Yes | Yes |
-| change-password.tsx | Yes | Yes (inside ScrollView) |
-| comment-sheet.tsx | Yes | Yes |
-| post-composer.tsx | Yes | Yes |
-| Media viewer | No | No |
-| Friends list | No | No |
+| login.tsx, register.tsx, forgot-password.tsx, verify-email.tsx | Yes | Yes |
+| user-picker-modal, forward-picker-modal, create-group-modal | Yes | Yes |
+| share-to-chat-modal.tsx, post-composer.tsx, comment-sheet.tsx | Yes | Yes |
+| messages.tsx (top search bar) | Yes | No — top input, Android resize handles it |
+| change-password form (inside ScrollView) | Yes | **No — known gap** |
+| search.tsx | Yes | **No — known gap** |
+| recovery-gate-modal, giphy-gif-picker (search inputs) | Yes | **No — known gap** |
+| Media viewer, Friends list | No | No |
 
-**Rule:** Every screen/modal with a `TextInput` must wrap its scrollable content in `KeyboardAvoidingView`.
+**Rule:** Every screen/modal with a `TextInput` must wrap its scrollable content in `KeyboardAvoidingView`. Rows marked *known gap* violate the rule — fix them when touching those files.
 
 ---
 
