@@ -1,56 +1,58 @@
-# Welcome to your Expo app 👋
+# LinkUp Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo (SDK 57) client for **LinkUp** — social app with feed, friends, 1-1 & group chat (E2EE), communities, calls and notifications, talking to the LinkUp Go backend.
 
-## Get started
+- Dev instructions for AI/humans: [`AGENTS.md`](./AGENTS.md)
+- Design tokens & layout patterns: [`DESIGN.md`](./DESIGN.md)
 
-1. Install dependencies
+## Setup
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Create `.env` (git-ignored — never commit) with:
 
-   ```bash
-   npx expo start
+   ```
+   EXPO_PUBLIC_API_URL=http://localhost:8080   # LinkUp backend base URL (use LAN IP for a physical device)
+   EXPO_PUBLIC_GIPHY_API_KEY=...
+   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
    ```
 
-In the output, you'll find options to open the app in a
+3. Start the dev server:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   npm start
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   Press `w` for web, `a` for Android emulator, `i` for iOS simulator.
 
-## Get a fresh project
+## Commands
 
-When you're ready, run:
+| Action | Command | Notes |
+|--------|---------|-------|
+| Dev server | `npm start` | `npx expo start` |
+| Android | `npm run android` | `expo run:android` (needs Android Studio) |
+| iOS | `npm run ios` | `expo run:ios` (needs Xcode) |
+| Web | `npm run web` | |
+| Lint | `npm run lint` | `expo lint` — baseline has ~28 pre-existing problems, see AGENTS.md |
+| Typecheck | `npx tsc --noEmit` | strict TS |
 
-```bash
-npm run reset-project
-```
+No test runner, no CI/CD, no commit hooks.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Project structure
 
-### Other setup steps
+- `src/app/(drawer)/` — main screens (Drawer navigation): `index` (feed), `messages`, `chat/[chatId]`, `group-chat/[chatId]`, `friends`, `communities`, `saved`, `search`, `settings/`, `profile`, `post/[postId]`
+- `src/app/(auth)/` — `login`, `register`, `forgot-password`, `verify-email`
+- `src/api/` — REST clients (`client.ts` base + feature modules)
+- `src/hooks/`, `src/contexts/`, `src/utils/` — hooks, providers, e2ee/notification helpers
+- `src/components/` — UI (themed components under `components/ui/`, chat under `components/chat/`)
+- `src/constants/` — design tokens (see DESIGN.md)
+- `src/locales/` — i18n (`vi.json`, `en.json`)
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Notes
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Nested git repo:** this folder has its own `.git` and remote (`QuyenMai1501/LinkUp-Mobile`); commits are separate from the monorepo root.
+- Expo versioned docs: https://docs.expo.dev/versions/v57.0.0/
