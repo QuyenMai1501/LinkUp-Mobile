@@ -49,6 +49,9 @@ export const icons = {
   ban: 'ban-outline' as const,
   star: 'star-outline' as const,
 
+  // Shared content (P3)
+  link: 'link-outline' as const,
+
   // Status
   checkCircle: 'checkmark-circle-outline' as const,
   xCircle: 'close-circle-outline' as const,

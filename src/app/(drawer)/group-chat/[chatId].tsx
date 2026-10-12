@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -14,10 +15,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getGroupSettings } from '@/api/group-chat';
+import {
+  getGroupChatBackground,
+  getGroupSettings,
+  type GroupChatBackground,
+} from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
+import { parseGradientColors } from '@/components/chat/chat-background-picker';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MediaStack } from '@/components/chat/media-stack';
@@ -92,6 +98,9 @@ export default function GroupChatScreen() {
   const myUserId = user?.id ?? '';
 
   const [group, setGroup] = useState<GroupChatConversation | null>(null);
+  // P3b: nền trò chuyện per-group (solid/gradient/custom image).
+  const [chatBackground, setChatBackground] =
+    useState<GroupChatBackground | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const scrollFailCountRef = useRef(0);
 
@@ -193,6 +202,24 @@ export default function GroupChatScreen() {
     const timer = setTimeout(() => setFlashId(null), 1600);
     return () => clearTimeout(timer);
   }, [flashId]);
+
+  // P3b: load nền — refetch khi quay lại màn (user đổi nền ở settings).
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      let cancelled = false;
+      getGroupChatBackground(chatId)
+        .then((res) => {
+          if (cancelled) return;
+          const bg = res.data;
+          setChatBackground(bg?.type ? bg : null);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [chatId]),
+  );
 
   const room = useGroupChatRoom({
     chatId: chatId ?? null,
@@ -760,6 +787,28 @@ export default function GroupChatScreen() {
 
         {/* Messages */}
         <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
+          {/* P3b: nền trò chuyện (layer dưới cùng, absoluteFill) */}
+          {chatBackground?.value ? (
+            chatBackground.type === 'solid' ? (
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: chatBackground.value },
+                ]}
+              />
+            ) : chatBackground.type === 'gradient' ? (
+              <LinearGradient
+                colors={parseGradientColors(chatBackground.value)}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <Image
+                source={{ uri: chatBackground.value }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+              />
+            )
+          ) : null}
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View

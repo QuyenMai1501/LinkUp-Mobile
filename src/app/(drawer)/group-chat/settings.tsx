@@ -16,15 +16,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   banGroupMember,
+  getGroupChatBackground,
   getGroupSettings,
   leaveGroup,
   muteGroupMember,
   transferGroupAdmin,
   unmuteGroupMember,
   updateGroupSettings,
+  type GroupChatBackground,
 } from '@/api/group-chat';
 import { uploadMedia } from '@/api/profile';
 import { AddGroupMemberModal } from '@/components/chat/add-group-member-modal';
+import { ChatBackgroundPicker } from '@/components/chat/chat-background-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -96,6 +99,12 @@ export default function GroupChatSettingsScreen() {
   // Đang chạy 1 action admin (mute/ban/transfer/toggle) → disable nút.
   const [actionBusy, setActionBusy] = useState(false);
 
+  // P3b: nền trò chuyện per-group.
+  const [background, setBackground] = useState<GroupChatBackground | null>(
+    null,
+  );
+  const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
+
   // Leave modal state.
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveMode, setLeaveMode] = useState<GroupLeaveMode>('public');
@@ -119,6 +128,13 @@ export default function GroupChatSettingsScreen() {
       .finally(() => {
         setLoading(false);
       });
+    // P3b: load nền song song (im lặng — không block spinner).
+    getGroupChatBackground(chatId)
+      .then((res) => {
+        const bg = res.data;
+        setBackground(bg?.type ? bg : null);
+      })
+      .catch(() => {});
   }, [chatId, t]);
 
   useEffect(() => {
@@ -580,6 +596,56 @@ export default function GroupChatSettingsScreen() {
             </View>
           </View>
 
+          {/* Nội dung đã chia sẻ — media/files/links/posts trong nhóm */}
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
+              {t('chat.sharedContent')}
+            </ThemedText>
+            <Pressable
+              onPress={() => {
+                if (!chatId) return;
+                (router as any).push({
+                  pathname: '/(drawer)/group-chat/shared-content',
+                  params: { chatId },
+                });
+              }}
+              style={styles.settingRow}>
+              <Icon name="images" size={18} color={theme.primary} />
+              <ThemedText style={{ flex: 1, color: theme.text }}>
+                {t('chat.sharedContent')}
+              </ThemedText>
+              <Icon name="chevronRight" size={16} color={theme.textSecondary} />
+            </Pressable>
+          </View>
+
+          {/* Nền trò chuyện per-group */}
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
+              {t('chat.background')}
+            </ThemedText>
+            <Pressable
+              onPress={() => setBackgroundPickerOpen(true)}
+              style={styles.settingRow}>
+              <Icon name="palette" size={18} color={theme.primary} />
+              <ThemedText style={{ flex: 1, color: theme.text }}>
+                {background?.value
+                  ? background.type === 'solid'
+                    ? background.value
+                    : t('chat.backgroundApplied')
+                  : t('chat.backgroundDefault')}
+              </ThemedText>
+              {background?.type === 'solid' && background.value ? (
+                <View
+                  style={[
+                    styles.bgSwatch,
+                    { backgroundColor: background.value, borderColor: theme.border },
+                  ]}
+                />
+              ) : null}
+              <Icon name="chevronRight" size={16} color={theme.textSecondary} />
+            </Pressable>
+          </View>
+
           {/* Rời nhóm */}
           <Pressable
             onPress={() => setLeaveOpen(true)}
@@ -599,6 +665,18 @@ export default function GroupChatSettingsScreen() {
         chatId={chatId ?? ''}
         memberIds={memberIds}
         onMembersAdded={loadSettings}
+      />
+
+      {/* Background picker (P3b) */}
+      <ChatBackgroundPicker
+        visible={backgroundPickerOpen}
+        onClose={() => setBackgroundPickerOpen(false)}
+        chatId={chatId ?? ''}
+        currentBackground={background}
+        onApplied={(bg) => {
+          setBackground(bg);
+          notifyChatListDirty(); // conversations list có background_type → refresh
+        }}
       />
 
       {/* Leave confirm modal */}
@@ -956,6 +1034,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
+  },
+  bgSwatch: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   nameEditRow: {
     flexDirection: 'row',
