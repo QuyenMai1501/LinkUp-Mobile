@@ -40,6 +40,7 @@ export const icons = {
 
   // Close / Cancel
   close: 'close-outline' as const,
+  chevronRight: 'chevron-forward-outline' as const,
 
   // Status
   checkCircle: 'checkmark-circle-outline' as const,

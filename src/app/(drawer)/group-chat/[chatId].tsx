@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { listGroupChats } from '@/api/group-chat';
+import { getGroupSettings } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
@@ -106,21 +106,30 @@ export default function GroupChatScreen() {
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const prevMsgCountRef = useRef(0);
 
-  // Load thông tin nhóm (tên, avatar, số thành viên).
-  useEffect(() => {
-    if (!chatId) return;
-    let cancelled = false;
-    listGroupChats()
-      .then((res) => {
-        if (cancelled) return;
-        const g = res.data.find((c) => c.chat_id === chatId);
-        if (g) setGroup(g);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [chatId]);
+  // Load thông tin nhóm (tên, avatar, số thành viên). Dùng useFocusEffect để
+  // reload khi quay về từ màn settings (HTTP rename không broadcast WS).
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      let cancelled = false;
+      getGroupSettings(chatId)
+        .then((res) => {
+          if (cancelled) return;
+          const s = res.data;
+          setGroup({
+            chat_id: s.chat_id,
+            name: s.name,
+            avatar_uri: s.avatar_uri,
+            member_count: s.members?.length ?? 0,
+            updated_at: new Date().toISOString(),
+          });
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [chatId]),
+  );
 
   // Realtime: nhóm đổi tên/ảnh → cập nhật header ngay.
   useEffect(() => {
@@ -472,33 +481,57 @@ export default function GroupChatScreen() {
             <ThemedText style={styles.backIcon}>←</ThemedText>
           </Pressable>
 
-          {group?.avatar_uri ? (
-            <Image
-              source={{ uri: group.avatar_uri }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.avatar,
-                styles.avatarPlaceholder,
-                { backgroundColor: theme.primaryLight },
-              ]}>
-              <Icon name="people" size={18} color={theme.primary} />
-            </View>
-          )}
-
-          <View style={styles.headerMeta}>
-            <ThemedText style={styles.headerName} numberOfLines={1}>
-              {groupName}
-            </ThemedText>
-            {memberCount > 0 && (
-              <ThemedText themeColor="textSecondary" style={styles.headerMembers}>
-                {t('chat.membersCount', { count: memberCount })}
-              </ThemedText>
+          <Pressable
+            onPress={() => {
+              if (!chatId) return;
+              // typedRoutes: đường dẫn động cần cast — mirror messages.tsx.
+              (router as any).push({
+                pathname: '/(drawer)/group-chat/settings',
+                params: { chatId },
+              });
+            }}
+            style={styles.headerInfoBtn}>
+            {group?.avatar_uri ? (
+              <Image
+                source={{ uri: group.avatar_uri }}
+                style={styles.avatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatar,
+                  styles.avatarPlaceholder,
+                  { backgroundColor: theme.primaryLight },
+                ]}>
+                <Icon name="people" size={18} color={theme.primary} />
+              </View>
             )}
-          </View>
+
+            <View style={styles.headerMeta}>
+              <ThemedText style={styles.headerName} numberOfLines={1}>
+                {groupName}
+              </ThemedText>
+              {memberCount > 0 && (
+                <ThemedText themeColor="textSecondary" style={styles.headerMembers}>
+                  {t('chat.membersCount', { count: memberCount })}
+                </ThemedText>
+              )}
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              if (!chatId) return;
+              (router as any).push({
+                pathname: '/(drawer)/group-chat/settings',
+                params: { chatId },
+              });
+            }}
+            hitSlop={8}
+            style={styles.headerInfoBtn}>
+            <Icon name="info" size={20} color={theme.textSecondary} />
+          </Pressable>
         </View>
 
         {/* Messages */}
@@ -730,6 +763,12 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 22,
+  },
+  headerInfoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexShrink: 1,
   },
   avatar: {
     width: 36,
