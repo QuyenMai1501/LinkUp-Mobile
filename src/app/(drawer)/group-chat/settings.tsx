@@ -8,17 +8,23 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  banGroupMember,
   getGroupSettings,
   leaveGroup,
+  muteGroupMember,
+  transferGroupAdmin,
+  unmuteGroupMember,
   updateGroupSettings,
 } from '@/api/group-chat';
 import { uploadMedia } from '@/api/profile';
+import { AddGroupMemberModal } from '@/components/chat/add-group-member-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -34,9 +40,36 @@ import type {
 import { notifyChatListDirty } from '@/utils/chat-list-dirty';
 
 /**
- * Cài đặt nhóm (P0.2 + P0.3): xem info/members, admin sửa tên + ảnh,
- * và rời nhóm (public/silent × keep/anonymize — mirror Web GroupSettingsPanel).
+ * Cài đặt nhóm: xem info/members, admin sửa tên + ảnh, rời nhóm (P0);
+ * P1 thêm: thêm thành viên, admin mute/ban/transfer, toggles
+ * allow_member_add + notifications. Mirror Web GroupSettingsPanel.
  */
+
+// Mirror Web GroupSettingsPanel MUTE_REASONS/MUTE_DURATIONS — binding oneof
+// phía server (dto.MuteMemberInput). Labels qua i18n thay vì hardcode.
+const MUTE_REASONS = [
+  'spam',
+  'abuse',
+  'harassment',
+  'violation',
+  'other',
+] as const;
+const MUTE_DURATIONS = [1, 30, 60, 1440, 0] as const;
+
+const MUTE_REASON_KEYS: Record<string, string> = {
+  spam: 'chat.muteReasonSpam',
+  abuse: 'chat.muteReasonAbuse',
+  harassment: 'chat.muteReasonHarassment',
+  violation: 'chat.muteReasonViolation',
+  other: 'chat.muteReasonOther',
+};
+const MUTE_DURATION_KEYS: Record<number, string> = {
+  1: 'chat.muteDuration1m',
+  30: 'chat.muteDuration30m',
+  60: 'chat.muteDuration1h',
+  1440: 'chat.muteDuration24h',
+  0: 'chat.muteDurationForever',
+};
 export default function GroupChatSettingsScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const theme = useTheme();
@@ -52,6 +85,17 @@ export default function GroupChatSettingsScreen() {
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
+  // P1.4: modal thêm thành viên (multi-select).
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  // P1.5: mute modal (target + reason/duration) và confirm dialogs.
+  const [muteTarget, setMuteTarget] = useState<GroupChatMember | null>(null);
+  const [muteReason, setMuteReason] = useState<string>('spam');
+  const [muteDuration, setMuteDuration] = useState<number>(60);
+  const [confirmBan, setConfirmBan] = useState<GroupChatMember | null>(null);
+  const [confirmTransfer, setConfirmTransfer] = useState<GroupChatMember | null>(null);
+  // Đang chạy 1 action admin (mute/ban/transfer/toggle) → disable nút.
+  const [actionBusy, setActionBusy] = useState(false);
+
   // Leave modal state.
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveMode, setLeaveMode] = useState<GroupLeaveMode>('public');
@@ -59,27 +103,28 @@ export default function GroupChatSettingsScreen() {
     useState<GroupLeaveHistoryMode>('keep');
   const [leaving, setLeaving] = useState(false);
 
-  useEffect(() => {
+  // Mirror Web loadSettings — chạy mount + refetch sau mỗi action (P1).
+  // Không setLoading(true) sync trong effect (lint react-hooks/set-state-in-effect);
+  // loading chỉ điều khiển spinner màn hình đầu, refetch im lặng khi settings đã có.
+  const loadSettings = useCallback(() => {
     if (!chatId) return;
-    let cancelled = false;
-    // Dùng .then (không async fn trong effect) để tránh lint
-    // react-hooks/set-state-in-effect — setState chỉ chạy trong callback.
     getGroupSettings(chatId)
       .then((res) => {
-        if (cancelled) return;
         setSettings(res.data);
         setNameValue(res.data.name);
       })
       .catch(() => {
-        if (!cancelled) Alert.alert(t('common.error'));
+        Alert.alert(t('common.error'));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [chatId, t]);
+
+  useEffect(() => {
+    if (!chatId) return;
+    loadSettings();
+  }, [chatId, loadSettings]);
 
   const members: GroupChatMember[] = settings?.members ?? [];
   const isAdmin =
@@ -164,6 +209,110 @@ export default function GroupChatSettingsScreen() {
   }, [chatId, leaveMode, leaveHistoryMode, leaving, router, t]);
 
   const groupName = settings?.name || t('chat.groupChat');
+
+  // Sort mirror Web GroupMemberList: self → admin → còn lại.
+  const sortedMembers: GroupChatMember[] = [...members].sort((a, b) => {
+    if (a.user_id === myUserId) return -1;
+    if (b.user_id === myUserId) return 1;
+    if (a.role === 'CHAT_ADMIN' && b.role !== 'CHAT_ADMIN') return -1;
+    if (a.role !== 'CHAT_ADMIN' && b.role === 'CHAT_ADMIN') return 1;
+    return 0;
+  });
+
+  const memberIds = new Set(members.map((m) => m.user_id));
+
+  // ===== P1.5: admin actions (HTTP mirror Web) =====
+
+  const runAdminAction = useCallback(
+    async (action: () => Promise<unknown>, successMsg: string) => {
+      if (!chatId || actionBusy) return false;
+      setActionBusy(true);
+      try {
+        await action();
+        Alert.alert(t('common.success'), successMsg);
+        loadSettings();
+        return true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(t('common.error'), msg || t('common.error'));
+        return false;
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [chatId, actionBusy, loadSettings, t],
+  );
+
+  const handleBan = useCallback(
+    (member: GroupChatMember) => {
+      setConfirmBan(null);
+      void runAdminAction(
+        () => banGroupMember(chatId!, member.user_id),
+        t('chat.memberBanned'),
+      );
+    },
+    [runAdminAction, chatId, t],
+  );
+
+  const handleConfirmMute = useCallback(async () => {
+    if (!muteTarget) return;
+    const ok = await runAdminAction(
+      () =>
+        muteGroupMember(chatId!, muteTarget.user_id, muteReason, muteDuration),
+      t('chat.memberMuted'),
+    );
+    if (ok) {
+      setMuteTarget(null);
+      setMuteReason('spam');
+      setMuteDuration(60);
+    }
+  }, [muteTarget, muteReason, muteDuration, runAdminAction, chatId, t]);
+
+  const handleUnmute = useCallback(
+    (member: GroupChatMember) => {
+      void runAdminAction(
+        () => unmuteGroupMember(chatId!, member.user_id),
+        t('chat.memberUnmuted'),
+      );
+    },
+    [runAdminAction, chatId, t],
+  );
+
+  const handleConfirmTransfer = useCallback(() => {
+    if (!confirmTransfer) return;
+    const target = confirmTransfer;
+    setConfirmTransfer(null);
+    void runAdminAction(
+      () => transferGroupAdmin(chatId!, target.user_id),
+      t('chat.adminTransferred'),
+    );
+  }, [confirmTransfer, runAdminAction, chatId, t]);
+
+  // ===== P1.6: toggles =====
+
+  const handleToggleAllowMemberAdd = useCallback(() => {
+    if (!settings || actionBusy) return;
+    const enabled = !settings.allow_member_add;
+    void runAdminAction(
+      () =>
+        updateGroupSettings(chatId!, { allow_member_add: enabled }).then(
+          (res) => setSettings(res.data),
+        ),
+      enabled ? t('chat.allowMemberAddOn') : t('chat.allowMemberAddOff'),
+    );
+  }, [settings, actionBusy, runAdminAction, chatId, t]);
+
+  const handleToggleNotifications = useCallback(() => {
+    if (!settings || actionBusy) return;
+    const enabled = !settings.member_settings.notifications_enabled;
+    void runAdminAction(
+      () =>
+        updateGroupSettings(chatId!, {
+          notifications_enabled: enabled,
+        }).then((res) => setSettings(res.data)),
+      enabled ? t('chat.notificationsOn') : t('chat.notificationsOff'),
+    );
+  }, [settings, actionBusy, runAdminAction, chatId, t]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -285,53 +434,150 @@ export default function GroupChatSettingsScreen() {
             </View>
           )}
 
+          {/* Thêm thành viên — hiện cho mọi member (server tự enforce
+              allow_member_add: nếu tắt thì chỉ admin được mời) */}
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
+              {t('chat.addMember')}
+            </ThemedText>
+            <Pressable
+              onPress={() => setAddMemberOpen(true)}
+              style={styles.settingRow}>
+              <Icon name="personAdd" size={18} color={theme.primary} />
+              <ThemedText style={{ flex: 1, color: theme.text }}>
+                {t('chat.addMembers')}
+              </ThemedText>
+              <Icon name="chevronRight" size={16} color={theme.textSecondary} />
+            </Pressable>
+          </View>
+
           {/* Danh sách thành viên */}
           <View style={[styles.section, { backgroundColor: theme.card }]}>
             <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
               {t('chat.groupMembers')}
             </ThemedText>
-            {members.map((m) => (
-              <View key={m.user_id} style={styles.memberRow}>
-                {m.avatar_uri ? (
-                  <Image
-                    source={{ uri: m.avatar_uri }}
-                    style={styles.memberAvatar}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.memberAvatar,
-                      styles.avatarPlaceholder,
-                      { backgroundColor: theme.primaryLight },
-                    ]}>
-                    <ThemedText style={{ color: theme.primary, fontWeight: '600' }}>
-                      {(m.display_name || '?')[0]?.toUpperCase()}
+            {sortedMembers.map((m) => {
+              const isSelf = m.user_id === myUserId;
+              const memberIsAdmin = m.role === 'CHAT_ADMIN';
+              // Mirror Web GroupMemberList: admin thấy action với non-admin khác.
+              const showActions = isAdmin && !isSelf && !memberIsAdmin;
+              return (
+                <View key={m.user_id} style={styles.memberRow}>
+                  {m.avatar_uri ? (
+                    <Image
+                      source={{ uri: m.avatar_uri }}
+                      style={styles.memberAvatar}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.memberAvatar,
+                        styles.avatarPlaceholder,
+                        { backgroundColor: theme.primaryLight },
+                      ]}>
+                      <ThemedText style={{ color: theme.primary, fontWeight: '600' }}>
+                        {(m.display_name || '?')[0]?.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  )}
+                  <View style={styles.memberInfo}>
+                    <ThemedText style={{ color: theme.text }} numberOfLines={1}>
+                      {m.display_name}
+                      {isSelf ? ` (${t('chat.you')})` : ''}
                     </ThemedText>
+                    <View style={styles.memberTags}>
+                      {memberIsAdmin && (
+                        <ThemedText
+                          style={[styles.memberTag, { color: theme.primary }]}>
+                          {t('chat.roleAdmin')}
+                        </ThemedText>
+                      )}
+                      {m.is_muted && (
+                        <ThemedText
+                          style={[styles.memberTag, { color: theme.danger }]}>
+                          {t('chat.mutedBadge')}
+                        </ThemedText>
+                      )}
+                    </View>
                   </View>
-                )}
-                <View style={styles.memberInfo}>
-                  <ThemedText style={{ color: theme.text }} numberOfLines={1}>
-                    {m.display_name}
-                    {m.user_id === myUserId ? ` (${t('chat.you')})` : ''}
-                  </ThemedText>
-                  <View style={styles.memberTags}>
-                    {m.role === 'CHAT_ADMIN' && (
-                      <ThemedText
-                        style={[styles.memberTag, { color: theme.primary }]}>
-                        {t('chat.roleAdmin')}
-                      </ThemedText>
-                    )}
-                    {m.is_muted && (
-                      <ThemedText
-                        style={[styles.memberTag, { color: theme.danger }]}>
-                        {t('chat.mutedBadge')}
-                      </ThemedText>
-                    )}
-                  </View>
+                  {showActions && (
+                    <View style={styles.memberActions}>
+                      <Pressable
+                        hitSlop={6}
+                        disabled={actionBusy}
+                        onPress={() =>
+                          m.is_muted
+                            ? handleUnmute(m)
+                            : setMuteTarget(m)
+                        }>
+                        <Icon
+                          name={m.is_muted ? 'volumeHigh' : 'volumeMute'}
+                          size={18}
+                          color={m.is_muted ? theme.primary : theme.textSecondary}
+                        />
+                      </Pressable>
+                      <Pressable
+                        hitSlop={6}
+                        disabled={actionBusy}
+                        onPress={() => setConfirmBan(m)}>
+                        <Icon name="ban" size={18} color={theme.danger} />
+                      </Pressable>
+                      <Pressable
+                        hitSlop={6}
+                        disabled={actionBusy}
+                        onPress={() => setConfirmTransfer(m)}>
+                        <Icon name="star" size={18} color={theme.primary} />
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
+              );
+            })}
+          </View>
+
+          {/* Admin settings toggle (chỉ admin) */}
+          {isAdmin && (
+            <View style={[styles.section, { backgroundColor: theme.card }]}>
+              <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
+                {t('chat.adminSettings')}
+              </ThemedText>
+              <View style={styles.toggleRow}>
+                <ThemedText style={{ flex: 1, color: theme.text }}>
+                  {t('chat.allowMemberAdd')}
+                </ThemedText>
+                <Switch
+                  value={settings.allow_member_add}
+                  onValueChange={() => handleToggleAllowMemberAdd()}
+                  disabled={actionBusy}
+                  trackColor={{ false: theme.border, true: theme.primaryLight }}
+                  thumbColor={settings.allow_member_add ? theme.primary : undefined}
+                />
               </View>
-            ))}
+            </View>
+          )}
+
+          {/* Notifications toggle (per-member, mọi member) */}
+          <View style={[styles.section, { backgroundColor: theme.card }]}>
+            <ThemedText themeColor="textSecondary" style={styles.sectionTitle}>
+              {t('chat.notificationSettings')}
+            </ThemedText>
+            <View style={styles.toggleRow}>
+              <ThemedText style={{ flex: 1, color: theme.text }}>
+                {t('chat.notifications')}
+              </ThemedText>
+              <Switch
+                value={settings.member_settings.notifications_enabled}
+                onValueChange={() => handleToggleNotifications()}
+                disabled={actionBusy}
+                trackColor={{ false: theme.border, true: theme.primaryLight }}
+                thumbColor={
+                  settings.member_settings.notifications_enabled
+                    ? theme.primary
+                    : undefined
+                }
+              />
+            </View>
           </View>
 
           {/* Rời nhóm */}
@@ -345,6 +591,15 @@ export default function GroupChatSettingsScreen() {
           </Pressable>
         </ScrollView>
       )}
+
+      {/* Thêm thành viên (multi-select modal) */}
+      <AddGroupMemberModal
+        visible={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        chatId={chatId ?? ''}
+        memberIds={memberIds}
+        onMembersAdded={loadSettings}
+      />
 
       {/* Leave confirm modal */}
       {leaveOpen && (
@@ -428,6 +683,187 @@ export default function GroupChatSettingsScreen() {
                   <ActivityIndicator size={14} color="#FFF" />
                 ) : (
                   <ThemedText style={{ color: '#FFF' }}>{t('chat.leaveGroup')}</ThemedText>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Mute modal — lý do × thời hạn (radio pattern như leave modal,
+          mirror Web selects) */}
+      {muteTarget && (
+        <View style={styles.leaveOverlay}>
+          <Pressable
+            style={styles.leaveOverlayBg}
+            onPress={() => !actionBusy && setMuteTarget(null)}
+          />
+          <View style={[styles.leaveDialog, { backgroundColor: theme.card }]}>
+            <ThemedText style={[styles.leaveTitle, { color: theme.text }]}>
+              {t('chat.muteMember')}
+            </ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.leaveDesc}>
+              {muteTarget.display_name}
+            </ThemedText>
+
+            <ThemedText themeColor="textSecondary" style={styles.dialogLabel}>
+              {t('chat.muteReason')}
+            </ThemedText>
+            {MUTE_REASONS.map((reason) => (
+              <Pressable
+                key={reason}
+                onPress={() => setMuteReason(reason)}
+                style={styles.radioRow}>
+                <Icon
+                  name={muteReason === reason ? 'checkCircle' : 'close'}
+                  size={18}
+                  color={muteReason === reason ? theme.primary : theme.textSecondary}
+                />
+                <ThemedText style={{ flex: 1, color: theme.text }}>
+                  {t(MUTE_REASON_KEYS[reason])}
+                </ThemedText>
+              </Pressable>
+            ))}
+
+            <ThemedText themeColor="textSecondary" style={styles.dialogLabel}>
+              {t('chat.muteDuration')}
+            </ThemedText>
+            {MUTE_DURATIONS.map((duration) => (
+              <Pressable
+                key={duration}
+                onPress={() => setMuteDuration(duration)}
+                style={styles.radioRow}>
+                <Icon
+                  name={muteDuration === duration ? 'checkCircle' : 'close'}
+                  size={18}
+                  color={
+                    muteDuration === duration ? theme.primary : theme.textSecondary
+                  }
+                />
+                <ThemedText style={{ flex: 1, color: theme.text }}>
+                  {t(MUTE_DURATION_KEYS[duration])}
+                </ThemedText>
+              </Pressable>
+            ))}
+
+            <View style={styles.leaveActions}>
+              <Pressable
+                style={[
+                  styles.leaveActionBtn,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => setMuteTarget(null)}
+                disabled={actionBusy}>
+                <ThemedText style={{ color: theme.text }}>
+                  {t('common.cancel')}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.leaveActionBtn,
+                  { backgroundColor: theme.primary },
+                ]}
+                onPress={() => void handleConfirmMute()}
+                disabled={actionBusy}>
+                {actionBusy ? (
+                  <ActivityIndicator size={14} color="#FFF" />
+                ) : (
+                  <ThemedText style={{ color: '#FFF' }}>
+                    {t('chat.mute')}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Confirm ban */}
+      {confirmBan && (
+        <View style={styles.leaveOverlay}>
+          <Pressable
+            style={styles.leaveOverlayBg}
+            onPress={() => !actionBusy && setConfirmBan(null)}
+          />
+          <View style={[styles.leaveDialog, { backgroundColor: theme.card }]}>
+            <ThemedText style={[styles.leaveTitle, { color: theme.text }]}>
+              {t('chat.confirmBan')}
+            </ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.leaveDesc}>
+              {t('chat.confirmBanMessage', {
+                name: confirmBan.display_name,
+              })}
+            </ThemedText>
+            <View style={styles.leaveActions}>
+              <Pressable
+                style={[
+                  styles.leaveActionBtn,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => setConfirmBan(null)}
+                disabled={actionBusy}>
+                <ThemedText style={{ color: theme.text }}>
+                  {t('common.cancel')}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.leaveActionBtn, { backgroundColor: theme.danger }]}
+                onPress={() => handleBan(confirmBan)}
+                disabled={actionBusy}>
+                {actionBusy ? (
+                  <ActivityIndicator size={14} color="#FFF" />
+                ) : (
+                  <ThemedText style={{ color: '#FFF' }}>
+                    {t('chat.ban')}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Confirm transfer admin */}
+      {confirmTransfer && (
+        <View style={styles.leaveOverlay}>
+          <Pressable
+            style={styles.leaveOverlayBg}
+            onPress={() => !actionBusy && setConfirmTransfer(null)}
+          />
+          <View style={[styles.leaveDialog, { backgroundColor: theme.card }]}>
+            <ThemedText style={[styles.leaveTitle, { color: theme.text }]}>
+              {t('chat.confirmTransferAdmin')}
+            </ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.leaveDesc}>
+              {t('chat.confirmTransferAdminMessage', {
+                name: confirmTransfer.display_name,
+              })}
+            </ThemedText>
+            <View style={styles.leaveActions}>
+              <Pressable
+                style={[
+                  styles.leaveActionBtn,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => setConfirmTransfer(null)}
+                disabled={actionBusy}>
+                <ThemedText style={{ color: theme.text }}>
+                  {t('common.cancel')}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.leaveActionBtn,
+                  { backgroundColor: theme.primary },
+                ]}
+                onPress={handleConfirmTransfer}
+                disabled={actionBusy}>
+                {actionBusy ? (
+                  <ActivityIndicator size={14} color="#FFF" />
+                ) : (
+                  <ThemedText style={{ color: '#FFF' }}>
+                    {t('chat.transferAdmin')}
+                  </ThemedText>
                 )}
               </Pressable>
             </View>
@@ -571,6 +1007,23 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 11,
     fontWeight: '600',
+  },
+  memberActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  dialogLabel: {
+    ...Typography.caption,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginTop: Spacing.xs,
   },
   leaveBtn: {
     flexDirection: 'row',

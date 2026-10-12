@@ -27,15 +27,65 @@ export const createGroupChat = (input: {
 export const getGroupSettings = (chatId: string) =>
   request<GroupChatSettingsResponse>(`/group-chats/${chatId}/settings`);
 
-// PUT /group-chats/:chatID/settings — name/avatar yêu cầu admin; notifications
-// là per-member (P0 chỉ cần name + avatar, toggles P1).
+// PUT /group-chats/:chatID/settings — name/avatar/allow_member_add yêu cầu
+// admin; notifications là per-member. Mirror Web api/chats.ts updateGroupSettings.
 export const updateGroupSettings = (
   chatId: string,
-  input: { name?: string; avatar_uri?: string },
+  input: {
+    name?: string;
+    avatar_uri?: string;
+    allow_member_add?: boolean;
+    notifications_enabled?: boolean;
+  },
 ) =>
   request<GroupChatSettingsResponse>(`/group-chats/${chatId}/settings`, {
     method: 'PUT',
     body: JSON.stringify(input),
+  });
+
+// POST /group-chats/:chatID/add-member — tạo lời mời (pending request) trong
+// chat 1-1. Server enforce allow_member_add (P1.4). Mirror Web addGroupMember.
+export const addGroupMember = (chatId: string, userId: string) =>
+  request<{ request_id: string; message?: string }>(
+    `/group-chats/${chatId}/add-member`,
+    { method: 'POST', body: JSON.stringify({ user_id: userId }) },
+  );
+
+// POST /group-chats/:chatID/ban — trục xuất + chặn thành viên (admin only).
+export const banGroupMember = (chatId: string, userId: string) =>
+  request<{ message?: string }>(`/group-chats/${chatId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  });
+
+// POST /group-chats/:chatID/mute — reason: spam|abuse|harassment|violation|other;
+// durationMinutes: 1|30|60|1440|0 (0 = vĩnh viễn) — binding oneof phía server.
+export const muteGroupMember = (
+  chatId: string,
+  userId: string,
+  reason: string,
+  durationMinutes: number,
+) =>
+  request<{ message?: string }>(`/group-chats/${chatId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: userId,
+      reason,
+      duration_minutes: durationMinutes,
+    }),
+  });
+
+export const unmuteGroupMember = (chatId: string, userId: string) =>
+  request<{ message?: string }>(`/group-chats/${chatId}/unmute`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  });
+
+// POST /group-chats/:chatID/transfer-admin — chuyển quyền admin cho thành viên.
+export const transferGroupAdmin = (chatId: string, targetUserId: string) =>
+  request<{ message?: string }>(`/group-chats/${chatId}/transfer-admin`, {
+    method: 'POST',
+    body: JSON.stringify({ target_user_id: targetUserId }),
   });
 
 // POST /group-chats/:chatID/leave — rời nhóm (P0.3). Web gửi cùng body.
