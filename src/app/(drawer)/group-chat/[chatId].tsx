@@ -9,6 +9,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { getGroupSettings } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
+import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MediaStack } from '@/components/chat/media-stack';
 import { MessageActions } from '@/components/chat/message-actions';
@@ -41,6 +43,7 @@ import {
   groupMediaTimeline,
   type MediaGroupItem,
 } from '@/utils/chatMediaGroup';
+import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 
 type GroupedItem = ChatMessage | MediaGroupItem;
 
@@ -95,10 +98,23 @@ export default function GroupChatScreen() {
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
+  // Draft chuyển tiếp (rút từ forward-draft store — navigate sang instance mới).
+  const [forwardDraft, setForwardDraft] = useState<{
+    messageId: string;
+    content: string;
+    emojiId?: string;
+  } | null>(null);
+  const [forwardPickerFor, setForwardPickerFor] = useState<ChatMessage | null>(
+    null,
+  );
   const [lightbox, setLightbox] = useState<{
     msgs: ChatMessage[];
     index: number;
   } | null>(null);
+  // Tìm kiếm tin nhắn trong nhóm + highlight khi nhảy từ kết quả.
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [flashId, setFlashId] = useState<string | null>(null);
   const pinToBottomRef = useRef(true);
   const isNearBottomRef = useRef(true);
   const programmaticScrollRef = useRef(false);
@@ -147,6 +163,36 @@ export default function GroupChatScreen() {
     });
     return unsub;
   }, [socket, chatId]);
+
+  // Rút draft chuyển tiếp khi mount / đổi chat (null nếu không có).
+  // setState sau await — tránh react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      const taken = takeForwardDraft(chatId ?? '');
+      setForwardDraft(
+        taken
+          ? {
+              messageId: taken.messageId,
+              content: taken.content,
+              emojiId: taken.emojiId,
+            }
+          : null,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId]);
+
+  // Tự tắt highlight nhảy tới tin từ kết quả tìm kiếm.
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = setTimeout(() => setFlashId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [flashId]);
 
   const room = useGroupChatRoom({
     chatId: chatId ?? null,
@@ -227,6 +273,7 @@ export default function GroupChatScreen() {
     ) => {
       // GIF từ GIPHY → gửi ngay dưới dạng gif_url.
       if (gifUrl) {
+        setForwardDraft(null); // gif + forward không gửi cùng — bỏ draft
         room.sendMessage('', { gifUrl, replyToMessageId: replyingTo?.id });
         setReplyingTo(null);
         setTimeout(() => {
@@ -236,6 +283,7 @@ export default function GroupChatScreen() {
       }
 
       if (attachments && attachments.length > 0 && chatId) {
+        setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
@@ -268,13 +316,19 @@ export default function GroupChatScreen() {
       }
 
       // Group chat KHÔNG có E2E — gửi plaintext (server mã AES phía server).
-      room.sendMessage(text, { replyToMessageId: replyingTo?.id });
+      // Sticker-forward gửi đúng emoji_id gốc (content rỗng).
+      room.sendMessage(text, {
+        replyToMessageId: replyingTo?.id,
+        forwardedFrom: forwardDraft?.messageId,
+        emojiId: forwardDraft?.emojiId,
+      });
       setReplyingTo(null);
+      setForwardDraft(null);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, replyingTo, replySenderLabel, chatId, runUpload],
+    [room, replyingTo, replySenderLabel, forwardDraft, chatId, runUpload],
   );
 
   const handleTyping = useCallback(
@@ -290,6 +344,7 @@ export default function GroupChatScreen() {
       durationSec: number,
     ) => {
       if (!chatId) return;
+      setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft
       const tempId = room.beginMediaUpload({
         localUri: file.uri,
         mediaType: file.type,
@@ -333,6 +388,31 @@ export default function GroupChatScreen() {
       room.reactToMessage(messageId, emojiId);
     },
     [room],
+  );
+
+  // Mở picker chọn hội thoại đích (direct hoặc group).
+  const handleForward = useCallback((msg: ChatMessage) => {
+    setForwardPickerFor(msg);
+  }, []);
+
+  const handleForwardPick = useCallback(
+    (target: { chatId: string; type: 'direct' | 'group' }) => {
+      const msg = forwardPickerFor;
+      setForwardPickerFor(null);
+      if (!msg) return;
+      stashForwardDraft({
+        chatId: target.chatId,
+        messageId: msg.id,
+        content: msg.deleted ? '' : (msg.content ?? ''),
+        emojiId: msg.emoji_id ?? undefined,
+      });
+      const route =
+        target.type === 'group'
+          ? `/(drawer)/group-chat/${target.chatId}`
+          : `/(drawer)/chat/${target.chatId}`;
+      (router as any).push(route);
+    },
+    [forwardPickerFor, router],
   );
 
   const handleRetry = useCallback(
@@ -393,6 +473,36 @@ export default function GroupChatScreen() {
       }
     },
     [findIndexInGrouped],
+  );
+
+  // Nhảy tới tin (từ kết quả search / pinned bar).
+  const scrollToMessage = useCallback(
+    (messageId: string) => {
+      const idx = findIndexInGrouped(messageId);
+      if (idx >= 0) {
+        scrollFailCountRef.current = 0;
+        (flatListRef.current as any)?.scrollToIndex?.({
+          index: idx,
+          animated: true,
+          viewPosition: 0.3,
+        });
+      }
+    },
+    [findIndexInGrouped],
+  );
+
+  const handlePin = useCallback(
+    (msg: ChatMessage) => {
+      room.pinMessage(msg.id);
+    },
+    [room],
+  );
+
+  const handleUnpin = useCallback(
+    (msg: ChatMessage) => {
+      room.unpinMessage(msg.id);
+    },
+    [room],
   );
 
   const handleScrollToIndexFailed = useCallback((info: { index: number }) => {
@@ -522,6 +632,26 @@ export default function GroupChatScreen() {
 
           <Pressable
             onPress={() => {
+              setSearchActive((prev) => !prev);
+              if (searchActive) {
+                setSearchInput('');
+                room.clearSearch();
+              }
+            }}
+            hitSlop={8}
+            style={[
+              styles.headerInfoBtn,
+              searchActive && { backgroundColor: theme.bgSecondary },
+            ]}>
+            <Icon
+              name="search"
+              size={18}
+              color={searchActive ? theme.primary : theme.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
               if (!chatId) return;
               (router as any).push({
                 pathname: '/(drawer)/group-chat/settings',
@@ -534,9 +664,174 @@ export default function GroupChatScreen() {
           </Pressable>
         </View>
 
+        {/* Search bar */}
+        {searchActive && (
+          <View
+            style={[
+              styles.searchBar,
+              {
+                backgroundColor: theme.bgSecondary,
+                borderBottomColor: theme.border,
+              },
+            ]}>
+            <Icon name="search" size={14} color={theme.textSecondary} />
+            <View style={styles.searchInputWrap}>
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                value={searchInput}
+                onChangeText={(text) => {
+                  setSearchInput(text);
+                  if (text.trim()) {
+                    room.searchMessages(text);
+                  } else {
+                    room.clearSearch();
+                  }
+                }}
+                placeholder={t('chat.searchMessages')}
+                placeholderTextColor={theme.textSecondary}
+                autoFocus
+              />
+              {searchInput.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    setSearchInput('');
+                    room.clearSearch();
+                  }}
+                  hitSlop={8}>
+                  <Icon name="close" size={14} color={theme.textSecondary} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Pinned messages bar */}
+        {room.pinnedMessages.length > 0 && !searchActive && (
+          <View
+            style={[
+              styles.pinnedBar,
+              { backgroundColor: theme.card, borderBottomColor: theme.border },
+            ]}>
+            <View style={styles.pinnedBarHeader}>
+              <ThemedText
+                style={[styles.pinnedBarTitle, { color: theme.primary }]}>
+                <Icon name="pin" size={12} color={theme.primary} />{' '}
+                {t('chat.pinnedMessages')} ({room.pinnedMessages.length})
+              </ThemedText>
+            </View>
+            {room.pinnedMessages.map((pin) => (
+              <Pressable
+                key={pin.message_id}
+                style={[
+                  styles.pinnedBarItem,
+                  { backgroundColor: theme.bgSecondary },
+                ]}
+                onPress={() => scrollToMessage(pin.message_id)}>
+                <View style={styles.pinnedBarItemContent}>
+                  <ThemedText
+                    style={[styles.pinnedBarItemSender, { color: theme.text }]}
+                    numberOfLines={1}>
+                    {pin.sender_name ||
+                      room.memberNames[pin.sender_id] ||
+                      t('chat.unknown')}
+                  </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.pinnedBarItemText,
+                      { color: theme.textSecondary },
+                    ]}
+                    numberOfLines={1}>
+                    {pin.content || t('chat.attachment')}
+                  </ThemedText>
+                </View>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => room.unpinMessage(pin.message_id)}
+                  style={styles.pinnedBarRemove}>
+                  <ThemedText
+                    style={{ color: theme.textSecondary, fontSize: 16 }}>
+                    ×
+                  </ThemedText>
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {/* Messages */}
         <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-          {room.loading ? (
+          {room.searchResults ? (
+            <View style={styles.searchResults}>
+              <View
+                style={[
+                  styles.searchResultsHeader,
+                  { borderBottomColor: theme.border },
+                ]}>
+                <ThemedText
+                  style={[styles.searchResultsTitle, { color: theme.text }]}>
+                  {t('chat.searchResults', { keyword: room.searchKeyword })}
+                </ThemedText>
+                <Pressable
+                  onPress={() => {
+                    setSearchInput('');
+                    room.clearSearch();
+                  }}
+                  hitSlop={8}>
+                  <Icon name="close" size={14} color={theme.textSecondary} />
+                </Pressable>
+              </View>
+              {room.searchResults.length === 0 ? (
+                <View style={styles.center}>
+                  <ThemedText themeColor="textSecondary">
+                    {t('chat.noResults')}
+                  </ThemedText>
+                </View>
+              ) : (
+                <FlatList
+                  data={room.searchResults}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={[
+                        styles.searchResultItem,
+                        { borderBottomColor: theme.border },
+                      ]}
+                      onPress={() => {
+                        // Đóng kết quả → nhảy tới tin gốc + highlight.
+                        setSearchInput('');
+                        room.clearSearch();
+                        setTimeout(() => {
+                          scrollToMessage(item.id);
+                          setFlashId(item.id);
+                        }, 80);
+                      }}>
+                      <ThemedText
+                        style={[
+                          styles.searchResultSender,
+                          { color: theme.primary },
+                        ]}>
+                        {item.sender_id === myUserId
+                          ? t('chat.you')
+                          : item.sender_name ||
+                            room.memberNames[item.sender_id] ||
+                            t('chat.unknown')}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.searchResultContent,
+                          { color: theme.text },
+                        ]}
+                        numberOfLines={2}>
+                        {item.deleted
+                          ? t('chat.messageDeleted')
+                          : item.content || t('chat.attachment')}
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                />
+              )}
+            </View>
+          ) : room.loading ? (
             <View style={styles.center}>
               <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
             </View>
@@ -630,6 +925,7 @@ export default function GroupChatScreen() {
                       avatarUri={msg.sender_avatar ?? null}
                       showAvatar={showAvatar}
                       senderName={senderLabel(msg)}
+                      highlight={flashId === msg.id}
                       onLongPress={handleLongPress}
                       onReplyPress={handleReplyPress}
                       onMediaPress={handleMediaPress}
@@ -672,6 +968,8 @@ export default function GroupChatScreen() {
           replyingTo={replyingTo}
           replySenderLabel={replySenderLabel}
           onClearReply={() => setReplyingTo(null)}
+          forwarding={forwardDraft}
+          onClearForward={() => setForwardDraft(null)}
         />
       </KeyboardAvoidingView>
 
@@ -679,13 +977,29 @@ export default function GroupChatScreen() {
       <MessageActions
         message={actionTarget}
         myUserId={myUserId}
-        canPin={false}
+        isPinned={
+          actionTarget
+            ? room.pinnedMessages.some((p) => p.message_id === actionTarget.id)
+            : false
+        }
+        canPin
         onClose={() => setActionTarget(null)}
         onReply={handleReply}
         onDelete={handleDeleteRequest}
+        onPin={handlePin}
+        onUnpin={handleUnpin}
         onReact={handleReact}
+        onForward={handleForward}
         onRetry={handleRetry}
         onDiscard={handleDiscard}
+      />
+
+      {/* Chọn hội thoại đích khi chuyển tiếp */}
+      <ForwardPickerModal
+        visible={!!forwardPickerFor}
+        excludeChatId={chatId}
+        onClose={() => setForwardPickerFor(null)}
+        onPick={handleForwardPick}
       />
 
       {/* Delete message confirmation */}
@@ -790,6 +1104,95 @@ const styles = StyleSheet.create({
   headerMembers: {
     ...Typography.caption,
     fontSize: 11,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.sm,
+  },
+  searchInputWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    ...Typography.body,
+    fontSize: 14,
+  },
+  searchResults: {
+    flex: 1,
+  },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchResultsTitle: {
+    ...Typography.body,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  searchResultItem: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 2,
+  },
+  searchResultSender: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  searchResultContent: {
+    ...Typography.body,
+    fontSize: 14,
+  },
+  pinnedBar: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  pinnedBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  pinnedBarTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pinnedBarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    padding: 6,
+    borderRadius: 6,
+  },
+  pinnedBarItemContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  pinnedBarItemSender: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pinnedBarItemText: {
+    fontSize: 12,
+  },
+  pinnedBarRemove: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   messagesWrap: {
     flex: 1,

@@ -4,29 +4,38 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { listChats } from '@/api/chat';
+import { listGroupChats } from '@/api/group-chat';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatConversation } from '@/types/chat';
+import type { GroupChatConversation } from '@/types/group-chat';
+
+export interface ForwardPickTarget {
+  chatId: string;
+  type: 'direct' | 'group';
+}
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   /** Không liệt kê chat hiện tại — tránh tự chuyển tiếp về chính nó. */
   excludeChatId?: string;
-  onPick: (chatId: string) => void;
+  onPick: (target: ForwardPickTarget) => void;
 }
 
 /**
- * B1: chọn hội thoại đích khi chuyển tiếp tin nhắn — liệt kê direct chats
- * (mobile chưa có group chat), lọc client-side theo tên đối phương.
+ * Chọn hội thoại đích khi chuyển tiếp tin nhắn — liệt kê group chats rồi
+ * direct chats (mirror Web ForwardPickerModal). onPick trả về type để screen
+ * điều hướng đúng route (chat/ hay group-chat/).
  */
 export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [groupConversations, setGroupConversations] = useState<GroupChatConversation[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const prevVisibleRef = useRef(false);
@@ -35,22 +44,28 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
     if (visible && !prevVisibleRef.current) {
       setKeyword('');
       setConversations([]);
+      setGroupConversations([]);
       setLoading(true);
-      listChats()
-        .then((res) =>
-          setConversations(res.data.filter((c) => c.chat_id !== excludeChatId)),
-        )
+      Promise.all([listChats(), listGroupChats()])
+        .then(([directRes, groupRes]) => {
+          setConversations(directRes.data.filter((c) => c.chat_id !== excludeChatId));
+          setGroupConversations(groupRes.data.filter((g) => g.chat_id !== excludeChatId));
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     }
     prevVisibleRef.current = visible;
   }, [visible, excludeChatId]);
 
-  const filtered = keyword.trim()
+  const normalized = keyword.trim().toLowerCase();
+  const filteredGroups = normalized
+    ? groupConversations.filter((g) =>
+        (g.name || '').toLowerCase().includes(normalized),
+      )
+    : groupConversations;
+  const filteredDirect = normalized
     ? conversations.filter((c) =>
-        c.partner.display_name
-          .toLowerCase()
-          .includes(keyword.trim().toLowerCase()),
+        c.partner.display_name.toLowerCase().includes(normalized),
       )
     : conversations;
 
@@ -95,48 +110,94 @@ export function ForwardPickerModal({ visible, onClose, excludeChatId, onPick }: 
           <View style={styles.center}>
             <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
           </View>
-        ) : filtered.length === 0 ? (
+        ) : filteredGroups.length === 0 && filteredDirect.length === 0 ? (
           <View style={styles.center}>
             <ThemedText themeColor="textSecondary">{t('chat.noConversations')}</ThemedText>
           </View>
         ) : (
           <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.chat_id}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: pressed ? theme.bgSecondary : 'transparent' },
-                ]}
-                onPress={() => onPick(item.chat_id)}>
-                {item.partner.avatar_uri ? (
-                  <Image
-                    source={{ uri: item.partner.avatar_uri }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.avatar,
-                      styles.avatarPlaceholder,
-                      { backgroundColor: theme.primaryLight },
-                    ]}>
-                    <ThemedText style={[styles.avatarLetter, { color: theme.primary }]}>
-                      {(item.partner.display_name || '?')[0]?.toUpperCase()}
-                    </ThemedText>
-                  </View>
-                )}
-                <ThemedText style={[styles.name, { color: theme.text }]} numberOfLines={1}>
-                  {item.partner.display_name}
+            data={[
+              ...filteredGroups.map((g) => ({ kind: 'group' as const, item: g })),
+              ...filteredDirect.map((c) => ({ kind: 'direct' as const, item: c })),
+            ]}
+            keyExtractor={(entry) =>
+              `${entry.kind}-${entry.item.chat_id}`
+            }
+            ListHeaderComponent={
+              filteredGroups.length > 0 ? (
+                <ThemedText
+                  themeColor="textSecondary"
+                  style={styles.sectionLabel}>
+                  {t('chat.groupChats')}
                 </ThemedText>
-                <Icon name="share" size={16} color={theme.primary} />
-              </Pressable>
-            )}
-            ItemSeparatorComponent={() => (
-              <View style={[styles.separator, { backgroundColor: theme.border }]} />
-            )}
+              ) : null
+            }
+            renderItem={({ item: entry }) => {
+              if (entry.kind === 'group') {
+                const g = entry.item;
+                return (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.row,
+                      { backgroundColor: pressed ? theme.bgSecondary : 'transparent' },
+                    ]}
+                    onPress={() => onPick({ chatId: g.chat_id, type: 'group' })}>
+                    {g.avatar_uri ? (
+                      <Image
+                        source={{ uri: g.avatar_uri }}
+                        style={styles.avatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.avatar,
+                          styles.avatarPlaceholder,
+                          { backgroundColor: theme.primaryLight },
+                        ]}>
+                        <Icon name="people" size={18} color={theme.primary} />
+                      </View>
+                    )}
+                    <ThemedText style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+                      {g.name}
+                    </ThemedText>
+                    <Icon name="share" size={16} color={theme.primary} />
+                  </Pressable>
+                );
+              }
+              const c = entry.item;
+              return (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.row,
+                    { backgroundColor: pressed ? theme.bgSecondary : 'transparent' },
+                  ]}
+                  onPress={() => onPick({ chatId: c.chat_id, type: 'direct' })}>
+                  {c.partner.avatar_uri ? (
+                    <Image
+                      source={{ uri: c.partner.avatar_uri }}
+                      style={styles.avatar}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.avatar,
+                        styles.avatarPlaceholder,
+                        { backgroundColor: theme.primaryLight },
+                      ]}>
+                      <ThemedText style={[styles.avatarLetter, { color: theme.primary }]}>
+                        {(c.partner.display_name || '?')[0]?.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  )}
+                  <ThemedText style={[styles.name, { color: theme.text }]} numberOfLines={1}>
+                    {c.partner.display_name}
+                  </ThemedText>
+                  <Icon name="share" size={16} color={theme.primary} />
+                </Pressable>
+              );
+            }}
             style={styles.flex}
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="handled"
@@ -230,5 +291,13 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 76,
+  },
+  sectionLabel: {
+    ...Typography.caption,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
 });

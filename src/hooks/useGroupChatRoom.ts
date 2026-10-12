@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import type {
   ChatMessage,
   MessageReaction,
+  PinnedMessage,
   SendMessageOptions,
 } from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -55,6 +56,15 @@ export interface GroupChatRoom {
   typingUsers: Set<string>;
   // Tên hiển thị theo user_id — phục vụ tin hệ thống + tên người gửi.
   memberNames: Record<string, string>;
+  // Tìm kiếm server-side (group:message:search).
+  searchResults: ChatMessage[] | null;
+  searchKeyword: string;
+  searchMessages: (keyword: string) => void;
+  clearSearch: () => void;
+  // Ghim tin (group:message:pin/unpin) — max 2 pinned như Web.
+  pinnedMessages: PinnedMessage[];
+  pinMessage: (messageId: string) => void;
+  unpinMessage: (messageId: string) => void;
   sendMessage: (content: string, opts?: SendMessageOptions) => void;
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
@@ -92,6 +102,9 @@ export function useGroupChatRoom({
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
 
   const chatIdRef = useRef<string | null>(null);
   const myUserIdRef = useRef(myUserId);
@@ -426,6 +439,43 @@ export function useGroupChatRoom({
     );
   }, []);
 
+  // Kết quả tìm kiếm server-side (group:message:search_result).
+  const handleSearchResult = useCallback((payload: unknown) => {
+    const data = payload as {
+      chat_id?: string;
+      keyword?: string;
+      messages?: ChatMessage[];
+    };
+    if (!data || data.chat_id !== chatIdRef.current) return;
+    setSearchKeyword(data.keyword ?? '');
+    setSearchResults(sortByCreatedAt(dedupeByID(data.messages ?? [])));
+  }, []);
+
+  // Ghim tin: server gửi danh sách đầy đủ khi join (pinned_list) rồi
+  // push từng pin/unpin — mirror Web useGroupChatRoom.
+  const handlePinnedList = useCallback((payload: unknown) => {
+    const data = payload as { pinned_messages?: PinnedMessage[] };
+    if (!data) return;
+    setPinnedMessages(data.pinned_messages ?? []);
+  }, []);
+
+  const handlePinned = useCallback((payload: unknown) => {
+    const pin = payload as PinnedMessage;
+    if (!pin || !pin.message_id) return;
+    setPinnedMessages((prev) => {
+      if (prev.some((p) => p.message_id === pin.message_id)) return prev;
+      return [pin, ...prev].slice(0, 2);
+    });
+  }, []);
+
+  const handleUnpinned = useCallback((payload: unknown) => {
+    const data = payload as { chat_id?: string; message_id?: string };
+    if (!data || !data.message_id) return;
+    setPinnedMessages((prev) =>
+      prev.filter((p) => p.message_id !== data.message_id),
+    );
+  }, []);
+
   // Effect 1: reset state khi đổi chat + đăng ký sự kiện.
   useEffect(() => {
     if (!chatId) return;
@@ -435,6 +485,9 @@ export function useGroupChatRoom({
       setMessages([]);
       setTypingUsers(new Set());
       setMemberNames({});
+      setSearchResults(null);
+      setSearchKeyword('');
+      setPinnedMessages([]);
       memberNamesRef.current = {};
       sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
       sendTimeoutsRef.current.clear();
@@ -448,6 +501,10 @@ export function useGroupChatRoom({
       socket.subscribe('group:history', handleHistory),
       socket.subscribe('group:message:new', handleNewMessage),
       socket.subscribe('group:typing', handleTyping),
+      socket.subscribe('group:message:search_result', handleSearchResult),
+      socket.subscribe('group:message:pinned_list', handlePinnedList),
+      socket.subscribe('group:message:pinned', handlePinned),
+      socket.subscribe('group:message:unpinned', handleUnpinned),
       socket.subscribe('group:message:read', handleReadState),
       socket.subscribe('group:message:reacted', handleReacted),
       socket.subscribe('group:message:deleted', handleDeleted),
@@ -465,6 +522,10 @@ export function useGroupChatRoom({
     handleHistory,
     handleNewMessage,
     handleTyping,
+    handleSearchResult,
+    handlePinnedList,
+    handlePinned,
+    handleUnpinned,
     handleReadState,
     handleReacted,
     handleDeleted,
@@ -682,12 +743,58 @@ export function useGroupChatRoom({
     [socket],
   );
 
+  // Group chat: server decrypt + tìm kiếm — mirror Web useGroupChatRoom.
+  const searchMessages = useCallback(
+    (keyword: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      const trimmed = keyword.trim();
+      if (!trimmed) {
+        setSearchResults(null);
+        setSearchKeyword('');
+        return;
+      }
+      socket.send('group:message:search', { chat_id: chatID, keyword: trimmed });
+    },
+    [socket],
+  );
+
+  const clearSearch = useCallback(() => {
+    setSearchResults(null);
+    setSearchKeyword('');
+  }, []);
+
+  const pinMessage = useCallback(
+    (messageId: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      socket.send('group:message:pin', { chat_id: chatID, message_id: messageId });
+    },
+    [socket],
+  );
+
+  const unpinMessage = useCallback(
+    (messageId: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      socket.send('group:message:unpin', { chat_id: chatID, message_id: messageId });
+    },
+    [socket],
+  );
+
   return useMemo(
     () => ({
       messages,
       loading,
       typingUsers,
       memberNames,
+      searchResults,
+      searchKeyword,
+      searchMessages,
+      clearSearch,
+      pinnedMessages,
+      pinMessage,
+      unpinMessage,
       sendMessage,
       sendTyping,
       deleteMessage,
@@ -704,6 +811,13 @@ export function useGroupChatRoom({
       loading,
       typingUsers,
       memberNames,
+      searchResults,
+      searchKeyword,
+      searchMessages,
+      clearSearch,
+      pinnedMessages,
+      pinMessage,
+      unpinMessage,
       sendMessage,
       sendTyping,
       deleteMessage,

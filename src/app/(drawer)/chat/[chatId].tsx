@@ -579,17 +579,21 @@ export default function ChatScreen() {
   }, []);
 
   const handleForwardPick = useCallback(
-    (targetChatId: string) => {
+    (target: { chatId: string; type: 'direct' | 'group' }) => {
       const msg = forwardPickerFor;
       setForwardPickerFor(null);
       if (!msg) return;
       stashForwardDraft({
-        chatId: targetChatId,
+        chatId: target.chatId,
         messageId: msg.id,
         content: msg.deleted ? "" : (msg.content ?? ""),
         emojiId: msg.emoji_id ?? undefined,
       });
-      (router as any).push(`/(drawer)/chat/${targetChatId}`);
+      const route =
+        target.type === 'group'
+          ? `/(drawer)/group-chat/${target.chatId}`
+          : `/(drawer)/chat/${target.chatId}`;
+      (router as any).push(route);
     },
     [forwardPickerFor, router],
   );
