@@ -6,6 +6,8 @@ import type {
   GroupChatSettingsResponse,
   GroupLeaveHistoryMode,
   GroupLeaveMode,
+  SharedContentResponse,
+  SharedContentTab,
 } from '@/types/group-chat';
 
 // Mirror Web api/chats.ts group endpoints. Tất cả yêu cầu Bearer token
@@ -112,3 +114,45 @@ export const rejectGroupInvite = (chatId: string, requestId: string) =>
     `/group-chats/${chatId}/member-requests/${requestId}/reject`,
     { method: 'POST' },
   );
+
+// GET /group-chats/:chatID/shared-content — nội dung đã chia sẻ (media/files/
+// links/posts). Mirror Web getGroupSharedContent.
+export const getGroupSharedContent = (
+  chatId: string,
+  tab: SharedContentTab | 'all' = 'all',
+  offset = 0,
+  limit = 60,
+) =>
+  request<SharedContentResponse>(
+    `/group-chats/${chatId}/shared-content?tab=${tab}&offset=${offset}&limit=${limit}`,
+  );
+
+// GET/PUT/DELETE /group-chats/:chatID/background — nền chat per-group.
+// Server dto.ChatBackgroundDTO: body { type, value }; response { data: { type, value } }.
+export interface GroupChatBackground {
+  type: string;
+  value: string;
+}
+
+export const getGroupChatBackground = (chatId: string) =>
+  request<{ data: GroupChatBackground }>(
+    `/group-chats/${chatId}/background`,
+  );
+
+export const updateGroupChatBackground = (
+  chatId: string,
+  type: string,
+  value: string,
+) =>
+  request<{ data: GroupChatBackground }>(
+    `/group-chats/${chatId}/background`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ type, value }),
+    },
+  );
+
+export const deleteGroupChatBackground = (chatId: string) =>
+  request<{ message?: string }>(`/group-chats/${chatId}/background`, {
+    method: 'DELETE',
+  });
