@@ -371,6 +371,7 @@
     "systemGroupAvatarChanged": "{name} changed the group photo",
     "groupInviteTitle": "Group invitation",
     "groupInviteLabel": "invited you to join the group",
+    "groupInviteJoin": "Join",
     "inviteAccept": "Accept",
     "inviteDecline": "Decline",
     "inviteAccepted": "Group invitation accepted",

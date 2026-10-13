@@ -35,6 +35,8 @@ export function ConversationListItem({
   // Preview tin cuối: E2E chưa hydrate được (không có khóa / decrypt fail) →
   // server chỉ giữ ciphertext, client nhận content rỗng → hiện placeholder khóa
   // thay vì "tệp đính kèm" hay lộ ciphertext.
+  // Lời mời nhóm (type=group_invite) có content là JSON payload (request_id…) —
+  // không render raw, hiện nhãn localized.
   const previewText = !last_message
     ? t('chat.newChat')
     : last_message.media_id
@@ -43,9 +45,11 @@ export function ConversationListItem({
         : t('chat.mediaMessage')
       : last_message.emoji_id
         ? t('chat.emojiMessage')
-        : is_encrypted && !last_message.content
-          ? t('chat.encryptedPreview')
-          : last_message.content || t('chat.mediaMessage');
+        : last_message.type === 'group_invite'
+          ? t('chat.groupInviteTitle')
+          : is_encrypted && !last_message.content
+            ? t('chat.encryptedPreview')
+            : last_message.content || t('chat.mediaMessage');
   const preview =
     last_message && last_message.sender_id === myUserId
       ? `${t('chat.youPrefix')}${previewText}`
