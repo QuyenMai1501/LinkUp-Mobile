@@ -497,6 +497,26 @@
     "noAnswer": "No answer",
     "callback": "Callback"
   },
+  "groupCall": {
+    "you": "You",
+    "noConnection": "Could not connect to the group call server",
+    "permissionDenied": "Could not access microphone/camera",
+    "joinRejected": "Your join request was declined",
+    "incomingTitle": "Group call",
+    "incomingFrom": "{name} is calling the group",
+    "decline": "Decline",
+    "join": "Join",
+    "connecting": "Connecting...",
+    "selectMembers": "Select members to call",
+    "startCall": "Start call",
+    "ended": "Call ended",
+    "requestJoin": "Request to join",
+    "pendingRequestTitle": "Join request",
+    "pendingRequestBody": "{name} wants to join the call",
+    "approve": "Accept",
+    "callHistoryLabel": "Group call",
+    "callerYou": "You started a call"
+  },
   "settings": {
     "title": "Settings",
     "items": {

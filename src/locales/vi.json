@@ -497,6 +497,26 @@
     "noAnswer": "Không có ai nghe máy",
     "callback": "Gọi lại"
   },
+  "groupCall": {
+    "you": "Bạn",
+    "noConnection": "Không thể kết nối máy chủ gọi nhóm",
+    "permissionDenied": "Không thể truy cập microphone/camera",
+    "joinRejected": "Yêu cầu tham gia cuộc gọi đã bị từ chối",
+    "incomingTitle": "Cuộc gọi nhóm",
+    "incomingFrom": "{name} đang gọi nhóm",
+    "decline": "Từ chối",
+    "join": "Tham gia",
+    "connecting": "Đang kết nối...",
+    "selectMembers": "Chọn thành viên để gọi",
+    "startCall": "Bắt đầu gọi",
+    "ended": "Cuộc gọi đã kết thúc",
+    "requestJoin": "Yêu cầu tham gia",
+    "pendingRequestTitle": "Yêu cầu tham gia",
+    "pendingRequestBody": "{name} muốn tham gia cuộc gọi",
+    "approve": "Chấp nhận",
+    "callHistoryLabel": "Cuộc gọi nhóm",
+    "callerYou": "Bạn đã tạo cuộc gọi"
+  },
   "settings": {
     "title": "Cài đặt",
     "items": {
