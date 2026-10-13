@@ -710,7 +710,7 @@ export default function GroupChatScreen() {
             }}
             hitSlop={8}
             style={[
-              styles.headerInfoBtn,
+              styles.headerAction,
               searchActive && { backgroundColor: theme.bgSecondary },
             ]}>
             <Icon
@@ -718,19 +718,6 @@ export default function GroupChatScreen() {
               size={18}
               color={searchActive ? theme.primary : theme.textSecondary}
             />
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              if (!chatId) return;
-              (router as any).push({
-                pathname: '/(drawer)/group-chat/settings',
-                params: { chatId },
-              });
-            }}
-            hitSlop={8}
-            style={styles.headerInfoBtn}>
-            <Icon name="info" size={20} color={theme.textSecondary} />
           </Pressable>
 
           {/* C2: gọi nhóm video — mở modal chọn thành viên (trừ khi đã trong call) */}
@@ -741,12 +728,26 @@ export default function GroupChatScreen() {
             }}
             disabled={isInGroupCall}
             hitSlop={8}
-            style={styles.headerInfoBtn}>
+            style={styles.headerAction}>
             <Icon
               name="video"
               size={20}
               color={isInGroupCall ? theme.border : theme.textSecondary}
             />
+          </Pressable>
+
+          {/* Cài đặt nhóm — sát bên phải */}
+          <Pressable
+            onPress={() => {
+              if (!chatId) return;
+              (router as any).push({
+                pathname: '/(drawer)/group-chat/settings',
+                params: { chatId },
+              });
+            }}
+            hitSlop={8}
+            style={styles.headerAction}>
+            <Icon name="info" size={20} color={theme.textSecondary} />
           </Pressable>
         </View>
 
@@ -1233,7 +1234,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
+  },
+  headerAction: {
+    padding: Spacing.xs,
   },
   avatar: {
     width: 36,
