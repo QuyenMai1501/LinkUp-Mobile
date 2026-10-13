@@ -338,7 +338,15 @@ export default function GroupChatSettingsScreen() {
           styles.header,
           { borderBottomColor: theme.border, backgroundColor: theme.bg },
         ]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+        <Pressable
+          onPress={() => {
+            // settings là Drawer.Screen độc lập — back() không có history →
+            // rơi về trang chính. Replace về đúng chat window của nhóm.
+            if (chatId) router.replace(`/(drawer)/group-chat/${chatId}`);
+            else router.replace('/(drawer)/messages');
+          }}
+          hitSlop={8}
+          style={styles.backBtn}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </Pressable>
         <ThemedText style={styles.headerTitle}>{t('chat.groupSettings')}</ThemedText>

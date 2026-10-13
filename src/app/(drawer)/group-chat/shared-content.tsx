@@ -227,7 +227,12 @@ export default function GroupSharedContentScreen() {
           { borderBottomColor: theme.border, backgroundColor: theme.bg },
         ]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            // shared-content là Drawer.Screen độc lập — back() không có
+            // history → rơi về trang chính. Replace về đúng chat window.
+            if (chatId) router.replace(`/(drawer)/group-chat/${chatId}`);
+            else router.replace('/(drawer)/messages');
+          }}
           hitSlop={8}
           style={styles.backBtn}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
