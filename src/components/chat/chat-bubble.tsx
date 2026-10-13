@@ -327,7 +327,7 @@ export function ChatBubble({
               <MessageText
                 content={message.content}
                 emojiMap={emojiMap}
-                color={"#000000"}
+                color={textColor}
               />
             )}
 
@@ -513,14 +513,14 @@ const styles = StyleSheet.create({
     height: 1,
   },
   bubble: {
-    maxWidth: "78%",
+    maxWidth: "70%",
+    alignSelf: "flex-start",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.lg,
     gap: 2,
   },
   bubbleCol: {
-    maxWidth: "78%",
     flexShrink: 1,
   },
   senderName: {
