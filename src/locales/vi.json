@@ -508,6 +508,8 @@
     "join": "Tham gia",
     "connecting": "Đang kết nối...",
     "selectMembers": "Chọn thành viên để gọi",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
     "startCall": "Bắt đầu gọi",
     "ended": "Cuộc gọi đã kết thúc",
     "requestJoin": "Yêu cầu tham gia",

@@ -7,8 +7,11 @@ import { useSegments, useRouter } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { CallOverlay } from '@/components/calls/call-overlay';
+import { GroupCallIncomingModal } from '@/components/calls/group-call-incoming-modal';
+import { GroupCallOverlay } from '@/components/calls/group-call-overlay';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { CallProvider } from '@/contexts/call-context';
+import { GroupCallProvider } from '@/contexts/group-call-context';
 import { LanguageProvider } from '@/contexts/language-context';
 import { NotificationProvider } from '@/contexts/notification-context';
 import { ThemeModeProvider, useThemeMode } from '@/contexts/theme-context';
@@ -87,10 +90,14 @@ export default function RootLayout() {
         <AuthProvider>
           <NotificationProvider>
             <CallProvider>
-              <AnimatedSplashOverlay />
-              <AuthRedirect />
-              <RootNavigator />
-              <CallOverlay />
+              <GroupCallProvider>
+                <AnimatedSplashOverlay />
+                <AuthRedirect />
+                <RootNavigator />
+                <CallOverlay />
+                <GroupCallOverlay />
+                <GroupCallIncomingModal />
+              </GroupCallProvider>
             </CallProvider>
           </NotificationProvider>
         </AuthProvider>

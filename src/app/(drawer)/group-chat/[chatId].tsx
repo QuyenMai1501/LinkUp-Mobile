@@ -33,10 +33,12 @@ import {
   isSystemMessage,
 } from '@/components/chat/system-message';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
+import { GroupCallMemberSelectModal } from '@/components/calls/group-call-member-select-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useGroupCall } from '@/contexts/group-call-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useGroupChatRoom } from '@/hooks/useGroupChatRoom';
 import { useGroupChatSocket } from '@/hooks/useGroupChatSocket';
@@ -96,6 +98,10 @@ export default function GroupChatScreen() {
   const { user } = useAuth();
   const socket = useGroupChatSocket();
   const myUserId = user?.id ?? '';
+  const { isInGroupCall, startGroupCall } = useGroupCall();
+
+  // C2: modal chọn thành viên gọi nhóm.
+  const [callModalOpen, setCallModalOpen] = useState(false);
 
   const [group, setGroup] = useState<GroupChatConversation | null>(null);
   // P3b: nền trò chuyện per-group (solid/gradient/custom image).
@@ -689,6 +695,22 @@ export default function GroupChatScreen() {
             style={styles.headerInfoBtn}>
             <Icon name="info" size={20} color={theme.textSecondary} />
           </Pressable>
+
+          {/* C2: gọi nhóm video — mở modal chọn thành viên (trừ khi đã trong call) */}
+          <Pressable
+            onPress={() => {
+              if (!chatId || isInGroupCall) return;
+              setCallModalOpen(true);
+            }}
+            disabled={isInGroupCall}
+            hitSlop={8}
+            style={styles.headerInfoBtn}>
+            <Icon
+              name="video"
+              size={20}
+              color={isInGroupCall ? theme.border : theme.textSecondary}
+            />
+          </Pressable>
         </View>
 
         {/* Search bar */}
@@ -1050,6 +1072,18 @@ export default function GroupChatScreen() {
         onClose={() => setForwardPickerFor(null)}
         onPick={handleForwardPick}
       />
+
+      {/* C2: modal chọn thành viên gọi nhóm video */}
+      {chatId && (
+        <GroupCallMemberSelectModal
+          visible={callModalOpen}
+          onClose={() => setCallModalOpen(false)}
+          chatId={chatId}
+          onStartCall={(ids) => {
+            void startGroupCall(chatId, ids);
+          }}
+        />
+      )}
 
       {/* Delete message confirmation */}
       {deleteTarget && (

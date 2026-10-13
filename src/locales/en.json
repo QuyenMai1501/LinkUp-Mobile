@@ -508,6 +508,8 @@
     "join": "Join",
     "connecting": "Connecting...",
     "selectMembers": "Select members to call",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "startCall": "Start call",
     "ended": "Call ended",
     "requestJoin": "Request to join",
