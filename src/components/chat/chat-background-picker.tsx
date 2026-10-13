@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -78,6 +79,10 @@ export function ChatBackgroundPicker({
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { width: winW } = useWindowDimensions();
+  // Ô màu vuông px cố định — width % + aspectRatio bị Yoga bỏ qua trong
+  // flexWrap trên RN 0.86 (thành dải ngang). 4 cột: padding md 2 bên + 3 gap.
+  const CELL = Math.floor((winW - Spacing.md * 2 - Spacing.sm * 3) / 4);
   const [activeTab, setActiveTab] = useState<TabKey>('solid');
   const [selected, setSelected] = useState<GroupChatBackground | null>(
     currentBackground,
@@ -215,7 +220,7 @@ export function ChatBackgroundPicker({
                     onPress={() => setSelected({ type: 'solid', value: color })}
                     style={[
                       styles.swatch,
-                      { backgroundColor: color },
+                      { width: CELL, height: CELL, backgroundColor: color },
                       active && { borderColor: theme.primary, borderWidth: 3 },
                     ]}
                   />
@@ -234,7 +239,7 @@ export function ChatBackgroundPicker({
                     onPress={() => setSelected({ type: 'gradient', value: css })}
                     style={[
                       styles.swatch,
-                      { overflow: 'hidden' },
+                      { width: CELL, height: CELL, overflow: 'hidden' },
                       active && { borderColor: theme.primary, borderWidth: 3 },
                     ]}>
                     <LinearGradient
@@ -376,8 +381,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   swatch: {
-    width: '22%',
-    aspectRatio: 1,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
