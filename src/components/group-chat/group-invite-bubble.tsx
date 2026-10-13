@@ -291,7 +291,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: {
-    flex: 1,
+    // flexShrink thay vì flex:1 (flexBasis 0%) — card tự fit theo nội dung,
+    // text chỉ wrap khi chạm maxWidth bubble.
+    flexShrink: 1,
     gap: 2,
   },
   title: {

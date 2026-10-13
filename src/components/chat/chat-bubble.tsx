@@ -513,7 +513,6 @@ const styles = StyleSheet.create({
     height: 1,
   },
   bubble: {
-    maxWidth: "70%",
     alignSelf: "flex-start",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -521,6 +520,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   bubbleCol: {
+    maxWidth: "70%",
     flexShrink: 1,
   },
   senderName: {
