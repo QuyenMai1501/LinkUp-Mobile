@@ -235,7 +235,7 @@ export default function GroupSharedContentScreen() {
           }}
           hitSlop={8}
           style={styles.backBtn}>
-          <ThemedText style={styles.backIcon}>←</ThemedText>
+          <Icon name="chevronLeft" size={22} color={theme.text} />
         </Pressable>
         <ThemedText style={[styles.headerTitle, { color: theme.text }]}>
           {t('chat.sharedContent')}
@@ -309,10 +309,6 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 36,
     alignItems: 'center',
-  },
-  backIcon: {
-    fontSize: 20,
-    color: '#000',
   },
   headerTitle: {
     ...Typography.body,

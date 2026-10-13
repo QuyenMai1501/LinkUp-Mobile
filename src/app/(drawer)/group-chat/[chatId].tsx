@@ -658,7 +658,7 @@ export default function GroupChatScreen() {
             onPress={() => router.navigate('/(drawer)/messages')}
             hitSlop={8}
             style={styles.backBtn}>
-            <ThemedText style={styles.backIcon}>←</ThemedText>
+            <Icon name="chevronLeft" size={22} color={theme.text} />
           </Pressable>
 
           <Pressable
@@ -1228,9 +1228,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: Spacing.xs,
-  },
-  backIcon: {
-    fontSize: 22,
   },
   headerInfoBtn: {
     flexDirection: 'row',

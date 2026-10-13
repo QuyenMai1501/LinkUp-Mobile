@@ -41,6 +41,7 @@ export const icons = {
   // Close / Cancel
   close: 'close-outline' as const,
   chevronRight: 'chevron-forward-outline' as const,
+  chevronLeft: 'chevron-back-outline' as const,
 
   // Group chat admin actions (P1)
   personAdd: 'person-add-outline' as const,
