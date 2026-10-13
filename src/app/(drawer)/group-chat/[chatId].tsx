@@ -989,6 +989,8 @@ export default function GroupChatScreen() {
                             ? t('groupCall.callerYou')
                             : room.memberNames[gc.caller_id] || t('chat.unknown')
                         }
+                        avatarUri={room.memberAvatars[gc.caller_id] ?? null}
+                        showAvatar={prev?.senderId !== gc.caller_id}
                         activeCallId={activeGroupCallId}
                         onRequestJoin={(callId) => {
                           Alert.alert(

@@ -457,9 +457,6 @@
     "backgroundApplied": "Background applied",
     "backgroundDefault": "Default background",
     "backgroundApply": "Apply",
-    "callStarted": "Call has started",
-    "callEnded": "Call ended by {name}",
-    "callTimeout": "Call ended due to timeout",
     "emojiCat": {
       "positive": "😊",
       "neutral": "😐",
@@ -469,7 +466,7 @@
   "call": {
     "voiceCall": "Voice call",
     "videoCall": "Video call",
-    "voiceCallGroup": "Voice group call",
+    "voiceCallGroup": "Group call",
     "videoCallGroup": "Video group call",
     "incomingVoice": "Incoming voice call...",
     "incomingVideo": "Incoming video call...",

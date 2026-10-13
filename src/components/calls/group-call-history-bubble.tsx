@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +12,10 @@ interface Props {
   call: GroupCallHistoryItem;
   myUserId: string;
   callerName: string;
+  /** Avatar của caller — hiện khi theirs + đầu chuỗi (mirror ChatBubble). */
+  avatarUri?: string | null;
+  /** true = đầu chuỗi → hiện avatar; false = spacer giữ căn lề. */
+  showAvatar?: boolean;
   /** call_id của cuộc gọi đang diễn ra (để hiện nút Yêu cầu tham gia). */
   activeCallId: string | null;
   onRequestJoin?: (callId: string) => void;
@@ -31,6 +36,8 @@ export function GroupCallHistoryBubble({
   call,
   myUserId,
   callerName,
+  avatarUri,
+  showAvatar = false,
   activeCallId,
   onRequestJoin,
 }: Props) {
@@ -60,8 +67,18 @@ export function GroupCallHistoryBubble({
       : t('call.voiceCallGroup');
   const sub = mine && !missed ? t('groupCall.callerYou') : callerName;
 
+  // Cột avatar của caller: avatar ở đầu chuỗi, spacer (cùng bề rộng) cho bubble sau.
+  const avatarColumn = !mine ? (
+    showAvatar && avatarUri ? (
+      <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
+    ) : (
+      <View style={styles.avatarSpacer} />
+    )
+  ) : null;
+
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
+      {avatarColumn}
       <View
         style={[
           styles.bubble,
@@ -94,9 +111,27 @@ export function GroupCallHistoryBubble({
 
 const styles = StyleSheet.create({
   row: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginVertical: 4,
     paddingHorizontal: 16,
+    gap: 6,
+  },
+  rowMine: {
+    justifyContent: 'flex-end',
+  },
+  rowTheirs: {
+    justifyContent: 'flex-start',
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginTop: 2,
+  },
+  avatarSpacer: {
+    width: 28,
+    height: 1,
   },
   bubble: {
     flexDirection: 'row',

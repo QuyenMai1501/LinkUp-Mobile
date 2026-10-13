@@ -31,6 +31,12 @@ function dedupeByID(list: ChatMessage[]): ChatMessage[] {
   return out;
 }
 
+// System message về lifecycle cuộc gọi nhóm — ẩn khỏi timeline (đã có history bubble).
+const CALL_SYSTEM_TYPES = new Set(['call_started', 'call_ended', 'call_timeout']);
+function isCallSystemMsg(msg: ChatMessage): boolean {
+  return CALL_SYSTEM_TYPES.has(msg.type ?? '') || /^call_(started|ended|timeout)\|/.test(msg.content ?? '');
+}
+
 // Tạo tin hệ thống tổng hợp client-side (server không lưu các event này thành
 // row) — mirror Web useGroupChatRoom handleMemberLeft/handleMemberAdded/...
 function makeSystemMessage(
@@ -57,6 +63,8 @@ export interface GroupChatRoom {
   typingUsers: Set<string>;
   // Tên hiển thị theo user_id — phục vụ tin hệ thống + tên người gửi.
   memberNames: Record<string, string>;
+  // Avatar theo user_id — cho bubble lịch sử cuộc gọi nhóm.
+  memberAvatars: Record<string, string>;
   // Tìm kiếm server-side (group:message:search).
   searchResults: ChatMessage[] | null;
   searchKeyword: string;
@@ -105,6 +113,7 @@ export function useGroupChatRoom({
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  const [memberAvatars, setMemberAvatars] = useState<Record<string, string>>({});
   const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
@@ -115,6 +124,7 @@ export function useGroupChatRoom({
   const onNewMessageRef = useRef(onNewMessage);
   const messagesRef = useRef<ChatMessage[]>([]);
   const memberNamesRef = useRef<Record<string, string>>({});
+  const memberAvatarsRef = useRef<Record<string, string>>({});
 
   // Hàng đợi id bubble tạm (optimistic) — echo group:message:new shift() từng
   // id để thay đúng temp (không so content).
@@ -139,19 +149,30 @@ export function useGroupChatRoom({
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
 
-  // Ghi nhận sender_name → memberNames (cho tin hệ thống + hàng đợi tên).
+  // Ghi nhận sender_name + sender_avatar → memberNames/memberAvatars (tên cho
+  // tin hệ thống + avatar cho bubble lịch sử cuộc gọi).
   const rememberNames = useCallback((list: ChatMessage[]) => {
-    let changed = false;
-    const next = { ...memberNamesRef.current };
+    let namesChanged = false;
+    let avatarsChanged = false;
+    const nextNames = { ...memberNamesRef.current };
+    const nextAvatars = { ...memberAvatarsRef.current };
     for (const m of list) {
-      if (m.sender_name && !next[m.sender_id]) {
-        next[m.sender_id] = m.sender_name;
-        changed = true;
+      if (m.sender_name && !nextNames[m.sender_id]) {
+        nextNames[m.sender_id] = m.sender_name;
+        namesChanged = true;
+      }
+      if (m.sender_avatar && !nextAvatars[m.sender_id]) {
+        nextAvatars[m.sender_id] = m.sender_avatar;
+        avatarsChanged = true;
       }
     }
-    if (changed) {
-      memberNamesRef.current = next;
-      setMemberNames(next);
+    if (namesChanged) {
+      memberNamesRef.current = nextNames;
+      setMemberNames(nextNames);
+    }
+    if (avatarsChanged) {
+      memberAvatarsRef.current = nextAvatars;
+      setMemberAvatars(nextAvatars);
     }
   }, []);
 
@@ -219,7 +240,9 @@ export function useGroupChatRoom({
       };
       if (!data || data.chat_id !== chatIdRef.current) return;
       setLoading(false);
-      const msgs = sortByCreatedAt(dedupeByID(data.messages ?? []));
+      const msgs = sortByCreatedAt(
+        dedupeByID((data.messages ?? []).filter((m) => !isCallSystemMsg(m))),
+      );
       setMessages(msgs);
       setCallHistory(data.calls ?? []);
       rememberNames(msgs);
@@ -239,6 +262,8 @@ export function useGroupChatRoom({
     (payload: unknown) => {
       const msg = payload as ChatMessage;
       if (!msg || !msg.id || !msg.chat_id) return;
+      // Ẩn system message lifecycle cuộc gọi — history bubble đã thể hiện.
+      if (isCallSystemMsg(msg)) return;
       if (msg.chat_id === chatIdRef.current) {
         rememberNames([msg]);
         const pending = pendingIdsRef.current;
@@ -491,11 +516,13 @@ export function useGroupChatRoom({
       setMessages([]);
       setTypingUsers(new Set());
       setMemberNames({});
+      setMemberAvatars({});
       setSearchResults(null);
       setSearchKeyword('');
       setPinnedMessages([]);
       setCallHistory([]);
       memberNamesRef.current = {};
+      memberAvatarsRef.current = {};
       sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
       sendTimeoutsRef.current.clear();
       pendingPayloadsRef.current.clear();
@@ -795,6 +822,7 @@ export function useGroupChatRoom({
       loading,
       typingUsers,
       memberNames,
+      memberAvatars,
       searchResults,
       searchKeyword,
       searchMessages,
@@ -819,6 +847,7 @@ export function useGroupChatRoom({
       loading,
       typingUsers,
       memberNames,
+      memberAvatars,
       searchResults,
       searchKeyword,
       searchMessages,
