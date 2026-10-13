@@ -12,6 +12,7 @@ import type {
   UploadedMediaInfo,
 } from '@/hooks/useChatRoom';
 import type { GroupChatSocket } from './useGroupChatSocket';
+import type { GroupCallHistoryItem } from '@/types/group-call';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
   return [...list].sort(
@@ -65,6 +66,8 @@ export interface GroupChatRoom {
   pinnedMessages: PinnedMessage[];
   pinMessage: (messageId: string) => void;
   unpinMessage: (messageId: string) => void;
+  // Lịch sử cuộc gọi nhóm — đến qua group:history (mirror Web useGroupChatRoom).
+  callHistory: GroupCallHistoryItem[];
   sendMessage: (content: string, opts?: SendMessageOptions) => void;
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
@@ -105,6 +108,7 @@ export function useGroupChatRoom({
   const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [callHistory, setCallHistory] = useState<GroupCallHistoryItem[]>([]);
 
   const chatIdRef = useRef<string | null>(null);
   const myUserIdRef = useRef(myUserId);
@@ -211,11 +215,13 @@ export function useGroupChatRoom({
       const data = payload as {
         chat_id?: string;
         messages?: ChatMessage[];
+        calls?: GroupCallHistoryItem[];
       };
       if (!data || data.chat_id !== chatIdRef.current) return;
       setLoading(false);
       const msgs = sortByCreatedAt(dedupeByID(data.messages ?? []));
       setMessages(msgs);
+      setCallHistory(data.calls ?? []);
       rememberNames(msgs);
 
       // Tự động đánh dấu đã đọc: marker mới nhất = toàn bộ tin ≤ nó đã đọc.
@@ -488,6 +494,7 @@ export function useGroupChatRoom({
       setSearchResults(null);
       setSearchKeyword('');
       setPinnedMessages([]);
+      setCallHistory([]);
       memberNamesRef.current = {};
       sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
       sendTimeoutsRef.current.clear();
@@ -795,6 +802,7 @@ export function useGroupChatRoom({
       pinnedMessages,
       pinMessage,
       unpinMessage,
+      callHistory,
       sendMessage,
       sendTyping,
       deleteMessage,
@@ -818,6 +826,7 @@ export function useGroupChatRoom({
       pinnedMessages,
       pinMessage,
       unpinMessage,
+      callHistory,
       sendMessage,
       sendTyping,
       deleteMessage,

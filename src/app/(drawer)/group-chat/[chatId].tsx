@@ -33,6 +33,7 @@ import {
   isSystemMessage,
 } from '@/components/chat/system-message';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
+import { GroupCallHistoryBubble } from '@/components/calls/group-call-history-bubble';
 import { GroupCallMemberSelectModal } from '@/components/calls/group-call-member-select-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -45,6 +46,7 @@ import { useGroupChatSocket } from '@/hooks/useGroupChatSocket';
 import { useServerEmojis } from '@/hooks/use-server-emojis';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatMessage, ReplyPreview } from '@/types/chat';
+import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatConversation } from '@/types/group-chat';
 import { formatChatDate } from '@/utils/chat';
 import {
@@ -53,7 +55,24 @@ import {
 } from '@/utils/chatMediaGroup';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 
-type GroupedItem = ChatMessage | MediaGroupItem;
+/** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
+interface GroupCallTimelineItem {
+  kind: 'group_call';
+  call: GroupCallHistoryItem;
+}
+
+type GroupedItem = ChatMessage | MediaGroupItem | GroupCallTimelineItem;
+
+/** created timestamp ms của mọi kind item trong timeline. */
+function itemCreatedMs(item: GroupedItem): number {
+  if ('kind' in item) {
+    if (item.kind === 'group_call') {
+      return new Date(item.call.created_at).getTime();
+    }
+    return new Date(item.msgs[0]?.created_at ?? 0).getTime();
+  }
+  return new Date(item.created_at).getTime();
+}
 
 /** Prev item cho date-separator/showTime: group media → tin cuối. */
 function resolvePrevMsg(
@@ -63,6 +82,9 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ('kind' in prev) {
+    if (prev.kind === 'group_call') {
+      return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
+    }
     const last = prev.msgs[prev.msgs.length - 1];
     return last
       ? { createdAt: last.created_at, senderId: last.sender_id }
@@ -98,7 +120,8 @@ export default function GroupChatScreen() {
   const { user } = useAuth();
   const socket = useGroupChatSocket();
   const myUserId = user?.id ?? '';
-  const { isInGroupCall, startGroupCall } = useGroupCall();
+  const { isInGroupCall, startGroupCall, call: activeCall, joinGroupCall } =
+    useGroupCall();
 
   // C2: modal chọn thành viên gọi nhóm.
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -235,16 +258,30 @@ export default function GroupChatScreen() {
 
   const { byId: serverEmojis } = useServerEmojis();
 
-  const timeline = useMemo<GroupedItem[]>(
-    () => groupMediaTimeline(room.messages),
-    [room.messages],
-  );
+  const timeline = useMemo<GroupedItem[]>(() => {
+    const msgItems = groupMediaTimeline(room.messages);
+    if (room.callHistory.length === 0) return msgItems;
+    // Xen call-history bubbles vào timeline theo created_at (mirror Web useChatTimeline).
+    const merged: GroupedItem[] = [
+      ...msgItems,
+      ...room.callHistory.map<GroupCallTimelineItem>((call) => ({
+        kind: 'group_call',
+        call,
+      })),
+    ];
+    return merged.sort((a, b) => itemCreatedMs(a) - itemCreatedMs(b));
+  }, [room.messages, room.callHistory]);
+
+  // call_id của cuộc gọi nhóm đang diễn ra — nút Yêu cầu tham gia trên history bubble.
+  const activeGroupCallId =
+    activeCall && isInGroupCall ? activeCall.callId : null;
 
   const findIndexInGrouped = useCallback(
     (messageId: string): number => {
       for (let i = 0; i < timeline.length; i++) {
         const item = timeline[i];
         if ('kind' in item) {
+          if (item.kind === 'group_call') continue;
           if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
@@ -906,7 +943,7 @@ export default function GroupChatScreen() {
             <View style={styles.center}>
               <ThemedText themeColor="textSecondary">{t('common.loading')}</ThemedText>
             </View>
-          ) : room.messages.length === 0 ? (
+          ) : room.messages.length === 0 && room.callHistory.length === 0 ? (
             <View style={styles.center}>
               <ThemedText themeColor="textSecondary">{t('chat.noMessages')}</ThemedText>
             </View>
@@ -916,7 +953,9 @@ export default function GroupChatScreen() {
               data={timeline}
               keyExtractor={(item: GroupedItem) =>
                 'kind' in item
-                  ? `grp-${item.msgs[0]?.id ?? item.msgs.length}`
+                  ? item.kind === 'group_call'
+                    ? `gc-${item.call.call_id}`
+                    : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
                   : item.id
               }
               onScrollToIndexFailed={handleScrollToIndexFailed}
@@ -938,6 +977,38 @@ export default function GroupChatScreen() {
                 );
 
                 if ('kind' in item) {
+                  if (item.kind === 'group_call') {
+                    const gc = item.call;
+                    return (
+                      <GroupCallHistoryBubble
+                        call={gc}
+                        myUserId={myUserId}
+                        callerName={
+                          gc.caller_id === myUserId
+                            ? t('groupCall.callerYou')
+                            : room.memberNames[gc.caller_id] || t('chat.unknown')
+                        }
+                        activeCallId={activeGroupCallId}
+                        onRequestJoin={(callId) => {
+                          Alert.alert(
+                            t('groupCall.requestJoin'),
+                            t('groupCall.pendingRequestBody', {
+                              name:
+                                room.memberNames[gc.caller_id] ||
+                                t('chat.unknown'),
+                            }),
+                            [
+                              { text: t('common.cancel'), style: 'cancel' },
+                              {
+                                text: t('groupCall.join'),
+                                onPress: () => void joinGroupCall(callId),
+                              },
+                            ],
+                          );
+                        }}
+                      />
+                    );
+                  }
                   const groupMine = item.msgs[0]?.sender_id === myUserId;
                   return (
                     <View

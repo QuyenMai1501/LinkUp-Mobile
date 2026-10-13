@@ -469,6 +469,8 @@
   "call": {
     "voiceCall": "Voice call",
     "videoCall": "Video call",
+    "voiceCallGroup": "Voice group call",
+    "videoCallGroup": "Video group call",
     "incomingVoice": "Incoming voice call...",
     "incomingVideo": "Incoming video call...",
     "outgoing": "Calling...",

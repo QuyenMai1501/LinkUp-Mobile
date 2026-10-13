@@ -469,6 +469,8 @@
   "call": {
     "voiceCall": "Cuộc gọi thoại",
     "videoCall": "Cuộc gọi video",
+    "voiceCallGroup": "Cuộc gọi thoại nhóm",
+    "videoCallGroup": "Cuộc gọi video nhóm",
     "incomingVoice": "Đang gọi thoại đến...",
     "incomingVideo": "Đang gọi video đến...",
     "outgoing": "Đang gọi...",
