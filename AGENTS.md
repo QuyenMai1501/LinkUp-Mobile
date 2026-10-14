@@ -14,6 +14,7 @@ Run everything from this directory (`sources/LinkUp_Mobile/`).
 | Web | `npm run web` | |
 | Lint | `npm run lint` | runs `expo lint` (`eslint-config-expo` flat config, `eslint.config.js`) |
 | Typecheck | `npx tsc --noEmit` | strict TS via `expo/tsconfig.base` |
+| Find code | `npm run find -- <từ khóa>` | search tên file + nội dung qua `git grep` (chỉ file đã commit) |
 
 No test runner, no CI/CD, no commit hooks.
 
@@ -23,6 +24,7 @@ No test runner, no CI/CD, no commit hooks.
 
 # Architecture
 
+- **Tìm code theo tính năng:** xem **`CODEMAP.md`** — bảng "tính năng → file" (api/hooks/components/types/utils). Cấu trúc là type-based nên code một tính năng nằm rải nhiều thư mục. Khi thêm tính năng mới, cập nhật CODEMAP.md.
 - **Stack:** Expo SDK 57, React Native 0.86.2, expo-router, React 19.2.3, TypeScript strict
 - **Routing:** expo-router file-based routing in `src/app/`. Entrypoint is `main: "expo-router/entry"` in `package.json`. Route groups:
   - `src/app/_layout.tsx` — root **Stack** (`(drawer)` + `(auth)`, `headerShown: false`): providers `ThemeModeProvider` + `AuthProvider` + `CallProvider` + `LanguageProvider` + `NotificationProvider`, animated splash, `CallOverlay`, and an `AuthRedirect` guard (unauthenticated → `/(auth)/login`).
