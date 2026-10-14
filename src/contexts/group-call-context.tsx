@@ -308,6 +308,19 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     [getOrCreatePc, socket],
   );
 
+  // Áp buffered ICE cho sender sau khi có remote description.
+  const flushBufferedIce = useCallback(
+    async (senderId: string, pc: RTCPeerConnection) => {
+      const buf = pendingSignalsRef.current.get(senderId);
+      if (!buf || buf.ice.length === 0) return;
+      pendingSignalsRef.current.delete(senderId);
+      for (const c of buf.ice) {
+        await pc.addIceCandidate(c);
+      }
+    },
+    [],
+  );
+
   const handleSignal = useCallback(
     async (payload: GroupCallSignalPayload) => {
       if (callIdRef.current !== payload.call_id) return;
@@ -338,6 +351,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       try {
         if (sig.type === 'offer' && sig.sdp) {
           await pc.setRemoteDescription({ type: 'offer', sdp: sig.sdp });
+          await flushBufferedIce(senderId, pc);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           socket.send('group:call:signal', {
@@ -346,22 +360,36 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
           });
         } else if (sig.type === 'answer' && sig.sdp) {
           await pc.setRemoteDescription({ type: 'answer', sdp: sig.sdp });
+          await flushBufferedIce(senderId, pc);
         } else if (sig.type === 'ice' && sig.candidate) {
+          if (!pc.remoteDescription) {
+            // Chưa có remote description — buffer ICE, áp sau setRemoteDescription.
+            if (!pendingSignalsRef.current.has(senderId)) {
+              pendingSignalsRef.current.set(senderId, { ice: [] });
+            }
+            pendingSignalsRef.current.get(senderId)!.ice.push(sig.candidate);
+            return;
+          }
           await pc.addIceCandidate(sig.candidate);
         }
       } catch {
         /* SDP tranh chấp — bỏ qua */
       }
     },
-    [socket],
+    [socket, flushBufferedIce],
   );
 
   // Áp buffered signals khi PC vừa được tạo cho sender.
   const flushPendingSignals = useCallback(
     async (senderId: string) => {
       const buf = pendingSignalsRef.current.get(senderId);
-      const pc = pcsRef.current.get(senderId);
-      if (!buf || !pc) return;
+      if (!buf) return;
+      let pc = pcsRef.current.get(senderId);
+      if (!pc && buf.offer && callIdRef.current) {
+        // Chưa có PC nhưng buffer có offer — tạo passive PC rồi áp.
+        pc = getOrCreatePc(senderId, callIdRef.current);
+      }
+      if (!pc) return;
       pendingSignalsRef.current.delete(senderId);
       try {
         if (buf.offer) {
@@ -382,7 +410,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         /* bỏ qua */
       }
     },
-    [socket],
+    [socket, getOrCreatePc],
   );
 
   const handleIncoming = useCallback(
@@ -482,6 +510,35 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
           setPhaseBoth('active');
           startDuration();
         }
+        // Join từ history bubble — chưa có call state, tạo tối thiểu từ joined payload.
+        if (!callRef.current) {
+          const self = new Map<string, GroupCallParticipant>();
+          self.set(myUserIdRef.current, {
+            user_id: myUserIdRef.current,
+            display_name: t('groupCall.you'),
+            avatar_uri: '',
+            muted: false,
+            video_enabled: true,
+            is_active: true,
+          });
+          setCallState({
+            callId: payload.call_id,
+            chatId: payload.chat_id,
+            callerId: '',
+            isVideo: true,
+            participants: self,
+            pendingRequests: [],
+          });
+          participantsRef.current = self;
+        }
+        // Joiner: xin danh sách joined để tạo PC passive cho existing members.
+        // Existing member sẽ offer cho mình — mình chỉ answer (tránh glare).
+        socket.send('group:call:list-participants', { call_id: payload.call_id });
+        // Flush offer/ICE có thể đã tới trước joined.
+        const pendingIds = Array.from(pendingSignalsRef.current.keys());
+        for (const uid of pendingIds) {
+          await flushPendingSignals(uid);
+        }
         return;
       }
 
@@ -507,7 +564,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       // Signal buffer có thể tới trước joined — áp ngay.
       await flushPendingSignals(payload.user_id);
     },
-    [createOfferForPeer, setCallState, loadProfile, flushPendingSignals, startDuration],
+    [createOfferForPeer, setCallState, loadProfile, flushPendingSignals, startDuration, socket, t],
   );
 
   const handleJoinRequest = useCallback(
@@ -606,7 +663,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
   );
 
   const handleParticipants = useCallback(
-    (payload: GroupCallParticipantsResponse) => {
+    async (payload: GroupCallParticipantsResponse) => {
       if (callIdRef.current !== payload.call_id) return;
       for (const uid of payload.participants) {
         if (!participantsRef.current.has(uid)) {
@@ -626,8 +683,28 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
           ? { ...callRef.current, participants: new Map(participantsRef.current) }
           : null,
       );
+
+      // Joiner: tạo PC passive cho mỗi joined member (trừ self) rồi
+      // flush buffered offer/ICE — existing member là offerer, mình answer.
+      for (const uid of payload.joined) {
+        if (uid === myUserIdRef.current) continue;
+        getOrCreatePc(uid, payload.call_id);
+        await flushPendingSignals(uid);
+      }
     },
-    [setCallState, loadProfile],
+    [setCallState, loadProfile, getOrCreatePc, flushPendingSignals],
+  );
+
+  // Server gửi joined_ack cho joiner khi request-join thành công
+  // (chỉ path invited, không có path approve-join). Dùng làm safety net:
+  // ensure callIdRef + fetch participants nếu joined event bị miss.
+  const handleJoinedAck = useCallback(
+    (payload: { call_id: string; chat_id: string }) => {
+      if (phaseRef.current !== 'connecting') return;
+      callIdRef.current = payload.call_id;
+      socket.send('group:call:list-participants', { call_id: payload.call_id });
+    },
+    [socket],
   );
 
   // Đăng ký WS handlers — ghi ref sau mỗi render (react-hooks/refs cấm ghi
@@ -638,6 +715,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       'group:call:incoming': handleIncoming as (p: unknown) => void,
       'group:call:created': handleCreated as (p: unknown) => void,
       'group:call:joined': handleJoined as (p: unknown) => void,
+      'group:call:joined_ack': handleJoinedAck as (p: unknown) => void,
       'group:call:join-request': handleJoinRequest as (p: unknown) => void,
       'group:call:join-rejected': handleJoinRejected as (p: unknown) => void,
       'group:call:signal': handleSignal as (p: unknown) => void,
@@ -748,6 +826,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       }
 
       stopRingtone();
+      callIdRef.current = callId;
       localStreamRef.current = stream;
       setLocalStream(stream);
       setLocalMuted(false);
