@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getMutualFriends } from '@/api/follow';
+import { navigateToProfile } from '@/utils/profile-nav';
 import type { MutualFriendsResponse } from '@/types/profile';
 
 export function MutualFriends({ userId }: { userId: string }) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const [data, setData] = useState<MutualFriendsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,11 +36,15 @@ export function MutualFriends({ userId }: { userId: string }) {
       </ThemedText>
       <View style={styles.avatars}>
         {data.data.slice(0, 4).map((friend) => (
-          <Image
+          <Pressable
             key={friend.user_id}
-            source={{ uri: friend.avatar_uri }}
-            style={[styles.avatar, { borderColor: theme.background }]}
-          />
+            hitSlop={6}
+            onPress={() => navigateToProfile(router, friend.user_id)}>
+            <Image
+              source={{ uri: friend.avatar_uri }}
+              style={[styles.avatar, { borderColor: theme.background }]}
+            />
+          </Pressable>
         ))}
       </View>
     </View>
