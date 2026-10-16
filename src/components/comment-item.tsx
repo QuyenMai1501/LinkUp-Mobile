@@ -1,11 +1,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
 import { getEmojiTextMap } from '@/utils/emojis';
+import { navigateToProfile } from '@/utils/profile-nav';
 import { Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -102,6 +104,7 @@ export default function CommentItem({
 }: CommentItemProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const { comment } = node;
 
   const parentComment = comment.parent_id
@@ -111,7 +114,10 @@ export default function CommentItem({
   return (
     <View style={[styles.container, depth > 0 && styles.replyContainer]}>
       <View style={styles.row}>
-        <View style={styles.avatarContainer}>
+        <Pressable
+          style={styles.avatarContainer}
+          hitSlop={4}
+          onPress={() => navigateToProfile(router, comment.user_id)}>
           {comment.avatar_uri ? (
             <Image source={{ uri: comment.avatar_uri }} style={styles.avatarImg} />
           ) : (
@@ -121,10 +127,12 @@ export default function CommentItem({
               </ThemedText>
             </View>
           )}
-        </View>
+        </Pressable>
         <View style={styles.contentCol}>
           <View style={styles.nameRow}>
-            <ThemedText style={styles.authorName}>{comment.display_name}</ThemedText>
+            <Pressable hitSlop={4} onPress={() => navigateToProfile(router, comment.user_id)}>
+              <ThemedText style={styles.authorName}>{comment.display_name}</ThemedText>
+            </Pressable>
             {postUserId === comment.user_id && (
               <View style={[styles.badge, { backgroundColor: theme.primaryLight }]}>
                 <ThemedText style={[styles.badgeText, { color: theme.primary }]}>

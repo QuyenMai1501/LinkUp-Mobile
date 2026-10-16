@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 import FriendCard from '@/components/friend-card';
 import { ThemedText } from '@/components/themed-text';
@@ -18,6 +19,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { navigateToProfile } from '@/utils/profile-nav';
 import { getFriends, unfriend } from '@/api/friends';
 import type { FriendUser } from '@/types/friend';
 
@@ -26,6 +28,7 @@ const PAGE_SIZE = 20;
 export default function FriendsListPanel() {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
 
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -152,6 +155,7 @@ export default function FriendsListPanel() {
             actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
+            onPress={() => navigateToProfile(router, item.user_id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}

@@ -41,6 +41,7 @@ import type {
   GroupLeaveMode,
 } from '@/types/group-chat';
 import { notifyChatListDirty } from '@/utils/chat-list-dirty';
+import { navigateToProfile } from '@/utils/profile-nav';
 
 /**
  * Cài đặt nhóm: xem info/members, admin sửa tên + ảnh, rời nhóm (P0);
@@ -487,44 +488,49 @@ export default function GroupChatSettingsScreen() {
               const showActions = isAdmin && !isSelf && !memberIsAdmin;
               return (
                 <View key={m.user_id} style={styles.memberRow}>
-                  {m.avatar_uri ? (
-                    <Image
-                      source={{ uri: m.avatar_uri }}
-                      style={styles.memberAvatar}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.memberAvatar,
-                        styles.avatarPlaceholder,
-                        { backgroundColor: theme.primaryLight },
-                      ]}>
-                      <ThemedText style={{ color: theme.primary, fontWeight: '600' }}>
-                        {(m.display_name || '?')[0]?.toUpperCase()}
+                  <Pressable
+                    style={styles.memberPress}
+                    hitSlop={4}
+                    onPress={() => navigateToProfile(router, m.user_id)}>
+                    {m.avatar_uri ? (
+                      <Image
+                        source={{ uri: m.avatar_uri }}
+                        style={styles.memberAvatar}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.memberAvatar,
+                          styles.avatarPlaceholder,
+                          { backgroundColor: theme.primaryLight },
+                        ]}>
+                        <ThemedText style={{ color: theme.primary, fontWeight: '600' }}>
+                          {(m.display_name || '?')[0]?.toUpperCase()}
+                        </ThemedText>
+                      </View>
+                    )}
+                    <View style={styles.memberInfo}>
+                      <ThemedText style={{ color: theme.text }} numberOfLines={1}>
+                        {m.display_name}
+                        {isSelf ? ` (${t('chat.you')})` : ''}
                       </ThemedText>
+                      <View style={styles.memberTags}>
+                        {memberIsAdmin && (
+                          <ThemedText
+                            style={[styles.memberTag, { color: theme.primary }]}>
+                            {t('chat.roleAdmin')}
+                          </ThemedText>
+                        )}
+                        {m.is_muted && (
+                          <ThemedText
+                            style={[styles.memberTag, { color: theme.danger }]}>
+                            {t('chat.mutedBadge')}
+                          </ThemedText>
+                        )}
+                      </View>
                     </View>
-                  )}
-                  <View style={styles.memberInfo}>
-                    <ThemedText style={{ color: theme.text }} numberOfLines={1}>
-                      {m.display_name}
-                      {isSelf ? ` (${t('chat.you')})` : ''}
-                    </ThemedText>
-                    <View style={styles.memberTags}>
-                      {memberIsAdmin && (
-                        <ThemedText
-                          style={[styles.memberTag, { color: theme.primary }]}>
-                          {t('chat.roleAdmin')}
-                        </ThemedText>
-                      )}
-                      {m.is_muted && (
-                        <ThemedText
-                          style={[styles.memberTag, { color: theme.danger }]}>
-                          {t('chat.mutedBadge')}
-                        </ThemedText>
-                      )}
-                    </View>
-                  </View>
+                  </Pressable>
                   {showActions && (
                     <View style={styles.memberActions}>
                       <Pressable
@@ -1077,6 +1083,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
+  },
+  memberPress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
   },
   memberAvatar: {
     width: 36,

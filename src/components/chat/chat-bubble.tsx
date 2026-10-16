@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { isSingleEmojifyiUrl } from "@/api/emojifyi";
 import {
@@ -21,6 +22,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import type { ChatMessage } from "@/types/chat";
 import type { EmojiItem as ServerEmoji } from "@/types/post";
 import { formatChatTime } from "@/utils/chat";
+import { navigateToProfile } from "@/utils/profile-nav";
 import type { EmojiItem } from "@/utils/emojis";
 import {
   getEmojiTextMap,
@@ -74,16 +76,23 @@ export function ChatBubble({
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
 
   // Cột avatar của đối phương: avatar ở tin đầu chuỗi, spacer (cùng bề rộng) cho các tin sau.
+  // Bấm avatar → hồ sơ người gửi (bỏ qua tin ẩn danh).
   const avatarColumn = !isMine ? (
     showAvatar && avatarUri ? (
-      <Image
-        source={{ uri: avatarUri }}
-        style={styles.avatar}
-        contentFit="cover"
-      />
+      <Pressable
+        hitSlop={4}
+        disabled={message.is_anonymized}
+        onPress={() => navigateToProfile(router, message.sender_id)}>
+        <Image
+          source={{ uri: avatarUri }}
+          style={styles.avatar}
+          contentFit="cover"
+        />
+      </Pressable>
     ) : (
       <View style={styles.avatarSpacer} />
     )

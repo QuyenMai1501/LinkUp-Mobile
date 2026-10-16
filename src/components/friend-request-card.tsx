@@ -14,6 +14,8 @@ type FriendRequestCardProps = {
   onReject?: () => void;
   onRevoke?: () => void;
   loading?: boolean;
+  /** Bấm avatar/tên → vào hồ sơ người gửi lời mời. */
+  onProfilePress?: () => void;
 };
 
 export default function FriendRequestCard({
@@ -24,13 +26,17 @@ export default function FriendRequestCard({
   onReject,
   onRevoke,
   loading = false,
+  onProfilePress,
 }: FriendRequestCardProps) {
   const theme = useTheme();
   const { t } = useTranslation();
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <View style={[styles.avatar, { backgroundColor: theme.primaryLight }]}>
+      <Pressable
+        style={[styles.avatar, { backgroundColor: theme.primaryLight }]}
+        hitSlop={4}
+        onPress={onProfilePress}>
         {avatarUri ? (
           <Image
             source={{ uri: avatarUri }}
@@ -42,12 +48,14 @@ export default function FriendRequestCard({
             {displayName.charAt(0).toUpperCase()}
           </ThemedText>
         )}
-      </View>
+      </Pressable>
 
       <View style={styles.meta}>
-        <ThemedText style={styles.name} numberOfLines={1}>
-          {displayName}
-        </ThemedText>
+        <Pressable hitSlop={4} onPress={onProfilePress}>
+          <ThemedText style={styles.name} numberOfLines={1}>
+            {displayName}
+          </ThemedText>
+        </Pressable>
         <ThemedText themeColor="textSecondary" style={styles.directionLabel}>
           {direction === 'received' ? t('friends.request.wantsToAdd') : t('friends.request.sentRequest')}
         </ThemedText>

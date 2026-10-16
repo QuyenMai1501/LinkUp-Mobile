@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
@@ -27,6 +28,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getMyProfile } from '@/api/profile';
 import { createPost } from '@/api/posts';
+import { navigateToProfile } from '@/utils/profile-nav';
 import type { EmojiOption } from '@/api/emojifyi';
 import type { GiphyGif } from '@/api/giphy';
 import type { PostStatus, FeedPost } from '@/types/post';
@@ -56,6 +58,7 @@ const PRIVACY_OPTIONS: { value: PostStatus; iconName: IconName; labelKey: string
 export default function PostComposer({ visible, onClose, onPosted }: PostComposerProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -236,8 +239,11 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
             style={styles.flex}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-              {/* Author row */}
-              <View style={styles.authorRow}>
+              {/* Author row — avatar/tên → hồ sơ mình */}
+              <Pressable
+                style={styles.authorRow}
+                hitSlop={4}
+                onPress={() => navigateToProfile(router, profile?.user_id)}>
                 {profile?.avatar_uri ? (
                   <Image source={{ uri: profile.avatar_uri }} style={styles.avatar} />
                 ) : (
@@ -250,7 +256,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
                 <ThemedText style={styles.authorName}>
                   {profile?.display_name || '...'}
                 </ThemedText>
-              </View>
+              </Pressable>
 
               {/* Title input */}
               <TextInput
