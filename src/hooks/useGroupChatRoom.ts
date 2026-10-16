@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import type {
   ChatMessage,
   MessageReaction,
+  PinnedMessage,
   SendMessageOptions,
 } from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -11,6 +12,7 @@ import type {
   UploadedMediaInfo,
 } from '@/hooks/useChatRoom';
 import type { GroupChatSocket } from './useGroupChatSocket';
+import type { GroupCallHistoryItem } from '@/types/group-call';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
   return [...list].sort(
@@ -27,6 +29,12 @@ function dedupeByID(list: ChatMessage[]): ChatMessage[] {
     out.push(msg);
   }
   return out;
+}
+
+// System message về lifecycle cuộc gọi nhóm — ẩn khỏi timeline (đã có history bubble).
+const CALL_SYSTEM_TYPES = new Set(['call_started', 'call_ended', 'call_timeout']);
+function isCallSystemMsg(msg: ChatMessage): boolean {
+  return CALL_SYSTEM_TYPES.has(msg.type ?? '') || /^call_(started|ended|timeout)\|/.test(msg.content ?? '');
 }
 
 // Tạo tin hệ thống tổng hợp client-side (server không lưu các event này thành
@@ -55,6 +63,19 @@ export interface GroupChatRoom {
   typingUsers: Set<string>;
   // Tên hiển thị theo user_id — phục vụ tin hệ thống + tên người gửi.
   memberNames: Record<string, string>;
+  // Avatar theo user_id — cho bubble lịch sử cuộc gọi nhóm.
+  memberAvatars: Record<string, string>;
+  // Tìm kiếm server-side (group:message:search).
+  searchResults: ChatMessage[] | null;
+  searchKeyword: string;
+  searchMessages: (keyword: string) => void;
+  clearSearch: () => void;
+  // Ghim tin (group:message:pin/unpin) — max 2 pinned như Web.
+  pinnedMessages: PinnedMessage[];
+  pinMessage: (messageId: string) => void;
+  unpinMessage: (messageId: string) => void;
+  // Lịch sử cuộc gọi nhóm — đến qua group:history (mirror Web useGroupChatRoom).
+  callHistory: GroupCallHistoryItem[];
   sendMessage: (content: string, opts?: SendMessageOptions) => void;
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
@@ -92,12 +113,18 @@ export function useGroupChatRoom({
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+  const [memberAvatars, setMemberAvatars] = useState<Record<string, string>>({});
+  const [searchResults, setSearchResults] = useState<ChatMessage[] | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [callHistory, setCallHistory] = useState<GroupCallHistoryItem[]>([]);
 
   const chatIdRef = useRef<string | null>(null);
   const myUserIdRef = useRef(myUserId);
   const onNewMessageRef = useRef(onNewMessage);
   const messagesRef = useRef<ChatMessage[]>([]);
   const memberNamesRef = useRef<Record<string, string>>({});
+  const memberAvatarsRef = useRef<Record<string, string>>({});
 
   // Hàng đợi id bubble tạm (optimistic) — echo group:message:new shift() từng
   // id để thay đúng temp (không so content).
@@ -122,19 +149,30 @@ export function useGroupChatRoom({
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
 
-  // Ghi nhận sender_name → memberNames (cho tin hệ thống + hàng đợi tên).
+  // Ghi nhận sender_name + sender_avatar → memberNames/memberAvatars (tên cho
+  // tin hệ thống + avatar cho bubble lịch sử cuộc gọi).
   const rememberNames = useCallback((list: ChatMessage[]) => {
-    let changed = false;
-    const next = { ...memberNamesRef.current };
+    let namesChanged = false;
+    let avatarsChanged = false;
+    const nextNames = { ...memberNamesRef.current };
+    const nextAvatars = { ...memberAvatarsRef.current };
     for (const m of list) {
-      if (m.sender_name && !next[m.sender_id]) {
-        next[m.sender_id] = m.sender_name;
-        changed = true;
+      if (m.sender_name && !nextNames[m.sender_id]) {
+        nextNames[m.sender_id] = m.sender_name;
+        namesChanged = true;
+      }
+      if (m.sender_avatar && !nextAvatars[m.sender_id]) {
+        nextAvatars[m.sender_id] = m.sender_avatar;
+        avatarsChanged = true;
       }
     }
-    if (changed) {
-      memberNamesRef.current = next;
-      setMemberNames(next);
+    if (namesChanged) {
+      memberNamesRef.current = nextNames;
+      setMemberNames(nextNames);
+    }
+    if (avatarsChanged) {
+      memberAvatarsRef.current = nextAvatars;
+      setMemberAvatars(nextAvatars);
     }
   }, []);
 
@@ -198,11 +236,15 @@ export function useGroupChatRoom({
       const data = payload as {
         chat_id?: string;
         messages?: ChatMessage[];
+        calls?: GroupCallHistoryItem[];
       };
       if (!data || data.chat_id !== chatIdRef.current) return;
       setLoading(false);
-      const msgs = sortByCreatedAt(dedupeByID(data.messages ?? []));
+      const msgs = sortByCreatedAt(
+        dedupeByID((data.messages ?? []).filter((m) => !isCallSystemMsg(m))),
+      );
       setMessages(msgs);
+      setCallHistory(data.calls ?? []);
       rememberNames(msgs);
 
       // Tự động đánh dấu đã đọc: marker mới nhất = toàn bộ tin ≤ nó đã đọc.
@@ -220,6 +262,8 @@ export function useGroupChatRoom({
     (payload: unknown) => {
       const msg = payload as ChatMessage;
       if (!msg || !msg.id || !msg.chat_id) return;
+      // Ẩn system message lifecycle cuộc gọi — history bubble đã thể hiện.
+      if (isCallSystemMsg(msg)) return;
       if (msg.chat_id === chatIdRef.current) {
         rememberNames([msg]);
         const pending = pendingIdsRef.current;
@@ -426,6 +470,43 @@ export function useGroupChatRoom({
     );
   }, []);
 
+  // Kết quả tìm kiếm server-side (group:message:search_result).
+  const handleSearchResult = useCallback((payload: unknown) => {
+    const data = payload as {
+      chat_id?: string;
+      keyword?: string;
+      messages?: ChatMessage[];
+    };
+    if (!data || data.chat_id !== chatIdRef.current) return;
+    setSearchKeyword(data.keyword ?? '');
+    setSearchResults(sortByCreatedAt(dedupeByID(data.messages ?? [])));
+  }, []);
+
+  // Ghim tin: server gửi danh sách đầy đủ khi join (pinned_list) rồi
+  // push từng pin/unpin — mirror Web useGroupChatRoom.
+  const handlePinnedList = useCallback((payload: unknown) => {
+    const data = payload as { pinned_messages?: PinnedMessage[] };
+    if (!data) return;
+    setPinnedMessages(data.pinned_messages ?? []);
+  }, []);
+
+  const handlePinned = useCallback((payload: unknown) => {
+    const pin = payload as PinnedMessage;
+    if (!pin || !pin.message_id) return;
+    setPinnedMessages((prev) => {
+      if (prev.some((p) => p.message_id === pin.message_id)) return prev;
+      return [pin, ...prev].slice(0, 2);
+    });
+  }, []);
+
+  const handleUnpinned = useCallback((payload: unknown) => {
+    const data = payload as { chat_id?: string; message_id?: string };
+    if (!data || !data.message_id) return;
+    setPinnedMessages((prev) =>
+      prev.filter((p) => p.message_id !== data.message_id),
+    );
+  }, []);
+
   // Effect 1: reset state khi đổi chat + đăng ký sự kiện.
   useEffect(() => {
     if (!chatId) return;
@@ -435,7 +516,13 @@ export function useGroupChatRoom({
       setMessages([]);
       setTypingUsers(new Set());
       setMemberNames({});
+      setMemberAvatars({});
+      setSearchResults(null);
+      setSearchKeyword('');
+      setPinnedMessages([]);
+      setCallHistory([]);
       memberNamesRef.current = {};
+      memberAvatarsRef.current = {};
       sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
       sendTimeoutsRef.current.clear();
       pendingPayloadsRef.current.clear();
@@ -448,6 +535,10 @@ export function useGroupChatRoom({
       socket.subscribe('group:history', handleHistory),
       socket.subscribe('group:message:new', handleNewMessage),
       socket.subscribe('group:typing', handleTyping),
+      socket.subscribe('group:message:search_result', handleSearchResult),
+      socket.subscribe('group:message:pinned_list', handlePinnedList),
+      socket.subscribe('group:message:pinned', handlePinned),
+      socket.subscribe('group:message:unpinned', handleUnpinned),
       socket.subscribe('group:message:read', handleReadState),
       socket.subscribe('group:message:reacted', handleReacted),
       socket.subscribe('group:message:deleted', handleDeleted),
@@ -465,6 +556,10 @@ export function useGroupChatRoom({
     handleHistory,
     handleNewMessage,
     handleTyping,
+    handleSearchResult,
+    handlePinnedList,
+    handlePinned,
+    handleUnpinned,
     handleReadState,
     handleReacted,
     handleDeleted,
@@ -682,12 +777,60 @@ export function useGroupChatRoom({
     [socket],
   );
 
+  // Group chat: server decrypt + tìm kiếm — mirror Web useGroupChatRoom.
+  const searchMessages = useCallback(
+    (keyword: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      const trimmed = keyword.trim();
+      if (!trimmed) {
+        setSearchResults(null);
+        setSearchKeyword('');
+        return;
+      }
+      socket.send('group:message:search', { chat_id: chatID, keyword: trimmed });
+    },
+    [socket],
+  );
+
+  const clearSearch = useCallback(() => {
+    setSearchResults(null);
+    setSearchKeyword('');
+  }, []);
+
+  const pinMessage = useCallback(
+    (messageId: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      socket.send('group:message:pin', { chat_id: chatID, message_id: messageId });
+    },
+    [socket],
+  );
+
+  const unpinMessage = useCallback(
+    (messageId: string) => {
+      const chatID = chatIdRef.current;
+      if (!chatID || socket.status !== 'open') return;
+      socket.send('group:message:unpin', { chat_id: chatID, message_id: messageId });
+    },
+    [socket],
+  );
+
   return useMemo(
     () => ({
       messages,
       loading,
       typingUsers,
       memberNames,
+      memberAvatars,
+      searchResults,
+      searchKeyword,
+      searchMessages,
+      clearSearch,
+      pinnedMessages,
+      pinMessage,
+      unpinMessage,
+      callHistory,
       sendMessage,
       sendTyping,
       deleteMessage,
@@ -704,6 +847,15 @@ export function useGroupChatRoom({
       loading,
       typingUsers,
       memberNames,
+      memberAvatars,
+      searchResults,
+      searchKeyword,
+      searchMessages,
+      clearSearch,
+      pinnedMessages,
+      pinMessage,
+      unpinMessage,
+      callHistory,
       sendMessage,
       sendTyping,
       deleteMessage,

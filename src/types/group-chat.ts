@@ -44,3 +44,77 @@ export interface GroupChatSettings {
   background_type?: string;
   background_value?: string;
 }
+
+// Mirror server dto.GroupChatSettingsResponse bao bọc { data } (GET/PUT settings).
+export interface GroupChatSettingsResponse {
+  data: GroupChatSettings;
+}
+
+// ===== Group Chat Invite (message type trong chat 1-1) =====
+// Mirror server services/group_chat.service.go GroupInviteContent
+// (json tags) + Web types GroupChatInviteContent.
+export type GroupChatInviteStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface GroupChatInviteContent {
+  request_id: string;
+  chat_id: string;
+  group_name: string;
+  group_avatar: string;
+  requester_id: string;
+  requester_name: string;
+  status: GroupChatInviteStatus;
+}
+
+// POST /group-chats/:id/leave — body gửi đi.
+export type GroupLeaveMode = 'public' | 'silent';
+export type GroupLeaveHistoryMode = 'keep' | 'anonymize';
+
+// ===== Shared content (media/files/links/posts đã chia sẻ trong nhóm) =====
+// Mirror server dto.SharedContentResponse + Web types.SharedContent.
+export interface SharedMediaItem {
+  message_id: string;
+  media_id: string;
+  file_uri: string;
+  file_type: string;
+  file_size: number;
+  duration_seconds: number;
+  created_at: string;
+}
+
+export interface SharedFileItem {
+  message_id: string;
+  media_id: string;
+  file_uri: string;
+  file_type: string;
+  file_name: string;
+  file_size: number;
+  created_at: string;
+}
+
+export interface SharedLinkItem {
+  message_id: string;
+  url: string;
+  sender_id: string;
+  created_at: string;
+}
+
+export interface SharedPostItem {
+  message_id: string;
+  post_id: string;
+  post_content: string;
+  post_author_id: string;
+  created_at: string;
+}
+
+export interface SharedContent {
+  media: SharedMediaItem[];
+  files: SharedFileItem[];
+  links: SharedLinkItem[];
+  posts: SharedPostItem[];
+}
+
+export interface SharedContentResponse {
+  data: SharedContent;
+}
+
+export type SharedContentTab = 'media' | 'files' | 'links' | 'posts';

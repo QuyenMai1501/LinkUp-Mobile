@@ -100,12 +100,6 @@ function getSystemMessageText(
       return t('chat.systemGroupNameChanged', { name: actorName, groupName: extraParam });
     case 'group_avatar_changed':
       return t('chat.systemGroupAvatarChanged', { name: actorName });
-    case 'call_started':
-      return t('chat.callStarted');
-    case 'call_ended':
-      return t('chat.callEnded', { name: actorName });
-    case 'call_timeout':
-      return t('chat.callTimeout');
     default:
       return msg.content;
   }

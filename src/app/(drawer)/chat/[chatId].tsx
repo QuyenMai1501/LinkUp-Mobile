@@ -37,6 +37,7 @@ import {
   isSystemMessage,
 } from "@/components/chat/system-message";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
+import { GroupInviteBubble } from "@/components/group-chat/group-invite-bubble";
 import { ThemedText } from "@/components/themed-text";
 import { Icon } from "@/components/ui/icon";
 import { Spacing, Typography } from "@/constants/theme";
@@ -57,6 +58,7 @@ import type {
   ReplyPreview,
 } from "@/types/chat";
 import { formatChatDate } from "@/utils/chat";
+import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import {
@@ -577,17 +579,21 @@ export default function ChatScreen() {
   }, []);
 
   const handleForwardPick = useCallback(
-    (targetChatId: string) => {
+    (target: { chatId: string; type: 'direct' | 'group' }) => {
       const msg = forwardPickerFor;
       setForwardPickerFor(null);
       if (!msg) return;
       stashForwardDraft({
-        chatId: targetChatId,
+        chatId: target.chatId,
         messageId: msg.id,
         content: msg.deleted ? "" : (msg.content ?? ""),
         emojiId: msg.emoji_id ?? undefined,
       });
-      (router as any).push(`/(drawer)/chat/${targetChatId}`);
+      const route =
+        target.type === 'group'
+          ? `/(drawer)/group-chat/${target.chatId}`
+          : `/(drawer)/chat/${target.chatId}`;
+      (router as any).push(route);
     },
     [forwardPickerFor, router],
   );
@@ -669,6 +675,12 @@ export default function ChatScreen() {
     },
     [router],
   );
+
+  // Chấp nhận lời mời nhóm trong DM → refresh danh sách hội thoại (nhóm mới
+  // xuất hiện ở messages). Không navigate — user đang ở trong chat 1-1.
+  const handleGroupInviteAccepted = useCallback(() => {
+    notifyChatListDirty();
+  }, []);
 
   const handleCallBack = useCallback(
     (item: CallHistoryItem) => {
@@ -775,7 +787,7 @@ export default function ChatScreen() {
             onPress={() => router.navigate("/(drawer)/messages")}
             hitSlop={8}
             style={styles.backBtn}>
-            <ThemedText style={styles.backIcon}>←</ThemedText>
+            <Icon name="chevronLeft" size={22} color={theme.text} />
           </Pressable>
 
           {partner?.avatar_uri ? (
@@ -1210,6 +1222,21 @@ export default function ChatScreen() {
                     );
                   }
 
+                  // Lời mời nhóm (server chèn type=group_invite vào DM) —
+                  // bubble riêng, không render như tin thường. Mirror Web.
+                  if (msg.type === "group_invite") {
+                    return (
+                      <Fragment key={msg.id}>
+                        {showDate && dateSep(msg.created_at)}
+                        <GroupInviteBubble
+                          message={msg}
+                          myUserId={myUserId}
+                          onAccepted={handleGroupInviteAccepted}
+                        />
+                      </Fragment>
+                    );
+                  }
+
                   return (
                     <Fragment key={msg.id}>
                       {showDate && dateSep(msg.created_at)}
@@ -1428,9 +1455,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: Spacing.xs,
-  },
-  backIcon: {
-    fontSize: 22,
   },
   avatar: {
     width: 36,

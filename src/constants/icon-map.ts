@@ -40,6 +40,18 @@ export const icons = {
 
   // Close / Cancel
   close: 'close-outline' as const,
+  chevronRight: 'chevron-forward-outline' as const,
+  chevronLeft: 'chevron-back-outline' as const,
+
+  // Group chat admin actions (P1)
+  personAdd: 'person-add-outline' as const,
+  volumeMute: 'volume-mute-outline' as const,
+  volumeHigh: 'volume-high-outline' as const,
+  ban: 'ban-outline' as const,
+  star: 'star-outline' as const,
+
+  // Shared content (P3)
+  link: 'link-outline' as const,
 
   // Status
   checkCircle: 'checkmark-circle-outline' as const,

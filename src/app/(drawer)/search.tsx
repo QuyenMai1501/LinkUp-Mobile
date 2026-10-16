@@ -372,7 +372,7 @@ export default function SearchScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <Pressable style={styles.backBtn} onPress={goBack}>
-            <ThemedText style={[styles.backIcon, { color: theme.text }]}>←</ThemedText>
+            <Icon name="chevronLeft" size={22} color={theme.text} />
           </Pressable>
           <View style={[styles.searchInputWrapper, { backgroundColor: theme.bgSecondary, borderColor: theme.border }]}>
             <Icon name="search" size={14} color={theme.textSecondary} />
@@ -446,7 +446,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: { fontSize: 20 },
   searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
