@@ -7,6 +7,7 @@ export type NotificationType =
   | 'community_invitation_received' | 'community_invitation_accepted'
   | 'voice_call'
   | 'media_approved' | 'media_rejected' | 'media_flagged'
+  | 'story_react'
 
 export interface NotificationItem {
   id: string

@@ -61,6 +61,7 @@ import { formatChatDate } from "@/utils/chat";
 import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
+import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
 import {
   groupMediaTimeline,
@@ -150,6 +151,8 @@ export default function ChatScreen() {
     content: string;
     emojiId?: string;
   } | null>(null);
+  // Draft trả lời story — prefill text composer (story-reply-draft store).
+  const [storyReplyText, setStoryReplyText] = useState<string | null>(null);
   const [forwardPickerFor, setForwardPickerFor] = useState<ChatMessage | null>(
     null,
   );
@@ -253,6 +256,8 @@ export default function ChatScreen() {
             }
           : null,
       );
+      const takenStory = takeStoryReplyDraft(chatId ?? "");
+      setStoryReplyText(takenStory?.text ?? null);
     })();
     return () => {
       cancelled = true;
@@ -1310,6 +1315,7 @@ export default function ChatScreen() {
           onClearReply={() => setReplyingTo(null)}
           forwarding={forwardDraft}
           onClearForward={() => setForwardDraft(null)}
+          initialText={storyReplyText}
         />
       </KeyboardAvoidingView>
 

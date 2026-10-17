@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,11 +8,16 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
+import { StoryAvatarRing } from '@/components/story/story-avatar-ring';
+import StoryViewer from '@/components/story/story-viewer';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getUserStories } from '@/api/story';
+import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ViewProfileResponse, FollowStats } from '@/types/profile';
+import type { StoryItem } from '@/types/story';
 import { FriendButton } from './FriendButton';
 
 const EMOJI_MAP = getEmojiTextMap();
@@ -48,7 +53,6 @@ export function ProfileHeader({
   isSelf,
   isFollowing,
   followBusy,
-  hasStory,
   onFollow,
   onMessage,
   onEdit,
@@ -61,15 +65,49 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { user: authUser } = useAuth();
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const [storyItems, setStoryItems] = useState<StoryItem[] | null>(null);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+
+  // Kiểm tra profile này có tin đang active không (1 request — vừa có tin,
+  // vừa biết đã xem hết chưa để tô ring xám).
+  useEffect(() => {
+    const userId = profile.user_id;
+    if (!userId) return;
+    let cancelled = false;
+    getUserStories(userId)
+      .then((res) => {
+        if (cancelled) return;
+        const stories = Array.isArray(res?.stories) ? res.stories : [];
+        setStoryItems(stories.length > 0 ? stories : null);
+      })
+      .catch(() => {
+        if (!cancelled) setStoryItems(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.user_id]);
+
+  const hasStory = storyItems !== null && storyItems.length > 0;
+  const hasStoryViewed =
+    storyItems !== null && storyItems.length > 0 && storyItems.every((s) => s.has_viewed);
 
   const handleAvatarPress = () => {
-    if (isSelf) {
+    if (isSelf || hasStory) {
       setAvatarMenuVisible(!avatarMenuVisible);
     } else if (onViewAvatar) {
       onViewAvatar();
     }
   };
+
+  const handleViewStory = useCallback(() => {
+    setAvatarMenuVisible(false);
+    if (!storyItems?.length) return;
+    // Mở viewer với bản sao — tránh state trong viewer sửa has_viewed gốc.
+    setStoryViewerOpen(true);
+  }, [storyItems]);
 
   const handleChangeAvatar = async () => {
     setAvatarMenuVisible(false);
@@ -134,34 +172,52 @@ export function ProfileHeader({
       {/* Body */}
       <View style={styles.body}>
         {/* Avatar */}
-        <Pressable onPress={handleAvatarPress} style={styles.avatarWrap}>
-          {profile.avatar_uri?.trim() ? (
-            <Image source={{ uri: profile.avatar_uri }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primary }]}>
-              <ThemedText style={styles.avatarFallbackText}>
-                {profile.display_name?.charAt(0)?.toUpperCase() || '?'}
-              </ThemedText>
-            </View>
-          )}
+        <View style={styles.avatarWrap}>
+          <StoryAvatarRing
+            src={profile.avatar_uri}
+            name={profile.display_name}
+            hasStory={hasStory}
+            hasViewed={hasStoryViewed}
+            size={96}
+            onPress={handleAvatarPress}>
+            {profile.avatar_uri?.trim() ? undefined : (
+              <View style={[styles.avatarFallback, { backgroundColor: theme.primary }]}>
+                <ThemedText style={styles.avatarFallbackText}>
+                  {profile.display_name?.charAt(0)?.toUpperCase() || '?'}
+                </ThemedText>
+              </View>
+            )}
+          </StoryAvatarRing>
           {isSelf && (
             <View style={styles.avatarCameraBadge}>
               <Icon name="camera" size={12} color="#FFFFFF" />
             </View>
           )}
-        </Pressable>
+        </View>
 
-        {/* Avatar menu for self */}
-        {isSelf && avatarMenuVisible && (
+        {/* Avatar menu: self (đổi ảnh) + ai cũng có (xem tin khi có story) */}
+        {(isSelf || hasStory) && avatarMenuVisible && (
           <>
             <Pressable style={styles.menuOverlay} onPress={() => setAvatarMenuVisible(false)} />
             <View style={[styles.avatarMenu, { backgroundColor: theme.background, borderColor: theme.border }]}>
-              <Pressable onPress={handleChangeAvatar} style={styles.avatarMenuItem}>
-                <ThemedText style={styles.avatarMenuText}>{t('profile.editProfile')}</ThemedText>
-              </Pressable>
+              {hasStory && (
+                <Pressable onPress={handleViewStory} style={styles.avatarMenuItem}>
+                  <ThemedText style={styles.avatarMenuText}>{t('story.viewStory')}</ThemedText>
+                </Pressable>
+              )}
               {onViewAvatar && (
-                <Pressable onPress={() => { setAvatarMenuVisible(false); onViewAvatar(); }} style={styles.avatarMenuItem}>
-                  <ThemedText style={styles.avatarMenuText}>{t('common.done')}</ThemedText>
+                <Pressable
+                  onPress={() => {
+                    setAvatarMenuVisible(false);
+                    onViewAvatar();
+                  }}
+                  style={styles.avatarMenuItem}>
+                  <ThemedText style={styles.avatarMenuText}>{t('story.viewAvatar')}</ThemedText>
+                </Pressable>
+              )}
+              {isSelf && (
+                <Pressable onPress={handleChangeAvatar} style={styles.avatarMenuItem}>
+                  <ThemedText style={styles.avatarMenuText}>{t('story.changeAvatar')}</ThemedText>
                 </Pressable>
               )}
             </View>
@@ -221,6 +277,24 @@ export function ProfileHeader({
           {!isSelf && menuSlot}
         </View>
       </View>
+
+      {/* Viewer tin của profile này */}
+      {storyViewerOpen && storyItems && (
+        <StoryViewer
+          stories={storyItems}
+          currentUserId={authUser?.id}
+          onClose={() => {
+            setStoryViewerOpen(false);
+            // Reload trạng thái đã xem.
+            getUserStories(profile.user_id)
+              .then((res) => {
+                const stories = Array.isArray(res?.stories) ? res.stories : [];
+                setStoryItems(stories.length > 0 ? stories : null);
+              })
+              .catch(() => {});
+          }}
+        />
+      )}
     </ThemedView>
   );
 }

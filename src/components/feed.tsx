@@ -16,8 +16,15 @@ import MediaViewer from './media-viewer';
 import CommentSheet from './comment-sheet';
 import { ShareOptionsSheet } from './share-options-sheet';
 import { ShareToChatModal } from './chat/share-to-chat-modal';
+import StoryBar from './story/story-bar';
+import StoryViewer from './story/story-viewer';
+import StoryComposer from './story/story-composer';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
+import { getFeedStories, toggleMuteStoryUser } from '../api/story';
+import { getMyProfile } from '../api/profile';
+import { useAuth } from '@/contexts/auth-context';
 import type { FeedPost, EmojiItem } from '../types/post';
+import type { StoryFeedItem, StoryItem } from '../types/story';
 
 const INITIAL_PAGE_SIZE = 2;
 const PAGE_SIZE = 10;
@@ -70,6 +77,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -92,6 +100,78 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
 
   // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
   const [shareSheetPost, setShareSheetPost] = useState<FeedPost | null>(null);
+
+  // Stories
+  const [stories, setStories] = useState<StoryFeedItem[]>([]);
+  const [storyLoading, setStoryLoading] = useState(true);
+  const [storyViewer, setStoryViewer] = useState<StoryItem[] | null>(null);
+  const [showStoryComposer, setShowStoryComposer] = useState(false);
+  const [myAvatarUri, setMyAvatarUri] = useState<string | undefined>(undefined);
+
+  const loadStories = useCallback(async () => {
+    // setState luôn sau await — tránh react-hooks/set-state-in-effect
+    await Promise.resolve();
+    try {
+      const res = await getFeedStories();
+      setStories(Array.isArray(res) ? res : []);
+    } catch {
+      /* silent — bar ẩn khi không có story */
+    } finally {
+      setStoryLoading(false);
+    }
+  }, []);
+
+  // Nạp story lúc mount — IIFE trong effect (pattern codebase) để tách khỏi
+  // lần gọi loadStories từ event handler (refresh / mute / created / deleted).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      try {
+        const res = await getFeedStories();
+        if (!cancelled) setStories(Array.isArray(res) ? res : []);
+      } catch {
+        /* silent */
+      } finally {
+        if (!cancelled) setStoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    getMyProfile()
+      .then((p) => {
+        if (!cancelled) setMyAvatarUri(p.avatar_uri);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const markStoryViewed = useCallback((storyId: string) => {
+    setStories((prev) =>
+      prev.map((g) => ({
+        ...g,
+        stories: g.stories.map((s) => (s.id === storyId ? { ...s, has_viewed: true } : s)),
+      })),
+    );
+  }, []);
+
+  const handleMuteStoryUser = useCallback(
+    (userId: string) => {
+      toggleMuteStoryUser(userId)
+        .then(() => loadStories())
+        .catch(() => {});
+    },
+    [loadStories],
+  );
 
   const fetchNext = useCallback(async () => {
     if (loadingRef.current) return;
@@ -128,8 +208,8 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
   const handleRefresh = useCallback(async () => {
     cursorRef.current = null;
     setError(null);
-    await fetchNext();
-  }, [fetchNext]);
+    await Promise.all([fetchNext(), loadStories()]);
+  }, [fetchNext, loadStories]);
 
   const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
@@ -308,13 +388,24 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
           />
         )}
         ListHeaderComponent={
-          <Pressable
-            style={[styles.composerTrigger, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={onOpenComposer}>
-            <ThemedText themeColor="textSecondary" style={styles.composerPlaceholder}>
-              {t('composer.placeholder')}
-            </ThemedText>
-          </Pressable>
+          <>
+            <StoryBar
+              stories={stories}
+              loading={storyLoading}
+              currentUserId={user?.id}
+              avatarUri={myAvatarUri}
+              onSelectStory={(_userId, userStories) => setStoryViewer(userStories)}
+              onCreateStory={() => setShowStoryComposer(true)}
+              onMuteUser={handleMuteStoryUser}
+            />
+            <Pressable
+              style={[styles.composerTrigger, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={onOpenComposer}>
+              <ThemedText themeColor="textSecondary" style={styles.composerPlaceholder}>
+                {t('composer.placeholder')}
+              </ThemedText>
+            </Pressable>
+          </>
         }
         onEndReached={commentSheetVisible ? undefined : handleEndReached}
         onEndReachedThreshold={1}
@@ -400,6 +491,26 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
         postId={sharePostId ?? ''}
         onClose={() => setSharePostId(null)}
       />
+
+      {/* Story viewer */}
+      {storyViewer && (
+        <StoryViewer
+          stories={storyViewer}
+          currentUserId={user?.id}
+          onClose={() => setStoryViewer(null)}
+          onStoryViewed={markStoryViewed}
+          onStoryDeleted={loadStories}
+        />
+      )}
+
+      {/* Tạo tin mới */}
+      {showStoryComposer && (
+        <StoryComposer
+          visible={showStoryComposer}
+          onClose={() => setShowStoryComposer(false)}
+          onCreated={loadStories}
+        />
+      )}
     </View>
   );
 }
