@@ -61,6 +61,7 @@ import { formatChatDate } from "@/utils/chat";
 import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
+import { navigateToProfile } from "@/utils/profile-nav";
 import {
   groupMediaTimeline,
   type MediaGroupItem,
@@ -790,48 +791,54 @@ export default function ChatScreen() {
             <Icon name="chevronLeft" size={22} color={theme.text} />
           </Pressable>
 
-          {partner?.avatar_uri ? (
-            <Image
-              source={{ uri: partner.avatar_uri }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.avatar,
-                styles.avatarPlaceholder,
-                { backgroundColor: theme.primaryLight },
-              ]}>
-              <ThemedText
-                style={[styles.avatarLetter, { color: theme.primary }]}>
-                {(partner?.display_name || "?")[0]?.toUpperCase()}
-              </ThemedText>
-            </View>
-          )}
-
-          <View style={styles.headerMeta}>
-            <ThemedText style={styles.headerName} numberOfLines={1}>
-              {partner?.display_name || t("chat.unknown")}
-            </ThemedText>
-            <View style={styles.headerMetaRow}>
-              {encryption.ready && (
-                <ThemedText style={styles.e2eBadge}>
-                  <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
-                </ThemedText>
-              )}
-              {/* A4: trạng thái online/offline của đối phương */}
-              {partner && (
+          <Pressable
+            style={styles.partnerPress}
+            hitSlop={4}
+            disabled={!partner}
+            onPress={() => navigateToProfile(router, partner?.user_id)}>
+            {partner?.avatar_uri ? (
+              <Image
+                source={{ uri: partner.avatar_uri }}
+                style={styles.avatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatar,
+                  styles.avatarPlaceholder,
+                  { backgroundColor: theme.primaryLight },
+                ]}>
                 <ThemedText
-                  style={[
-                    styles.presenceBadge,
-                    { color: partnerOnline ? "#22C55E" : theme.textSecondary },
-                  ]}>
-                  {partnerOnline ? t("chat.online") : t("chat.offline")}
+                  style={[styles.avatarLetter, { color: theme.primary }]}>
+                  {(partner?.display_name || "?")[0]?.toUpperCase()}
                 </ThemedText>
-              )}
+              </View>
+            )}
+
+            <View style={styles.headerMeta}>
+              <ThemedText style={styles.headerName} numberOfLines={1}>
+                {partner?.display_name || t("chat.unknown")}
+              </ThemedText>
+              <View style={styles.headerMetaRow}>
+                {encryption.ready && (
+                  <ThemedText style={styles.e2eBadge}>
+                    <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
+                  </ThemedText>
+                )}
+                {/* A4: trạng thái online/offline của đối phương */}
+                {partner && (
+                  <ThemedText
+                    style={[
+                      styles.presenceBadge,
+                      { color: partnerOnline ? "#22C55E" : theme.textSecondary },
+                    ]}>
+                    {partnerOnline ? t("chat.online") : t("chat.offline")}
+                  </ThemedText>
+                )}
+              </View>
             </View>
-          </View>
+          </Pressable>
 
           {partner && (
             <>
@@ -1455,6 +1462,12 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: Spacing.xs,
+  },
+  partnerPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    flex: 1,
   },
   avatar: {
     width: 36,

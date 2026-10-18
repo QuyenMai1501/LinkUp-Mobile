@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -114,7 +115,7 @@ export function ProfileHeader({
         onPress={isSelf ? handleChangeCover : undefined}
         style={styles.coverWrap}>
         {profile.cover_uri ? (
-          <Image source={{ uri: profile.cover_uri }} style={styles.coverImg} />
+          <Image source={{ uri: profile.cover_uri }} style={styles.coverImg} contentFit="cover" />
         ) : (
           <LinearGradient
             colors={['#12A5A1', '#0A1F44']}
@@ -238,7 +239,6 @@ const styles = StyleSheet.create({
   coverImg: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   coverGradient: {
     flex: 1,

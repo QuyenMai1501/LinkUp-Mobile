@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import FriendCard from '@/components/friend-card';
 import FriendRequestCard from '@/components/friend-request-card';
@@ -22,6 +22,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { navigateToProfile } from '@/utils/profile-nav';
 import {
   acceptFriendRequest,
   getFriendRequests,
@@ -46,6 +47,7 @@ const MAX_BADGE = 99;
 export default function FriendsScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
+  const router = useRouter();
   const { t } = useTranslation();
 
   const openDrawer = () => {
@@ -361,6 +363,7 @@ export default function FriendsScreen() {
             onAccept={() => handleAccept(item)}
             onReject={() => handleReject(item)}
             onRevoke={() => handleRevoke(item)}
+            onProfilePress={() => navigateToProfile(router, item.user_id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
@@ -446,6 +449,7 @@ export default function FriendsScreen() {
               }}
               actionDisabled={item._friendStatus === 'sent'}
               actionVariant={item._friendStatus === 'sent' ? 'ghost' : 'primary'}
+              onPress={() => navigateToProfile(router, item.user_id)}
             />
           );
         }}
@@ -535,6 +539,7 @@ export default function FriendsScreen() {
             actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
+            onPress={() => navigateToProfile(router, item.user_id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}

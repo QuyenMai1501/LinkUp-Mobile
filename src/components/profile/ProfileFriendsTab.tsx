@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';

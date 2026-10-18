@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -11,6 +12,7 @@ import { Typography } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
+import { navigateToProfile } from '@/utils/profile-nav';
 import { separateGiphyUrls } from '@/api/giphy';
 import VideoPlayer from './video-player';
 import type { FeedPost, FeedMedia } from '../types/post';
@@ -121,6 +123,7 @@ export default function PostCard({
   const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
   const { user } = useAuth();
+  const router = useRouter();
   const isOwner = user?.id != null && post.user_id === user.id;
   const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
   const isRepost = Boolean(sharedPost);
@@ -153,19 +156,23 @@ export default function PostCard({
 
   return (
     <ThemedView style={styles.card}>
-      {/* Zone 1: Header — navigate to post detail */}
+      {/* Zone 1: Header — avatar → hồ sơ; tên/giờ/nền → chi tiết bài */}
       <Pressable style={styles.header} onPress={() => onPress?.(post.id)}>
-        <View style={styles.avatarContainer}>
-          {post.avatar_uri ? (
-            <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <ThemedText style={styles.avatarInitial}>
-                {post.display_name?.charAt(0)?.toUpperCase() || '?'}
-              </ThemedText>
-            </View>
-          )}
-        </View>
+        <Pressable
+          hitSlop={8}
+          onPress={() => navigateToProfile(router, post.user_id)}>
+          <View style={styles.avatarContainer}>
+            {post.avatar_uri ? (
+              <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <ThemedText style={styles.avatarInitial}>
+                  {post.display_name?.charAt(0)?.toUpperCase() || '?'}
+                </ThemedText>
+              </View>
+            )}
+          </View>
+        </Pressable>
         <View style={styles.authorMeta}>
           <ThemedText style={styles.displayName}>
             {post.display_name}
@@ -185,7 +192,10 @@ export default function PostCard({
               <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} />
             ) : null}
             <View style={styles.embeddedPost}>
-              <View style={styles.embeddedAuthor}>
+              <Pressable
+                style={styles.embeddedAuthor}
+                hitSlop={4}
+                onPress={() => navigateToProfile(router, sharedPost.user_id)}>
                 <View style={styles.embeddedAvatar}>
                   {sharedPost.avatar_uri ? (
                     <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
@@ -201,7 +211,7 @@ export default function PostCard({
                     @{sharedPost.username}
                   </ThemedText>
                 </View>
-              </View>
+              </Pressable>
               {sharedPost.title ? (
                 <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
               ) : null}

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -25,6 +26,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getEmojiTextMap } from '@/utils/emojis';
+import { navigateToProfile } from '@/utils/profile-nav';
 import {
   getPostDetail,
   getComments,
@@ -94,6 +96,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const theme = useTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const router = useRouter();
   const currentUserId = user?.id ?? null;
 
   const [post, setPost] = useState<FeedPost | null>(postData ?? null);
@@ -398,8 +401,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           )}
           ListHeaderComponent={
             <View>
-              {/* Author */}
-              <View style={styles.authorRow}>
+              {/* Author — avatar/tên → hồ sơ tác giả */}
+              <Pressable
+                style={styles.authorRow}
+                hitSlop={4}
+                onPress={() => navigateToProfile(router, post.user_id)}>
                 <View style={styles.avatarContainer}>
                   {post.avatar_uri ? (
                     <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
@@ -420,7 +426,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     @{post.username} · {formatRelativeTime(post.created_at)}
                   </ThemedText>
                 </View>
-              </View>
+              </Pressable>
 
               {/* Media carousel */}
               {hasMedia && (
@@ -467,7 +473,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                       <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} />
                     ) : null}
                     <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
-                      <View style={styles.embeddedAuthor}>
+                      <Pressable
+                        style={styles.embeddedAuthor}
+                        hitSlop={4}
+                        onPress={() => navigateToProfile(router, sharedPost.user_id)}>
                         <View style={styles.embeddedAvatar}>
                           {sharedPost.avatar_uri ? (
                             <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
@@ -483,7 +492,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                             @{sharedPost.username}
                           </ThemedText>
                         </View>
-                      </View>
+                      </Pressable>
                       {sharedPost.title ? (
                         <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
                       ) : null}

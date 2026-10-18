@@ -87,6 +87,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Screens: `app/(drawer)/profile.tsx` (của mình), `app/(drawer)/profile/[userId].tsx` (người khác)
 - Components: `components/profile/` — `ProfileHeader`, `ProfileTabs`, `ProfileAboutTab`, `ProfileFriendsTab`, `ProfileMediaGrid`, `ProfileEditModal`, `ProfileMenu`, `ProfileSkeleton`, `FriendButton`, `MutualFriends`, `MediaLightbox`
 - API: `api/profile.ts` · Hooks: `useProfilePosts` · Types: `types/profile.ts`
+- Utils: `utils/profile-nav.ts` — `navigateToProfile(router, userId)` dùng chung khi bấm avatar/tên (feed, comment, chat, bạn bè…)
 
 ### Tìm kiếm
 - Screen: `app/(drawer)/search.tsx` · API: `api/search.ts` · Types: `types/search.ts`

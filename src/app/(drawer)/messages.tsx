@@ -26,6 +26,7 @@ import { batchGetPresence } from '@/api/presence';
 import { decryptChat, ensureChatKey, dbg } from '@/utils/e2ee';
 import { onChatListDirty } from '@/utils/chat-list-dirty';
 import { RECOVERY_RESOLVED_KEY } from '@/utils/e2e-flags';
+import { navigateToProfile } from '@/utils/profile-nav';
 import { Spacing, Typography } from '@/constants/theme';
 import { Icon } from '@/components/ui/icon';
 import type { ChatConversation, ChatInviteItem } from '@/types/chat';
@@ -472,15 +473,19 @@ export default function MessagesScreen() {
         <View
           key={inv.invite_id}
           style={[styles.inviteRow, { backgroundColor: theme.primaryLight, borderBottomColor: theme.border }]}>
-          {inv.requester_avatar ? (
-            <Image source={{ uri: inv.requester_avatar }} style={styles.inviteAvatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.inviteAvatar, styles.inviteAvatarFallback, { backgroundColor: theme.bgHover }]}>
-              <ThemedText style={styles.inviteAvatarLetter}>
-                {(inv.requester_name || '?').charAt(0).toUpperCase()}
-              </ThemedText>
-            </View>
-          )}
+          <Pressable
+            hitSlop={4}
+            onPress={() => navigateToProfile(router, inv.requester_id)}>
+            {inv.requester_avatar ? (
+              <Image source={{ uri: inv.requester_avatar }} style={styles.inviteAvatar} contentFit="cover" />
+            ) : (
+              <View style={[styles.inviteAvatar, styles.inviteAvatarFallback, { backgroundColor: theme.bgHover }]}>
+                <ThemedText style={styles.inviteAvatarLetter}>
+                  {(inv.requester_name || '?').charAt(0).toUpperCase()}
+                </ThemedText>
+              </View>
+            )}
+          </Pressable>
           <ThemedText style={[styles.inviteText, { color: theme.text }]} numberOfLines={1}>
             {t('chat.inviteTitle', { name: inv.requester_name || t('chat.unknown') })}
           </ThemedText>
