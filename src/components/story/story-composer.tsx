@@ -187,14 +187,23 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
             <Pressable
               style={[styles.tab, mode === 'photos' && { borderBottomColor: theme.primary }]}
               onPress={() => setMode('photos')}>
-              <ThemedText style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}>
+              <ThemedText
+                style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}>
                 {t('story.photoMode')}
               </ThemedText>
             </Pressable>
             <Pressable
               style={[styles.tab, mode === 'text' && { borderBottomColor: theme.primary }]}
               onPress={() => setMode('text')}>
-              <ThemedText style={[styles.tabText, mode === 'text' && { color: theme.primary }]}>
+              {/* numberOfLines + adjustsFontSizeToFit: fontScale lớn (cỡ chữ hệ thống to) vẫn 1 dòng */}
+              <ThemedText
+                style={[styles.tabText, mode === 'text' && { color: theme.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}>
                 {t('story.textStory')}
               </ThemedText>
             </Pressable>
