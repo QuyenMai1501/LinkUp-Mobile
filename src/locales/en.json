@@ -794,6 +794,9 @@
     "posting": "Posting...",
     "submit": "Post",
     "multiErrorMax": "Up to 10 photos per story",
-    "permissionNeeded": "Photo library permission is needed to pick photos."
+    "permissionNeeded": "Photo library permission is needed to pick photos.",
+    "discardTitle": "Discard draft?",
+    "discardConfirm": "Your unpublished content will be lost.",
+    "discardBtn": "Discard"
   }
 }

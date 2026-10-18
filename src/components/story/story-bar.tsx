@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/components/ui/icon';
 import { StoryAvatarRing, STORY_RING_COLORS } from '@/components/story/story-avatar-ring';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -27,15 +28,17 @@ interface StoryBarProps {
 }
 
 function StoryPreview({ story }: { story: StoryItem }) {
-  // Tin chữ (không media) → gradient seed theo id, đồng nhất với viewer (thay ô xám khó phân biệt).
-  if (!story.media_uri) {
+  // Tin chữ (không media) → gradient seed theo id; tin video → gradient + icon
+  // (Image không phát được video, Web thì loop muted — mobile hiển thị placeholder).
+  if (!story.media_uri || story.media_type === 'video') {
     return (
       <LinearGradient
         colors={pickTextGradient(story.id)}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.previewMedia}
-      />
+        style={[styles.previewMedia, styles.previewCenter]}>
+        {story.media_type === 'video' && <Icon name="video" size={22} color="rgba(255,255,255,0.9)" />}
+      </LinearGradient>
     );
   }
   return (
@@ -104,9 +107,14 @@ export default function StoryBar({
   return (
     <View style={[styles.wrap, { backgroundColor: theme.background }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {/* Tile "Tin của bạn" */}
+        {/* Tile "Tin của bạn" — có tin của mình → xem, chưa có → tạo; badge "+" luôn mở composer */}
         {currentUserId && (
-          <Pressable style={styles.tile} onPress={onCreateStory}>
+          <Pressable
+            style={styles.tile}
+            onPress={() => {
+              if (ownGroup) onSelectStory(currentUserId, ownGroup.stories);
+              else onCreateStory();
+            }}>
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
               {avatarUri?.trim() ? (
                 <Image source={{ uri: avatarUri }} style={styles.previewMedia} contentFit="cover" />
@@ -122,9 +130,9 @@ export default function StoryBar({
                 style={styles.cardGradient}
                 pointerEvents="none"
               />
-              <View style={styles.plusBadge}>
+              <Pressable hitSlop={4} style={styles.plusBadge} onPress={onCreateStory}>
                 <ThemedText style={styles.plusBadgeText}>+</ThemedText>
-              </View>
+              </Pressable>
               <View style={styles.cardOverlay}>
                 <StoryAvatarRing
                   src={avatarUri}
@@ -226,6 +234,10 @@ const styles = StyleSheet.create({
   },
   previewFallback: {
     backgroundColor: '#3A3A3C',
+  },
+  previewCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardGradient: {
     position: 'absolute',

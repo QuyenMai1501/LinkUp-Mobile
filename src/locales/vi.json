@@ -794,6 +794,9 @@
     "posting": "Đang đăng...",
     "submit": "Đăng",
     "multiErrorMax": "Tối đa 10 ảnh mỗi lần tạo tin",
-    "permissionNeeded": "Cần cấp quyền truy cập ảnh để chọn ảnh."
+    "permissionNeeded": "Cần cấp quyền truy cập ảnh để chọn ảnh.",
+    "discardTitle": "Bỏ nội dung?",
+    "discardConfirm": "Nội dung chưa đăng sẽ bị mất.",
+    "discardBtn": "Bỏ"
   }
 }

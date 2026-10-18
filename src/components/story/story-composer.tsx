@@ -67,9 +67,25 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
   const handleClose = useCallback(() => {
     if (posting) return;
+    // Đã có nội dung mà đóng → xác nhận "Bỏ draft?" (đồng bộ Web)
+    const hasDraft = mode === 'photos' ? assets.length > 0 : textContent.trim().length > 0;
+    if (hasDraft) {
+      Alert.alert(t('story.discardTitle'), t('story.discardConfirm'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('story.discardBtn'),
+          style: 'destructive',
+          onPress: () => {
+            reset();
+            onClose();
+          },
+        },
+      ]);
+      return;
+    }
     reset();
     onClose();
-  }, [onClose, posting, reset]);
+  }, [assets.length, mode, onClose, posting, reset, t, textContent]);
 
   const pickPhotos = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -264,14 +280,15 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                       )}
                     </ScrollView>
 
-                    <TextInput
-                      style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
-                      placeholder={t('story.captionPlaceholder')}
-                      placeholderTextColor={theme.textSecondary}
-                      value={captions[activeIndex] ?? ''}
-                      onChangeText={(v) => setCaption(activeIndex, v)}
-                      multiline
-                    />
+                <TextInput
+                  style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
+                  placeholder={t('story.captionPlaceholder')}
+                  placeholderTextColor={theme.textSecondary}
+                  value={captions[activeIndex] ?? ''}
+                  onChangeText={(v) => setCaption(activeIndex, v)}
+                  maxLength={300}
+                  multiline
+                />
                   </>
                 )}
               </ScrollView>
