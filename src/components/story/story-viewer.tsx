@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -31,6 +32,7 @@ import { useServerEmojis } from '@/hooks/use-server-emojis';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getEmotionEmojis, type EmojiItem as LocalEmoji } from '@/utils/emojis';
 import { stashStoryReplyDraft } from '@/utils/story-reply-draft';
+import { pickTextGradient } from '@/utils/story-gradient';
 import type { StoryAnalytics, StoryItem } from '@/types/story';
 import type { EmojiItem } from '@/types/post';
 
@@ -38,20 +40,8 @@ const REACTION_CODES = [':like:', ':love:', ':haha:', ':wow:', ':sad:', ':angry:
 const DURATION_MS = 5000;
 const TICK_MS = 50;
 const TAP_THRESHOLD_MS = 250;
-
-const TEXT_GRADIENTS: [string, string][] = [
-  ['#F9CE34', '#EE2A7B'],
-  ['#6228D7', '#EE2A7B'],
-  ['#12A5A1', '#0A1F44'],
-  ['#FF6B6B', '#FEC89A'],
-  ['#43E97B', '#38F9D7'],
-];
-
-function pickTextGradient(seed: string): [string, string] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return TEXT_GRADIENTS[h % TEXT_GRADIENTS.length];
-}
+/** Giữ nút giữa lâu hơn mức này = pause, không tính là tap (tránh thả tim oan). */
+const HOLD_MS = 400;
 
 function formatTimeAgo(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -69,12 +59,15 @@ function StoryVideo({
   paused,
   muted,
   onEnded,
+  onProgress,
   style,
 }: {
   uri: string;
   paused: boolean;
   muted: boolean;
   onEnded: () => void;
+  /** Progress 0–100 theo currentTime/duration (đồng bộ thanh segment như Web). */
+  onProgress?: (pct: number) => void;
   style: object;
 }) {
   const player = useVideoPlayer(uri, (p) => {
@@ -98,12 +91,15 @@ function StoryVideo({
 
   useEffect(() => {
     const id = setInterval(() => {
-      if (player.duration > 0 && player.currentTime >= player.duration - 0.05) {
-        onEnded();
+      if (player.duration > 0) {
+        onProgress?.((player.currentTime / player.duration) * 100);
+        if (player.currentTime >= player.duration - 0.05) {
+          onEnded();
+        }
       }
     }, 200);
     return () => clearInterval(id);
-  }, [player, onEnded]);
+  }, [player, onEnded, onProgress]);
 
   return <VideoView player={player} style={style} contentFit="contain" nativeControls={false} />;
 }
@@ -127,11 +123,13 @@ export default function StoryViewer({
 }: StoryViewerProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { byCode } = useServerEmojis();
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [replyFocused, setReplyFocused] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replySending, setReplySending] = useState(false);
   const [videoMuted, setVideoMuted] = useState(true);
@@ -143,6 +141,7 @@ export default function StoryViewer({
   const [burst, setBurst] = useState<{ emoji: LocalEmoji | EmojiItem; seq: number } | null>(null);
 
   const lastTapRef = useRef(0);
+  const pressStartRef = useRef(0);
   const burstOpacity = useMemo(() => new Animated.Value(0), []);
   const heartOpacity = useMemo(() => new Animated.Value(0), []);
 
@@ -167,6 +166,7 @@ export default function StoryViewer({
 
   const goNext = useCallback(() => {
     if (currentIndex < stories.length - 1) {
+      setReplyText(''); // không gửi nhầm nội dung reply sang story tiếp theo
       setCurrentIndex((i) => i + 1);
       setProgress(0);
     } else {
@@ -176,6 +176,7 @@ export default function StoryViewer({
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
+      setReplyText('');
       setCurrentIndex((i) => i - 1);
       setProgress(0);
     }
@@ -191,23 +192,23 @@ export default function StoryViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [story?.id]);
 
-  // Auto-advance ảnh/tin chữ: progress 0→100 trong 5s.
+  // Auto-advance ảnh/tin chữ: progress 0→100 trong 5s. Pause khi giữ giữa hoặc đang gõ reply.
   useEffect(() => {
-    if (!story || isPaused || modalOpen || isVideo) return;
+    if (!story || isPaused || modalOpen || isVideo || replyFocused) return;
     const step = (TICK_MS / DURATION_MS) * 100;
     const timer = setInterval(() => {
       setProgress((prev) => prev + step);
     }, TICK_MS);
     return () => clearInterval(timer);
-  }, [story, isPaused, modalOpen, isVideo]);
+  }, [story, isPaused, modalOpen, isVideo, replyFocused]);
 
   useEffect(() => {
-    if (!story || isVideo || isPaused || modalOpen) return;
+    if (!story || isVideo || isPaused || modalOpen || replyFocused) return;
     if (progress < 100) return;
     // defer — tránh setState đồng bộ trong effect (react-hooks/set-state-in-effect)
     const id = setTimeout(goNext, 0);
     return () => clearTimeout(id);
-  }, [progress, story, isVideo, isPaused, modalOpen, goNext]);
+  }, [progress, story, isVideo, isPaused, modalOpen, replyFocused, goNext]);
 
   const ensureReact = useCallback(async (emojiId: string | undefined) => {
     if (!story || !emojiId) return;
@@ -255,6 +256,25 @@ export default function StoryViewer({
       lastTapRef.current = now;
     }
   }, [handleDoubleTap]);
+
+  const handleCenterPressIn = useCallback(() => {
+    pressStartRef.current = Date.now();
+    setIsPaused(true);
+  }, []);
+
+  const handleCenterPressOut = useCallback(() => {
+    setIsPaused(false);
+    // Giữ lâu = pause có chủ đích, không đếm là tap (tránh double-tap tim oan).
+    if (Date.now() - pressStartRef.current >= HOLD_MS) {
+      lastTapRef.current = 0;
+    } else {
+      handleCenterRelease();
+    }
+  }, [handleCenterRelease]);
+
+  const handleVideoProgress = useCallback((pct: number) => {
+    setProgress(Math.min(pct, 100));
+  }, []);
 
   const handleReplySubmit = useCallback(async () => {
     const text = replyText.trim();
@@ -334,6 +354,10 @@ export default function StoryViewer({
 
   const isImage = story.media_type === 'image' && !!story.media_uri;
   const gradient = pickTextGradient(story.id);
+  // Vị trí bottom theo safe area — reply / action / caption tách bạch, hết chồng lấn (iOS trước chồng 22px).
+  const replyBottom = insets.bottom + 12;
+  const actionBottom = replyBottom + 52; // cao reply 42 + gap 10
+  const captionBottom = actionBottom + 44;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -354,9 +378,10 @@ export default function StoryViewer({
             {isVideo && (
               <StoryVideo
                 uri={story.media_uri}
-                paused={isPaused || modalOpen}
+                paused={isPaused || modalOpen || replyFocused}
                 muted={videoMuted}
                 onEnded={goNext}
+                onProgress={handleVideoProgress}
                 style={styles.media}
               />
             )}
@@ -379,11 +404,8 @@ export default function StoryViewer({
             {/* Vùng giữa: giữ = tạm dừng, tap nhanh đôi = tim */}
             <Pressable
               style={styles.navZoneCenter}
-              onPressIn={() => setIsPaused(true)}
-              onPressOut={() => {
-                setIsPaused(false);
-                handleCenterRelease();
-              }}
+              onPressIn={handleCenterPressIn}
+              onPressOut={handleCenterPressOut}
             />
 
             {/* Double-tap heart */}
@@ -395,7 +417,7 @@ export default function StoryViewer({
           </View>
 
           {/* Progress segments */}
-          <View style={styles.progressRow} pointerEvents="none">
+          <View style={[styles.progressRow, { top: insets.top + 8 }]} pointerEvents="none">
             {stories.map((s, i) => (
               <View key={s.id} style={styles.progressTrack}>
                 <View
@@ -411,7 +433,7 @@ export default function StoryViewer({
           </View>
 
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { top: insets.top + 20 }]}>
             <Image source={{ uri: story.avatar_uri }} style={styles.headerAvatar} contentFit="cover" />
             <ThemedText style={styles.headerName} numberOfLines={1}>
               {story.display_name}
@@ -419,7 +441,7 @@ export default function StoryViewer({
             <ThemedText style={styles.headerTime}>{formatTimeAgo(story.created_at, t)}</ThemedText>
             {isVideo && (
               <Pressable hitSlop={8} onPress={() => setVideoMuted((m) => !m)}>
-                <Icon name={videoMuted ? 'eyeOff' : 'eye'} size={20} color="#FFFFFF" />
+                <Icon name={videoMuted ? 'volumeMute' : 'volumeHigh'} size={20} color="#FFFFFF" />
               </Pressable>
             )}
             <View style={styles.flex} />
@@ -440,7 +462,7 @@ export default function StoryViewer({
 
           {/* Caption */}
           {!!story.caption && !isText && (
-            <View style={styles.captionWrap} pointerEvents="none">
+            <View style={[styles.captionWrap, { bottom: captionBottom }]} pointerEvents="none">
               <ThemedText style={styles.caption} numberOfLines={3}>
                 {story.caption}
               </ThemedText>
@@ -448,7 +470,7 @@ export default function StoryViewer({
           )}
 
           {/* Action row: reaction + share */}
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, { bottom: actionBottom }]}>
             <View style={styles.reactionBar}>
               {reactionEmojis.map((e) => (
                 <Pressable key={e.id} style={styles.reactBtn} onPress={() => handleReact(e)}>
@@ -463,19 +485,21 @@ export default function StoryViewer({
 
           {/* Reaction burst */}
           {burst && (
-            <Animated.View style={[styles.burst, { opacity: burstOpacity }]} pointerEvents="none">
+            <Animated.View style={[styles.burst, { opacity: burstOpacity, bottom: actionBottom + 56 }]} pointerEvents="none">
               <Image source={{ uri: burst.emoji.image_uri }} style={styles.burstImg} contentFit="contain" />
             </Animated.View>
           )}
 
           {/* Reply bar */}
-          <View style={styles.replyBar}>
+          <View style={[styles.replyBar, { bottom: replyBottom }]}>
             <TextInput
               style={styles.replyInput}
               placeholder={t('story.replyPlaceholder')}
               placeholderTextColor="rgba(255,255,255,0.6)"
               value={replyText}
               onChangeText={setReplyText}
+              onFocus={() => setReplyFocused(true)}
+              onBlur={() => setReplyFocused(false)}
               returnKeyType="send"
               onSubmitEditing={handleReplySubmit}
             />
@@ -563,7 +587,6 @@ const styles = StyleSheet.create({
   },
   progressRow: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 56 : 36,
     left: 8,
     right: 8,
     flexDirection: 'row',
@@ -582,7 +605,6 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 68 : 48,
     left: 12,
     right: 8,
     flexDirection: 'row',
@@ -599,6 +621,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
   },
   headerTime: {
     color: 'rgba(255,255,255,0.75)',
@@ -611,7 +634,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 120,
   },
   caption: {
     color: '#FFFFFF',
@@ -625,7 +647,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    bottom: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -651,7 +672,6 @@ const styles = StyleSheet.create({
   },
   burst: {
     position: 'absolute',
-    bottom: 110,
     alignSelf: 'center',
     alignItems: 'center',
   },
@@ -663,7 +683,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    bottom: Platform.OS === 'ios' ? 36 : 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

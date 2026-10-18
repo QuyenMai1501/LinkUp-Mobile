@@ -8,6 +8,7 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { pickTextGradient } from '@/utils/story-gradient';
 import type { StoryFeedItem, StoryItem } from '@/types/story';
 
 const TILE_W = 76;
@@ -26,8 +27,16 @@ interface StoryBarProps {
 }
 
 function StoryPreview({ story }: { story: StoryItem }) {
+  // Tin chữ (không media) → gradient seed theo id, đồng nhất với viewer (thay ô xám khó phân biệt).
   if (!story.media_uri) {
-    return <View style={[styles.previewMedia, styles.previewFallback]} />;
+    return (
+      <LinearGradient
+        colors={pickTextGradient(story.id)}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.previewMedia}
+      />
+    );
   }
   return (
     <Image

@@ -1,14 +1,18 @@
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,15 +24,9 @@ import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createStories } from '@/api/story';
+import { TEXT_GRADIENTS } from '@/utils/story-gradient';
 
 const MAX_PHOTOS = 10;
-const TEXT_GRADIENTS: [string, string][] = [
-  ['#F9CE34', '#EE2A7B'],
-  ['#6228D7', '#EE2A7B'],
-  ['#12A5A1', '#0A1F44'],
-  ['#FF6B6B', '#FEC89A'],
-  ['#43E97B', '#38F9D7'],
-];
 
 interface PickedAsset {
   uri: string;
@@ -45,6 +43,9 @@ interface StoryComposerProps {
 export default function StoryComposer({ visible, onClose, onCreated }: StoryComposerProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { height: winH } = useWindowDimensions();
+  // Giữ preview trong tầm nhìn: không cao hơn ~45% chiều cao màn hình
+  const previewMaxH = Math.round(winH * 0.45);
 
   const [mode, setMode] = useState<'photos' | 'text'>('photos');
   const [assets, setAssets] = useState<PickedAsset[]>([]);
@@ -163,131 +164,145 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <Pressable hitSlop={8} onPress={handleClose}>
-            <Icon name="close" size={26} />
-          </Pressable>
-          <ThemedText style={styles.headerTitle}>{t('story.createTitle')}</ThemedText>
-          <Pressable
-            disabled={posting}
-            onPress={handlePost}
-            style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
-            <ThemedText style={styles.postBtnText}>
-              {posting ? t('story.posting') : t('story.submit')}
-            </ThemedText>
-          </Pressable>
-        </View>
+        <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
+          {/* Header */}
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
+            <Pressable hitSlop={8} onPress={handleClose}>
+              <Icon name="close" size={26} />
+            </Pressable>
+            <ThemedText style={styles.headerTitle}>{t('story.createTitle')}</ThemedText>
+            <Pressable
+              disabled={posting}
+              onPress={handlePost}
+              style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
+              <ThemedText style={styles.postBtnText}>
+                {posting ? t('story.posting') : t('story.submit')}
+              </ThemedText>
+            </Pressable>
+          </View>
 
-        {/* Mode tabs */}
-        <View style={[styles.tabs, { borderBottomColor: theme.border }]}>
-          <Pressable
-            style={[styles.tab, mode === 'photos' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
-            onPress={() => setMode('photos')}>
-            <ThemedText style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}>
-              {t('story.photoMode')}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, mode === 'text' && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}
-            onPress={() => setMode('text')}>
-            <ThemedText style={[styles.tabText, mode === 'text' && { color: theme.primary }]}>
-              {t('story.textStory')}
-            </ThemedText>
-          </Pressable>
-        </View>
+          {/* Mode tabs — mọi tab luôn có border 2px (trong suốt), active chỉ đổi màu
+              để 2 nhãn không bị lệch cao khi chuyển tab */}
+          <View style={[styles.tabs, { borderBottomColor: theme.border }]}>
+            <Pressable
+              style={[styles.tab, mode === 'photos' && { borderBottomColor: theme.primary }]}
+              onPress={() => setMode('photos')}>
+              <ThemedText style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}>
+                {t('story.photoMode')}
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[styles.tab, mode === 'text' && { borderBottomColor: theme.primary }]}
+              onPress={() => setMode('text')}>
+              <ThemedText style={[styles.tabText, mode === 'text' && { color: theme.primary }]}>
+                {t('story.textStory')}
+              </ThemedText>
+            </Pressable>
+          </View>
 
-        {mode === 'photos' ? (
-          <ScrollView contentContainerStyle={styles.body}>
-            {assets.length === 0 ? (
-              <Pressable style={styles.pickArea} onPress={pickPhotos}>
-                <Icon name="images" size={48} />
-                <ThemedText style={styles.pickTitle}>{t('story.mediaPlaceholder')}</ThemedText>
-                <ThemedText themeColor="textSecondary" style={styles.pickHint}>
-                  {t('story.selectPhotosHint')}
-                </ThemedText>
-              </Pressable>
-            ) : (
-              <>
-                <View style={styles.previewWrap}>
-                  {currentAsset && (
-                    <Image
-                      source={{ uri: currentAsset.uri }}
-                      style={styles.previewImg}
-                      contentFit="cover"
-                    />
-                  )}
-                  <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
-                    <Icon name="close" size={18} color="#FFFFFF" />
-                  </Pressable>
-                  <View style={styles.counter}>
-                    <ThemedText style={styles.counterText}>
-                      {activeIndex + 1}/{assets.length}
+          {/* Body — KAV chỉ bọc phần dưới header/tabs để bàn phím không đẩy header */}
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            {mode === 'photos' ? (
+              <ScrollView
+                contentContainerStyle={[styles.body, styles.bodyGrow]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {assets.length === 0 ? (
+                  <Pressable style={styles.pickArea} onPress={pickPhotos}>
+                    <Icon name="images" size={48} />
+                    <ThemedText style={styles.pickTitle}>{t('story.mediaPlaceholder')}</ThemedText>
+                    <ThemedText themeColor="textSecondary" style={styles.pickHint}>
+                      {t('story.selectPhotosHint')}
                     </ThemedText>
-                  </View>
-                </View>
+                  </Pressable>
+                ) : (
+                  <>
+                    <View style={[styles.previewWrap, { maxHeight: previewMaxH }]}>
+                      {currentAsset && (
+                        <Image
+                          source={{ uri: currentAsset.uri }}
+                          style={styles.previewImg}
+                          contentFit="cover"
+                        />
+                      )}
+                      <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
+                        <Icon name="close" size={18} color="#FFFFFF" />
+                      </Pressable>
+                      <View style={styles.counter}>
+                        <ThemedText style={styles.counterText}>
+                          {activeIndex + 1}/{assets.length}
+                        </ThemedText>
+                      </View>
+                    </View>
 
-                {/* Chọn ảnh đang active */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
-                  {assets.map((a, i) => (
-                    <Pressable key={`${a.uri}-${i}`} onPress={() => setActiveIndex(i)}>
-                      <Image
-                        source={{ uri: a.uri }}
-                        style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
-                        contentFit="cover"
+                    {/* Chọn ảnh đang active */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
+                      {assets.map((a, i) => (
+                        <Pressable key={`${a.uri}-${i}`} onPress={() => setActiveIndex(i)}>
+                          <Image
+                            source={{ uri: a.uri }}
+                            style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
+                            contentFit="cover"
+                          />
+                        </Pressable>
+                      ))}
+                      {assets.length < MAX_PHOTOS && (
+                        <Pressable style={styles.addThumb} onPress={pickPhotos}>
+                          <Icon name="add" size={22} />
+                        </Pressable>
+                      )}
+                    </ScrollView>
+
+                    <TextInput
+                      style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
+                      placeholder={t('story.captionPlaceholder')}
+                      placeholderTextColor={theme.textSecondary}
+                      value={captions[activeIndex] ?? ''}
+                      onChangeText={(v) => setCaption(activeIndex, v)}
+                      multiline
+                    />
+                  </>
+                )}
+              </ScrollView>
+            ) : (
+              <ScrollView
+                contentContainerStyle={[styles.body, styles.bodyGrow]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                <LinearGradient
+                  colors={TEXT_GRADIENTS[textGradientIndex % TEXT_GRADIENTS.length]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.textPreview}>
+                  <TextInput
+                    style={styles.textStoryInput}
+                    placeholder={t('story.textStoryHint')}
+                    placeholderTextColor="rgba(255,255,255,0.7)"
+                    value={textContent}
+                    onChangeText={setTextContent}
+                    multiline
+                    maxLength={300}
+                  />
+                </LinearGradient>
+                <View style={styles.gradientRow}>
+                  {TEXT_GRADIENTS.map((g, i) => (
+                    <Pressable key={g[0]} onPress={() => setTextGradientIndex(i)}>
+                      <LinearGradient
+                        colors={g}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.gradientDot, i === textGradientIndex && styles.gradientDotActive]}
                       />
                     </Pressable>
                   ))}
-                  {assets.length < MAX_PHOTOS && (
-                    <Pressable style={styles.addThumb} onPress={pickPhotos}>
-                      <Icon name="add" size={22} />
-                    </Pressable>
-                  )}
-                </ScrollView>
-
-                <TextInput
-                  style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholder={t('story.captionPlaceholder')}
-                  placeholderTextColor={theme.textSecondary}
-                  value={captions[activeIndex] ?? ''}
-                  onChangeText={(v) => setCaption(activeIndex, v)}
-                  multiline
-                />
-              </>
+                </View>
+                <Text style={styles.charCount}>{textContent.length}/300</Text>
+              </ScrollView>
             )}
-          </ScrollView>
-        ) : (
-          <View style={styles.body}>
-            <LinearGradient
-              colors={TEXT_GRADIENTS[textGradientIndex % TEXT_GRADIENTS.length]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.textPreview}>
-              <TextInput
-                style={styles.textStoryInput}
-                placeholder={t('story.textStoryHint')}
-                placeholderTextColor="rgba(255,255,255,0.7)"
-                value={textContent}
-                onChangeText={setTextContent}
-                multiline
-                maxLength={300}
-              />
-            </LinearGradient>
-            <View style={styles.gradientRow}>
-              {TEXT_GRADIENTS.map((g, i) => (
-                <Pressable key={g[0]} onPress={() => setTextGradientIndex(i)}>
-                  <LinearGradient
-                    colors={g}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.gradientDot, i === textGradientIndex && styles.gradientDotActive]}
-                  />
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.charCount}>{textContent.length}/300</Text>
-          </View>
-        )}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -295,6 +310,9 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  flex: {
     flex: 1,
   },
   header: {
@@ -327,14 +345,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
+    // Border cố định cho mọi tab — tab active chỉ đổi màu (hết lệch cao ~1-2px)
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   tabText: {
     ...Typography.body,
     fontWeight: '600',
   },
   body: {
-    flex: 1,
     padding: Spacing.md,
+  },
+  bodyGrow: {
+    flexGrow: 1,
   },
   pickArea: {
     flex: 1,

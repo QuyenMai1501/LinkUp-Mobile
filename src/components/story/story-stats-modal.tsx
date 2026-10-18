@@ -1,4 +1,5 @@
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
@@ -40,12 +41,13 @@ export default function StoryStatsModal({
 }: StoryStatsModalProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { byId } = useServerEmojis();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: theme.background }]}>
+      <View style={[styles.sheet, { backgroundColor: theme.background, paddingBottom: Spacing.xl + insets.bottom }]}>
         <View style={[styles.handle, { backgroundColor: theme.border }]} />
         <View style={styles.headerRow}>
           <ThemedText style={styles.title}>{t('story.analytics')}</ThemedText>
@@ -157,7 +159,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
   },
   handle: {
     width: 40,
