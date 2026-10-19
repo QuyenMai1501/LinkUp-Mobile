@@ -47,6 +47,8 @@ interface PostComposerProps {
   visible: boolean;
   onClose: () => void;
   onPosted: (post: FeedPost) => void;
+  /** Đăng bài trong cộng đồng (server nhận community_id). */
+  communityId?: string;
 }
 
 const PRIVACY_OPTIONS: { value: PostStatus; iconName: IconName; labelKey: string }[] = [
@@ -55,7 +57,7 @@ const PRIVACY_OPTIONS: { value: PostStatus; iconName: IconName; labelKey: string
   { value: 'private', iconName: 'lock', labelKey: 'composer.privacy.private' },
 ];
 
-export default function PostComposer({ visible, onClose, onPosted }: PostComposerProps) {
+export default function PostComposer({ visible, onClose, onPosted, communityId }: PostComposerProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
@@ -193,6 +195,7 @@ export default function PostComposer({ visible, onClose, onPosted }: PostCompose
         status: privacy,
         mediaUris: media,
         gifUrl: gif?.full,
+        communityId,
         clientKey: clientKeyRef.current,
       });
       reset();

@@ -75,8 +75,12 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Components: `components/friend-card.tsx`, `friend-request-card.tsx`, `friends-list-panel.tsx`; `components/profile/FriendButton.tsx`, `MutualFriends.tsx`
 - API: `api/friends.ts`, `api/follow.ts`, `api/block.ts` · Hooks: `useFollowStats` · Types: `types/friend.ts`
 
-### Communities
-- Screen: `app/(drawer)/communities.tsx` — **chỉ là placeholder UI, chưa có API module**
+### Communities (cộng đồng)
+- Screens: `app/(drawer)/communities.tsx` (list: tab discover/joined/created + search debounce + filter privacy), `communities/create.tsx` (tạo — **route riêng**, không RN Modal), `communities/[communityId].tsx` (detail: header + tab posts/members/rules/manage, remount theo `key={communityId}`)
+- Components: `components/communities/` — `community-card` (card list), `community-header` (cover + join/leave/pending/CTA code), `about-card` (giới thiệu + preview thành viên/quy tắc), `community-feed` (feed trong community, cursor derived `last.created_at,last.id` — server không trả next_cursor), `member-list` (admin: menu đổi vai trò + kick kèm lý do), `rule-list` + `rule-form` (CRUD quy tắc, group theo category, đánh số liên tục), `manage-tab` (4 section: settings / join-requests / invite-codes / transfer), `join-code-modal` (mã 6 ký tự `[A-Z0-9]`)
+- API: `api/communities.ts` (22 hàm + `communityErrorText` — server community trả HTTP 400 cho gần như mọi lỗi, hiển thị `serverMessage`) · Types: `types/community.ts` (`isCommunityPrivileged`, `ManageableRole`)
+- Tích hợp: `components/post-composer.tsx` (prop `communityId` → đăng bài trong community), `app/(drawer)/search.tsx` (kết quả tab communities → detail), `app/(drawer)/_layout.tsx` (đăng ký `communities/create` + `communities/[communityId]`), `constants/icon-map.ts` (`key`, `calendar`, `pencil`)
+- Chú ý: **cố ý KHÔNG port bug Web** — feed cursor tự lấy từ bài cuối; join code tự uppercase; pending derive từ `request_id` thay vì hard-code; filter privacy chạy client-side trên response
 
 ### Thông báo & Push
 - Context: `contexts/notification-context.tsx` (WS + unread badge, gắn ở root layout)

@@ -96,6 +96,11 @@ export const icons = {
   stats: 'stats-chart-outline' as const,
   more: 'ellipsis-horizontal' as const,
   addCircle: 'add-circle-outline' as const,
+
+  // Communities
+  key: 'key-outline' as const,
+  calendar: 'calendar-outline' as const,
+  pencil: 'create-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;

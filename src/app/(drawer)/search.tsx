@@ -154,8 +154,8 @@ export default function SearchScreen() {
     executeSearch(`#${name}`, activeTab);
   };
 
-  const navigateToCommunities = () => {
-    (router as any).push('/(drawer)/communities');
+  const navigateToCommunity = (communityId: string) => {
+    (router as any).push(`/(drawer)/communities/${communityId}`);
   };
 
   // ---------- RENDER HELPERS ----------
@@ -225,7 +225,7 @@ export default function SearchScreen() {
   const renderCommunityItem = ({ item }: { item: CommunitySearchResult }) => (
     <Pressable
       style={({ pressed }) => [styles.itemRow, pressed && { backgroundColor: theme.bgHover }]}
-      onPress={navigateToCommunities}>
+      onPress={() => navigateToCommunity(item.id)}>
       <View style={[styles.avatar, { backgroundColor: theme.bgHover }]}>
         {item.avatar_uri ? (
           <Image source={{ uri: item.avatar_uri }} style={styles.avatarImg} contentFit="cover" />
