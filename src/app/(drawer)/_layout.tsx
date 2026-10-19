@@ -24,14 +24,6 @@ export default function DrawerLayout() {
       <Drawer.Screen name="messages" />
       <Drawer.Screen name="friends" />
       <Drawer.Screen name="communities" />
-      <Drawer.Screen
-        name="communities/create"
-        options={{ headerShown: false, swipeEnabled: false }}
-      />
-      <Drawer.Screen
-        name="communities/[communityId]"
-        options={{ headerShown: false, swipeEnabled: false }}
-      />
       <Drawer.Screen name="saved" />
       <Drawer.Screen name="search" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="settings" />
