@@ -40,6 +40,7 @@ import {
   deletePost,
   getEmojis,
 } from '../api/posts';
+import { followUser } from '../api/follow';
 import type { FeedPost, CommentItem as CommentItemType, EmojiItem, CommentSort } from '../types/post';
 import type { ReportTargetType } from '../types/report';
 
@@ -345,6 +346,19 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     setReplyingTo((cur) => (cur?.id === comment.id ? null : comment));
   };
 
+  // Follow/unfollow tác giả từ trang chi tiết (optimistic + rollback).
+  const handleFollowToggle = async () => {
+    if (!post || post.user_id === currentUserId) return;
+    const next = !post.is_following;
+    setPost((prev) => (prev ? { ...prev, is_following: next } : prev));
+    try {
+      await followUser(post.user_id);
+    } catch {
+      setPost((prev) => (prev ? { ...prev, is_following: !next } : prev));
+      Alert.alert(t('common.error'), t('common.error'));
+    }
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.center}>
@@ -457,6 +471,35 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     @{post.username} · {formatRelativeTime(post.created_at)}
                   </ThemedText>
                 </View>
+                {/* Follow toggle (mirror Web PostDetailModal header, non-owner) */}
+                {!isOwner &&
+                  (post.is_following ? (
+                    <Pressable
+                      style={[
+                        styles.followBtn,
+                        { borderColor: theme.border, backgroundColor: theme.bgSecondary },
+                      ]}
+                      hitSlop={6}
+                      onPress={handleFollowToggle}>
+                      <ThemedText
+                        style={[styles.followBtnText, { color: theme.textSecondary }]}>
+                        {t('post.following')}
+                      </ThemedText>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.followBtn,
+                        { borderColor: theme.primary, backgroundColor: theme.primary },
+                        pressed && { opacity: 0.85 },
+                      ]}
+                      hitSlop={6}
+                      onPress={handleFollowToggle}>
+                      <ThemedText style={[styles.followBtnText, styles.followBtnTextPrimary]}>
+                        {t('post.follow')}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
               </Pressable>
 
               {/* Media carousel */}
@@ -764,6 +807,19 @@ const styles = StyleSheet.create({
   },
   authorMeta: {
     flex: 1,
+  },
+  followBtn: {
+    borderWidth: 1,
+    borderRadius: 9999,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  followBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  followBtnTextPrimary: {
+    color: '#FFFFFF',
   },
   displayName: {
     ...Typography.body,

@@ -167,6 +167,8 @@
     "shareToFriend": "Send to friends",
     "repost": "Repost",
     "sharedPost": "shared",
+    "follow": "Follow",
+    "following": "Following",
     "justNow": "just now",
     "minutesAgo": "{minutes}m ago",
     "hoursAgo": "{hours}h ago",

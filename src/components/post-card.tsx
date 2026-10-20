@@ -109,6 +109,7 @@ interface PostCardProps {
   onMediaPress?: (index: number, targetPost?: FeedPost) => void;
   onLike?: (postId: string) => void;
   onSave?: (postId: string) => void;
+  onFollow?: (userId: string) => void;
   onCommentPress?: () => void;
   onSharePress?: () => void;
 }
@@ -120,6 +121,7 @@ export default function PostCard({
   onMediaPress,
   onLike,
   onSave,
+  onFollow,
   onCommentPress,
   onSharePress,
 }: PostCardProps) {
@@ -190,10 +192,33 @@ export default function PostCard({
           </View>
         </Pressable>
         <View style={styles.authorMeta}>
-          <ThemedText style={styles.displayName}>
-            {post.display_name}
-            {isRepost ? ` · ${t('post.sharedPost')}` : ''}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText style={styles.displayName}>
+              {post.display_name}
+              {isRepost ? ` · ${t('post.sharedPost')}` : ''}
+            </ThemedText>
+            {/* Follow badge/button — chỉ khi parent truyền onFollow (mirror Web PostCard:325-338) */}
+            {!isOwner && onFollow &&
+              (post.is_following ? (
+                <View style={[styles.followBadge, styles.followingBadge, { borderColor: theme.border }]}>
+                  <ThemedText style={[styles.followBadgeText, { color: theme.textSecondary }]}>
+                    {t('post.following')}
+                  </ThemedText>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.followBadge,
+                    { borderColor: theme.primary },
+                    pressed && { backgroundColor: theme.primaryLight },
+                  ]}
+                  onPress={() => onFollow(post.user_id)}>
+                  <ThemedText style={[styles.followBadgeText, { color: theme.primary }]}>
+                    {t('post.follow')}
+                  </ThemedText>
+                </Pressable>
+              ))}
+          </View>
           <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
             @{post.username} · {formatRelativeTime(post.created_at, t)}
           </ThemedText>
@@ -365,10 +390,29 @@ const styles = StyleSheet.create({
   authorMeta: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+  },
   displayName: {
     ...Typography.body,
     fontWeight: '600',
     fontSize: 14,
+  },
+  followBadge: {
+    borderWidth: 1,
+    borderRadius: 9999,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+  },
+  followingBadge: {
+    borderStyle: 'solid',
+  },
+  followBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   usernameTime: {
     fontSize: 12,

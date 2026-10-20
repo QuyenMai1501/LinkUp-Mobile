@@ -22,6 +22,7 @@ import StoryComposer from './story/story-composer';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
 import { getFeedStories, toggleMuteStoryUser } from '../api/story';
 import { getMyProfile } from '../api/profile';
+import { followUser } from '../api/follow';
 import { useAuth } from '@/contexts/auth-context';
 import type { FeedPost, EmojiItem } from '../types/post';
 import type { StoryFeedItem, StoryItem } from '../types/story';
@@ -252,6 +253,21 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     }
   }, []);
 
+  // Follow từ feed: optimistic is_following=true cho MỌI post của tác giả,
+  // lỗi → rollback false (mirror Web Feed.tsx:263-278).
+  const handleFollow = useCallback(async (userId: string) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.user_id === userId ? { ...p, is_following: true } : p)),
+    );
+    try {
+      await followUser(userId);
+    } catch {
+      setPosts((prev) =>
+        prev.map((p) => (p.user_id === userId ? { ...p, is_following: false } : p)),
+      );
+    }
+  }, []);
+
   const handleEndReached = () => {
     if (hasMore && !loadingRef.current) {
       fetchNext();
@@ -382,6 +398,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
             onPress={onPostPress}
             onLike={handleLike}
             onSave={handleSave}
+            onFollow={handleFollow}
             onMediaPress={(index, targetPost) => handleOpenMedia(targetPost ?? item, index)}
             onCommentPress={() => handleOpenComments(item)}
             onSharePress={() => handleShare(item)}
