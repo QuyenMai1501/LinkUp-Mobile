@@ -39,6 +39,8 @@ interface Props {
   /** B1: draft chuyển tiếp — prefill nội dung + hiện bar "Đang chuyển tiếp". */
   forwarding?: { content: string; emojiId?: string } | null;
   onClearForward?: () => void;
+  /** Draft trả lời story — prefill text 1 lần khi mount (không hiện bar chuyển tiếp). */
+  initialText?: string | null;
 }
 
 export function ChatComposer({
@@ -50,6 +52,7 @@ export function ChatComposer({
   onClearReply,
   forwarding,
   onClearForward,
+  initialText,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -76,6 +79,19 @@ export function ChatComposer({
       cancelled = true;
     };
   }, [forwarding]);
+
+  // Draft trả lời story — prefill 1 lần (story-reply-draft store).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      if (initialText) setText(initialText);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialText]);
 
   // Sticker chuyển tiếp (emoji_id, không text) vẫn cho phép gửi.
   const forwardStickerReady = !!forwarding?.emojiId && !text.trim();

@@ -91,6 +91,11 @@ export const icons = {
   expand: 'expand-outline' as const,
   compass: 'compass-outline' as const,
   compassFilled: 'compass' as const,
+
+  // Stories
+  stats: 'stats-chart-outline' as const,
+  more: 'ellipsis-horizontal' as const,
+  addCircle: 'add-circle-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;

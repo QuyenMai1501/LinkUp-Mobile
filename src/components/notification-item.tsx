@@ -35,6 +35,8 @@ function getNotificationIcon(type: NotificationType): IconName {
   switch (type) {
     case 'like':
       return 'heartFilled';
+    case 'story_react':
+      return 'heartFilled';
     case 'comment':
       return 'chat';
     case 'share':
@@ -74,6 +76,8 @@ function getIconColor(type: NotificationType): string {
   switch (type) {
     case 'like':
       return '#E53935';
+    case 'story_react':
+      return '#EE2A7B';
     case 'comment':
       return '#43A047';
     case 'share':

@@ -36,6 +36,12 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - API: `api/posts.ts` (dùng chung cho feed, saved, profile posts)
 - Types: `types/post.ts`
 
+### Stories (tin)
+- Components: `components/story/` — `story-bar` (thanh story trên feed), `story-viewer` (xem full-screen: auto-advance 5s, react 6 emoji, share, reply→chat, xóa, phát video story từ Web, tin chữ), `story-composer` (tạo tin: nhiều ảnh + caption/tin chữ), `story-stats-modal` (thống kê chủ tin), `story-avatar-ring` (avatar bọc ring gradient — dùng chung bar + ProfileHeader)
+- API: `api/story.ts` · Types: `types/story.ts` · Utils: `utils/story-reply-draft.ts` (draft trả lời → prefill composer chat, cùng pattern `forward-draft.ts`)
+- Tích hợp: `components/feed.tsx` (mount bar + viewer + composer, reload sau tạo/xóa/ẩn), `components/profile/ProfileHeader.tsx` (ring + menu "Xem tin"), `app/(drawer)/chat/[chatId].tsx` (rút story-reply-draft), `components/chat/chat-composer.tsx` (prop `initialText`)
+- Chú ý: server tự lọc muted/blocked ở feed; feed **bao gồm cả story của mình** (bar tự lọc group mình); tạo mới chỉ ảnh + tin chữ (không video, không canvas editor); video story tạo trên Web vẫn phát được bằng `expo-video`
+
 ### Tin nhắn 1-1 (chat)
 - Screens: `app/(drawer)/chat/[chatId].tsx` (**file lớn nhất ~56KB**), `app/(drawer)/messages.tsx` (danh sách hội thoại)
 - Components: `components/chat/` — `conversation-list-item`, `chat-bubble`, `chat-composer`, `message-actions`, `message-media`, `media-lightbox`, `media-stack`, `typing-indicator`, `system-message`, `voice-player`, `emoji-image`, `forward-picker-modal`, `call-history-row`, `chat-background-picker`, `shared-post-bubble`, `video-link-preview`, `share-to-chat-modal`, `user-picker-modal`, `recovery-gate-modal`
