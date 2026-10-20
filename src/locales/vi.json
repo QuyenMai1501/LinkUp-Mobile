@@ -153,7 +153,11 @@
     "loadError": "Lỗi tải dữ liệu",
     "endOfFeed": "Đã xem hết bài viết.",
     "emptyTitle": "Chưa có bài viết nào",
-    "emptySubtitle": "Hãy kết bạn và theo dõi mọi người để xem bài viết."
+    "emptySubtitle": "Hãy kết bạn và theo dõi mọi người để xem bài viết.",
+    "tabExplore": "Khám phá",
+    "tabFollowing": "Đang theo dõi",
+    "emptyFollowing": "Chưa có bài đăng nào từ người bạn theo dõi.",
+    "exploreLink": "Khám phá bài viết"
   },
   "post": {
     "readMore": "Xem thêm",

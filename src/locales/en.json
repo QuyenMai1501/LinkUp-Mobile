@@ -153,7 +153,11 @@
     "loadError": "Failed to load data",
     "endOfFeed": "You've reached the end of the feed.",
     "emptyTitle": "No posts yet",
-    "emptySubtitle": "Add friends and follow people to see posts."
+    "emptySubtitle": "Add friends and follow people to see posts.",
+    "tabExplore": "Explore",
+    "tabFollowing": "Following",
+    "emptyFollowing": "No posts from people you follow.",
+    "exploreLink": "Explore posts"
   },
   "post": {
     "readMore": "Read more",

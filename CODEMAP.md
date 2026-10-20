@@ -31,10 +31,15 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Component: `components/google-auth-button.tsx`
 
 ### Feed / Posts / Bình luận
-- Screens: `app/(drawer)/index.tsx` (home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
-- Components: `components/feed.tsx`, `post-card.tsx`, `post-composer.tsx`, `post-detail.tsx`, `comment-sheet.tsx`, `comment-input.tsx`, `comment-item.tsx`, `share-options-sheet.tsx`, `media-viewer.tsx`
-- API: `api/posts.ts` (dùng chung cho feed, saved, profile posts)
-- Types: `types/post.ts`
+- Screens: `app/(drawer)/index.tsx` (home — gồm segmented tabs **Khám phá / Đang theo dõi** ngay dưới tab `home|friends|notifications`, chỉ render khi đang ở tab home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
+- Components: `components/feed.tsx` (props `filter?: string` — `'following'` = chỉ bài từ người theo dõi — + `onExplore`; remount qua key gồm feedKey + feedFilter để reset cursor/pagination khi đổi tab), `post-card.tsx` (menu ⋯ → report + follow badge/nút ở nameRow), `post-composer.tsx`, `post-detail.tsx` (toggle follow ở authorRow + report), `comment-sheet.tsx`, `comment-input.tsx`, `comment-item.tsx` (nút flag report), `share-options-sheet.tsx`, `media-viewer.tsx`
+- API: `api/posts.ts` (`getFeedPosts(cursor, pageSize, filter?)` — filter=following lấy từ server; dùng chung cho feed, saved, profile posts), `api/reports.ts` (violation rules + tạo báo cáo), `api/follow.ts` (`followUser` toggle — optimistic ở feed/detail)
+- Types: `types/post.ts`, `types/report.ts` (`ReportTargetType`, `ViolationRule`)
+
+### Báo cáo / Vi phạm
+- Components: `components/report-sheet.tsx` (sheet radio lý do + "Lý do khác" bắt buộc,severity pill, mount conditional — post-card/post-detail mount nội bộ, comment-sheet render **sibling** của Modal), `components/menu-sheet.tsx` (menu ⋯ generic — copy link/report/toggle comments)
+- API: `api/reports.ts` (`getViolationRules(targetType)`, `createReport`) · Types: `types/report.ts`
+- Chú ý: ẩn report bài/bình luận của chính mình; lỗi hiển thị `ApiError.serverMessage`
 
 ### Stories (tin)
 - Components: `components/story/` — `story-bar` (thanh story trên feed), `story-viewer` (xem full-screen: auto-advance 5s, react 6 emoji, share, reply→chat, xóa, phát video story từ Web, tin chữ), `story-composer` (tạo tin: nhiều ảnh + caption/tin chữ), `story-stats-modal` (thống kê chủ tin), `story-avatar-ring` (avatar bọc ring gradient — dùng chung bar + ProfileHeader)

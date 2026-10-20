@@ -159,9 +159,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [composerVisible, setComposerVisible] = React.useState(false);
   const [feedKey, setFeedKey] = React.useState(0);
+  const [feedFilter, setFeedFilter] = React.useState<'explore' | 'following'>('explore');
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
@@ -221,7 +223,33 @@ export default function HomeScreen() {
         {/* Tab content */}
         {activeTab === 'home' && (
           <View style={styles.content}>
-            <Feed key={feedKey} onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)} onOpenComposer={() => setComposerVisible(true)} />
+            {/* Feed segmented tabs: Khám phá / Đang theo dõi */}
+            <View style={[styles.filterBar, { borderBottomColor: colors.border }]}>
+              {(['explore', 'following'] as const).map((f) => (
+                <Pressable
+                  key={f}
+                  onPress={() => setFeedFilter(f)}
+                  style={[
+                    styles.filterTab,
+                    feedFilter === f && { backgroundColor: colors.primaryLight },
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.filterLabel,
+                      { color: feedFilter === f ? colors.primary : colors.textSecondary },
+                    ]}>
+                    {f === 'explore' ? t('feed.tabExplore') : t('feed.tabFollowing')}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+            <Feed
+              key={`${feedKey}-${feedFilter}`}
+              filter={feedFilter === 'following' ? 'following' : undefined}
+              onExplore={() => setFeedFilter('explore')}
+              onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)}
+              onOpenComposer={() => setComposerVisible(true)}
+            />
           </View>
         )}
         {activeTab === 'friends' && (
