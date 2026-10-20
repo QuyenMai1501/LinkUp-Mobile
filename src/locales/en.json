@@ -197,6 +197,28 @@
     "sortOldest": "Oldest",
     "sortRelevant": "Most relevant"
   },
+  "report": {
+    "menuReport": "Report",
+    "postTitle": "Report post",
+    "commentTitle": "Report comment",
+    "userTitle": "Report user",
+    "selectReason": "Select a violation reason",
+    "otherReason": "Other reason",
+    "detailLabel": "Details",
+    "detailPlaceholder": "Describe the violation clearly so moderators can act faster...",
+    "detailOptional": "Details (optional)",
+    "detailHint": "More detail helps moderators act faster.",
+    "submit": "Submit report",
+    "success": "Report submitted successfully",
+    "loadFailed": "Could not load reasons, please try again",
+    "selectRequired": "Please select a violation reason",
+    "detailRequired": "Please enter details"
+  },
+  "violationRules": {
+    "sevLow": "Low",
+    "sevMedium": "Medium",
+    "sevHigh": "High"
+  },
   "friends": {
     "title": "Friends",
     "tabs": {

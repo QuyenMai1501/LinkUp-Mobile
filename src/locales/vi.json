@@ -197,6 +197,28 @@
     "sortOldest": "Cũ nhất",
     "sortRelevant": "Phù hợp nhất"
   },
+  "report": {
+    "menuReport": "Báo cáo",
+    "postTitle": "Báo cáo bài viết",
+    "commentTitle": "Báo cáo bình luận",
+    "userTitle": "Báo cáo người dùng",
+    "selectReason": "Chọn lý do vi phạm",
+    "otherReason": "Lý do khác",
+    "detailLabel": "Mô tả chi tiết",
+    "detailPlaceholder": "Mô tả rõ nội dung vi phạm để quản trị viên xử lý nhanh hơn...",
+    "detailOptional": "Mô tả chi tiết (không bắt buộc)",
+    "detailHint": "Càng chi tiết, quản trị viên xử lý càng nhanh.",
+    "submit": "Gửi báo cáo",
+    "success": "Báo cáo đã được gửi thành công",
+    "loadFailed": "Không tải được danh sách lý do, vui lòng thử lại",
+    "selectRequired": "Vui lòng chọn lý do vi phạm",
+    "detailRequired": "Vui lòng nhập mô tả chi tiết"
+  },
+  "violationRules": {
+    "sevLow": "Thấp",
+    "sevMedium": "Trung bình",
+    "sevHigh": "Cao"
+  },
   "friends": {
     "title": "Bạn bè",
     "tabs": {

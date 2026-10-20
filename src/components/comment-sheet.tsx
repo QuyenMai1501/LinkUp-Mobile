@@ -28,6 +28,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import CommentItem, { buildCommentTree } from '@/components/comment-item';
 import CommentInput from '@/components/comment-input';
+import ReportSheet from '@/components/report-sheet';
+import { useAuth } from '@/contexts/auth-context';
 import {
   getComments,
   createComment,
@@ -74,6 +76,7 @@ export default function CommentSheet({
 }: CommentSheetProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [comments, setComments] = useState<CommentItemType[]>([]);
   const [commentPage, setCommentPage] = useState(1);
@@ -81,6 +84,7 @@ export default function CommentSheet({
   const [commentText, setCommentText] = useState('');
   const [replyingTo, setReplyingTo] = useState<CommentItemType | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
   const [commentSort] = useState<CommentSort>('newest');
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
@@ -313,6 +317,7 @@ export default function CommentSheet({
   if (!visible) return null;
 
   return (
+    <>
     <Modal visible={visible} transparent statusBarTranslucent>
       {/* Bắt buộc có GestureHandlerRootView bên trong Modal (giống media-viewer) */}
       <GestureHandlerRootView style={styles.flex}>
@@ -359,6 +364,11 @@ export default function CommentSheet({
                       allComments={comments}
                       onLike={handleToggleCommentLike}
                       onReply={setReplyingTo}
+                      onReport={
+                        user && item.comment.user_id !== user.id
+                          ? () => setReportCommentId(item.comment.id)
+                          : undefined
+                      }
                     />
                   )}
                   onScroll={handleScroll}
@@ -402,6 +412,16 @@ export default function CommentSheet({
         </KeyboardAvoidingView>
       </GestureHandlerRootView>
     </Modal>
+
+    {/* Sibling (không nested trong Modal của sheet) — tránh Modal-in-Modal */}
+    {reportCommentId && (
+      <ReportSheet
+        targetType="comment"
+        targetId={reportCommentId}
+        onClose={() => setReportCommentId(null)}
+      />
+    )}
+    </>
   );
 }
 

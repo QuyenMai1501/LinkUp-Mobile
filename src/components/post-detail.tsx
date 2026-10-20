@@ -20,6 +20,8 @@ import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { ShareOptionsSheet } from '@/components/share-options-sheet';
+import { MenuSheet, type MenuItem } from '@/components/menu-sheet';
+import ReportSheet from '@/components/report-sheet';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useAuth } from '@/contexts/auth-context';
@@ -39,6 +41,7 @@ import {
   getEmojis,
 } from '../api/posts';
 import type { FeedPost, CommentItem as CommentItemType, EmojiItem, CommentSort } from '../types/post';
+import type { ReportTargetType } from '../types/report';
 
 const COMMENT_PAGE_SIZE = 10;
 const EMOJI_MAP = getEmojiTextMap();
@@ -115,6 +118,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const [shareToChatPostId, setShareToChatPostId] = useState<string | null>(null);
   // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  // Menu ⋯ ở header (báo cáo với bài của người khác) + target đang báo cáo
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTargetType; id: string } | null>(
+    null,
+  );
 
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
@@ -365,7 +373,17 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const mediaList = (isRepost && sharedPost ? sharedPost.media : post.media) ?? [];
   const hasMedia = mediaList.length > 0;
 
+  const postMenuItems: MenuItem[] = [
+    {
+      key: 'report',
+      label: t('report.menuReport'),
+      icon: 'flag',
+      onPress: () => setReportTarget({ type: 'post', id: post.id }),
+    },
+  ];
+
   return (
+    <>
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -380,6 +398,14 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           {isOwner && (
             <Pressable onPress={handleDelete} style={styles.backBtn}>
               <Icon name="trash" size={20} color="#E53935" />
+            </Pressable>
+          )}
+          {!isOwner && (
+            <Pressable
+              onPress={() => setMenuVisible(true)}
+              style={styles.backBtn}
+              accessibilityLabel={t('report.menuReport')}>
+              <Icon name="more" size={20} color={theme.text} />
             </Pressable>
           )}
         </View>
@@ -397,6 +423,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               allComments={comments}
               onLike={handleToggleCommentLike}
               onReply={handleReply}
+              onReport={
+                currentUserId && item.comment.user_id !== currentUserId
+                  ? () => setReportTarget({ type: 'comment', id: item.comment.id })
+                  : undefined
+              }
             />
           )}
           ListHeaderComponent={
@@ -643,6 +674,21 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
         />
       </ThemedView>
     </KeyboardAvoidingView>
+
+      <MenuSheet
+        visible={menuVisible}
+        title={t('postDetail.title')}
+        items={postMenuItems}
+        onClose={() => setMenuVisible(false)}
+      />
+      {reportTarget && (
+        <ReportSheet
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+    </>
   );
 }
 

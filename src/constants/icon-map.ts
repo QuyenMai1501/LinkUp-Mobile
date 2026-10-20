@@ -59,6 +59,7 @@ export const icons = {
   warning: 'warning-outline' as const,
   hourglass: 'hourglass-outline' as const,
   check: 'checkmark' as const,
+  flag: 'flag-outline' as const,
 
   // Privacy
   lock: 'lock-closed-outline' as const,

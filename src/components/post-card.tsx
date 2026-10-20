@@ -7,8 +7,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
+import { MenuSheet, type MenuItem } from '@/components/menu-sheet';
+import ReportSheet from '@/components/report-sheet';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
@@ -121,12 +124,24 @@ export default function PostCard({
   onSharePress,
 }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const theme = useTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
   const isOwner = user?.id != null && post.user_id === user.id;
   const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
   const isRepost = Boolean(sharedPost);
+
+  const menuItems: MenuItem[] = [
+    {
+      key: 'report',
+      label: t('report.menuReport'),
+      icon: 'flag',
+      onPress: () => setReporting(true),
+    },
+  ];
 
   // Tách URL GIPHY dính nhau TRƯỚC khi cắt — chuỗi liền mạch không có space
   // sẽ bị truncateAvoidingUrl trả về '...' (mất trắng nội dung).
@@ -155,6 +170,7 @@ export default function PostCard({
   };
 
   return (
+    <>
     <ThemedView style={styles.card}>
       {/* Zone 1: Header — avatar → hồ sơ; tên/giờ/nền → chi tiết bài */}
       <Pressable style={styles.header} onPress={() => onPress?.(post.id)}>
@@ -182,6 +198,14 @@ export default function PostCard({
             @{post.username} · {formatRelativeTime(post.created_at, t)}
           </ThemedText>
         </View>
+        {!isOwner && (
+          <Pressable
+            hitSlop={8}
+            accessibilityLabel={t('report.menuReport')}
+            onPress={() => setMenuVisible(true)}>
+            <Icon name="more" size={18} color={theme.textSecondary} />
+          </Pressable>
+        )}
       </Pressable>
 
       {/* Zone 2: Content — normal post or repost embed */}
@@ -285,6 +309,17 @@ export default function PostCard({
         </Pressable>
       </View>
     </ThemedView>
+
+      <MenuSheet
+        visible={menuVisible}
+        title={t('postDetail.title')}
+        items={menuItems}
+        onClose={() => setMenuVisible(false)}
+      />
+      {reporting && (
+        <ReportSheet targetType="post" targetId={post.id} onClose={() => setReporting(false)} />
+      )}
+    </>
   );
 }
 
