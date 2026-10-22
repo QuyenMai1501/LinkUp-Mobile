@@ -181,7 +181,8 @@
     "privacyPublic": "Công khai",
     "privacyFriend": "Bạn bè",
     "privacyPrivate": "Riêng tư",
-    "noContent": "Bài viết không có nội dung"
+    "noContent": "Bài viết không có nội dung",
+    "copyLink": "Sao chép liên kết"
   },
   "postDetail": {
     "title": "Bài viết",
@@ -206,7 +207,15 @@
     "commentPosted": "Đăng bình luận thành công!",
     "sortNewest": "Mới nhất",
     "sortOldest": "Cũ nhất",
-    "sortRelevant": "Phù hợp nhất"
+    "sortRelevant": "Phù hợp nhất",
+    "likeCount": "{count} lượt thích",
+    "shareCount": "{count} chia sẻ",
+    "disableComments": "Tắt bình luận",
+    "enableComments": "Bật bình luận",
+    "commentsDisabled": "Bài viết này đã tắt bình luận",
+    "commentsEnabledToast": "Đã bật bình luận",
+    "commentsDisabledToast": "Đã tắt bình luận",
+    "copied": "Đã sao chép liên kết"
   },
   "report": {
     "menuReport": "Báo cáo",

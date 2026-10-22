@@ -32,6 +32,12 @@ export const savePost = (postId: string) =>
 
 export const getEmojis = () => request<{ data: EmojiItem[] }>('/emojis');
 
+export const setCommentsEnabled = (postId: string, enabled: boolean) =>
+  request<{ message: string; data: FeedPost }>(`/posts/${postId}/comments`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  });
+
 export const getUserPosts = (userId: string, cursor: string | null, pageSize = 10) => {
   const params = new URLSearchParams();
   params.set('page_size', String(pageSize));

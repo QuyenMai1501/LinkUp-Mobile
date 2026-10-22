@@ -36,6 +36,7 @@ export interface FeedPost {
   shared_from_post_id?: string;
   share_content?: string;
   shared_post?: FeedPost;
+  comments_enabled: boolean;
 }
 
 export interface FeedResponse {

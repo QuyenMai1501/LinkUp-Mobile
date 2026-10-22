@@ -181,7 +181,8 @@
     "privacyPublic": "Public",
     "privacyFriend": "Friends",
     "privacyPrivate": "Private",
-    "noContent": "This post has no content"
+    "noContent": "This post has no content",
+    "copyLink": "Copy link"
   },
   "postDetail": {
     "title": "Post",
@@ -206,7 +207,15 @@
     "commentPosted": "Comment posted successfully!",
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
-    "sortRelevant": "Most relevant"
+    "sortRelevant": "Most relevant",
+    "likeCount": "{count} likes",
+    "shareCount": "{count} shares",
+    "disableComments": "Turn off comments",
+    "enableComments": "Turn on comments",
+    "commentsDisabled": "Comments are disabled on this post",
+    "commentsEnabledToast": "Comments turned on",
+    "commentsDisabledToast": "Comments turned off",
+    "copied": "Link copied"
   },
   "report": {
     "menuReport": "Report",
