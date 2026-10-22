@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -28,14 +30,31 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getMyProfile } from '@/api/profile';
 import { createPost } from '@/api/posts';
+import { search } from '@/api/search';
 import { navigateToProfile } from '@/utils/profile-nav';
 import type { EmojiOption } from '@/api/emojifyi';
 import type { GiphyGif } from '@/api/giphy';
+import type { HashtagSearchResult } from '@/types/search';
 import type { PostStatus, FeedPost } from '@/types/post';
 import type { ViewProfileResponse } from '@/types/profile';
 
 const CONTENT_MAX = 5000;
 const TITLE_MAX = 150;
+
+const DRAFT_KEY = 'linkup.composer.draft';
+const DRAFT_SAVE_DEBOUNCE = 400;
+
+// Hashtag đang gõ dở ngay trước caret (để gợi ý autocomplete) — mirror web TAG_QUERY_RE.
+const TAG_QUERY_RE = /(?:^|[^\p{L}\p{N}_])#([\p{L}\p{N}_]*)$/u;
+
+interface ComposerDraft {
+  title: string;
+  content: string;
+  privacy: PostStatus;
+  commentsDisabled: boolean;
+  gif: GiphyGif | null;
+  savedAt: number;
+}
 
 interface MediaItem {
   uri: string;
@@ -84,12 +103,95 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
   const [gif, setGif] = useState<GiphyGif | null>(null);
   const [privacyMenuVisible, setPrivacyMenuVisible] = useState(false);
   const [profile, setProfile] = useState<ViewProfileResponse | null>(null);
+  const [commentsDisabled, setCommentsDisabled] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [tagQuery, setTagQuery] = useState<string | null>(null);
+  const [tagSuggestions, setTagSuggestions] = useState<HashtagSearchResult[]>([]);
+  // Mirror nội dung + caret bất đồng bộ với state (onSelectionChange chạy sau onChangeText)
+  const contentTextRef = useRef('');
+  const selectionRef = useRef({ start: 0, end: 0 });
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
       getMyProfile().then(setProfile).catch(() => {});
     }
   }, [visible]);
+
+  const writeDraft = useCallback(async () => {
+    try {
+      if (!(title.trim() !== '' || content.trim() !== '' || gif !== null)) {
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+      const draft: ComposerDraft = {
+        title,
+        content,
+        privacy,
+        commentsDisabled,
+        gif,
+        savedAt: Date.now(),
+      };
+      await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      /* AsyncStorage không khả dụng — bỏ qua draft */
+    }
+  }, [title, content, privacy, commentsDisabled, gif]);
+
+  const clearDraftStorage = async () => {
+    try {
+      await AsyncStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* bỏ qua */
+    }
+  };
+
+  // Lưu nháp debounce khi đang mở composer (mirror web)
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => {
+      writeDraft();
+    }, DRAFT_SAVE_DEBOUNCE);
+    return () => clearTimeout(timer);
+  }, [visible, writeDraft]);
+
+  // Khôi phục nháp khi mở composer (1 lần mỗi lần mở)
+  useEffect(() => {
+    if (!visible || draftLoadedRef.current) return;
+    draftLoadedRef.current = true;
+    AsyncStorage.getItem(DRAFT_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        let parsed: ComposerDraft | null = null;
+        try {
+          parsed = JSON.parse(raw) as ComposerDraft | null;
+        } catch {
+          return;
+        }
+        if (!parsed || typeof parsed !== 'object') return;
+        if (!parsed.title && !parsed.content && !parsed.gif) return;
+        // Hydrating form state from AsyncStorage — an external system sync.
+        setTitle(parsed.title || '');
+        setContent(parsed.content || '');
+        contentTextRef.current = parsed.content || '';
+        setPrivacy(parsed.privacy ?? 'public');
+        setCommentsDisabled(!!parsed.commentsDisabled);
+        if (parsed.gif) setGif(parsed.gif);
+        setDraftRestored(true);
+      })
+      .catch(() => {});
+  }, [visible]);
+
+  // Gợi ý hashtag (debounce 300ms) theo query đang gõ — mirror web
+  useEffect(() => {
+    if (!tagQuery) return;
+    const timer = setTimeout(() => {
+      search(`#${tagQuery}`, 'hashtags')
+        .then((res) => setTagSuggestions(res.hashtags ?? []))
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [tagQuery]);
 
   const reset = useCallback(() => {
     setTitle('');
@@ -101,13 +203,39 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
     setGifPickerVisible(false);
     setGif(null);
     setPrivacyMenuVisible(false);
+    setCommentsDisabled(false);
+    setDraftRestored(false);
+    setTagQuery(null);
+    setTagSuggestions([]);
+    contentTextRef.current = '';
+    selectionRef.current = { start: 0, end: 0 };
     clientKeyRef.current = null;
-  }, []);
+  }, [
+    setTitle,
+    setContent,
+    setPrivacy,
+    setMedia,
+    setError,
+    setEmojiPickerVisible,
+    setGifPickerVisible,
+    setGif,
+    setPrivacyMenuVisible,
+    setCommentsDisabled,
+    setDraftRestored,
+    setTagQuery,
+    setTagSuggestions,
+  ]);
+
+  const discardDraft = () => {
+    clearDraftStorage();
+    reset();
+  };
 
   const handleClose = useCallback(() => {
+    writeDraft(); // lưu lần cuối — nháp giữ cho lần mở sau
     reset();
     onClose();
-  }, [reset, onClose]);
+  }, [writeDraft, reset, onClose]);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -139,13 +267,37 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
 
   const insertEmoji = (emoji: EmojiOption) => {
     // Chèn ký tự emoji unicode — TextInput hiển thị trực tiếp, nối tiếp được nhiều emoji.
-    setContent((prev) => prev + emoji.character);
+    // (Emoji picker blur input → caret luôn ở cuối; giữ contentTextRef đồng bộ với state.)
+    const next = contentTextRef.current + emoji.character;
+    contentTextRef.current = next;
+    setContent(next);
     setError(null);
   };
 
   const handleGifSelect = (selected: GiphyGif) => {
     setGif(selected);
     setError(null);
+  };
+
+  // Chèn hashtag đã chọn: thay đoạn `#query` trước caret bằng `#name ` (mirror web)
+  const applyTagSuggestion = (name: string) => {
+    const text = contentTextRef.current;
+    const caret = selectionRef.current.start;
+    const before = text.slice(0, caret);
+    const m = before.match(TAG_QUERY_RE);
+    if (!m) return;
+    const hashIdx = before.length - m[1].length - 1;
+    const next = text.slice(0, hashIdx) + `#${name} ` + text.slice(caret);
+    const newCaret = hashIdx + name.length + 2;
+    contentTextRef.current = next;
+    selectionRef.current = { start: newCaret, end: newCaret };
+    setContent(next);
+    setTagQuery(null);
+    setTagSuggestions([]);
+    setError(null);
+    requestAnimationFrame(() => {
+      contentRef.current?.setSelection(newCaret, newCaret);
+    });
   };
 
   const validate = (): string | null => {
@@ -196,8 +348,10 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
         mediaUris: media,
         gifUrl: gif?.full,
         communityId,
+        commentsEnabled: !commentsDisabled,
         clientKey: clientKeyRef.current,
       });
+      await clearDraftStorage();
       reset();
       onPosted(res.data);
       if (res.warnings && res.warnings.length > 0) {
@@ -242,6 +396,21 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
             style={styles.flex}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+              {/* Draft chip — đã khôi phục bản nháp lần trước */}
+              {draftRestored && (
+                <View style={[styles.draftChip, { backgroundColor: theme.bgSecondary }]}>
+                  <Icon name="history" size={14} color={theme.textSecondary} />
+                  <ThemedText themeColor="textSecondary" style={styles.draftChipText}>
+                    {t('composer.draftRestored')}
+                  </ThemedText>
+                  <Pressable onPress={discardDraft} hitSlop={8}>
+                    <ThemedText style={[styles.draftDiscard, { color: theme.danger }]}>
+                      {t('composer.discardDraft')}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
               {/* Author row — avatar/tên → hồ sơ mình */}
               <Pressable
                 style={styles.authorRow}
@@ -276,13 +445,60 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                 ref={contentRef}
                 style={[styles.contentInput, { color: theme.text }]}
                 value={content}
-                onChangeText={(text) => { setContent(text); setError(null); }}
+                onChangeText={(text) => {
+                  contentTextRef.current = text;
+                  setContent(text);
+                  setError(null);
+                }}
+                onSelectionChange={(e) => {
+                  const { start, end } = e.nativeEvent.selection;
+                  selectionRef.current = { start, end };
+                  const m = contentTextRef.current.slice(0, start).match(TAG_QUERY_RE);
+                  setTagQuery(m ? m[1] : null);
+                  if (!m) setTagSuggestions([]);
+                }}
                 onFocus={() => setEmojiPickerVisible(false)}
                 placeholder={t('composer.contentPlaceholder')}
                 placeholderTextColor={theme.textSecondary}
                 multiline
                 textAlignVertical="top"
               />
+
+              {/* Hashtag suggestions — đang gõ #tag */}
+              {tagQuery !== null && tagSuggestions.length > 0 && (
+                <View style={[styles.tagSuggest, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  {tagSuggestions.map((s) => (
+                    <Pressable
+                      key={s.name}
+                      style={({ pressed }) => [
+                        styles.tagSuggestItem,
+                        pressed && { backgroundColor: theme.bgHover },
+                      ]}
+                      onPress={() => applyTagSuggestion(s.name)}>
+                      <ThemedText themeColor="primary" style={styles.tagSuggestHash}>#</ThemedText>
+                      <ThemedText style={styles.tagSuggestName}>{s.name}</ThemedText>
+                      <ThemedText themeColor="textSecondary" style={styles.tagSuggestCount}>
+                        {s.post_count}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {/* Comments toggle */}
+              <View style={[styles.optionRow, { borderTopColor: theme.border }]}>
+                <Icon name="chat" size={18} />
+                <ThemedText style={styles.optionLabel}>{t('composer.comments')}</ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.optionValue}>
+                  {commentsDisabled ? t('composer.commentsOff') : t('composer.commentsOn')}
+                </ThemedText>
+                <Switch
+                  value={!commentsDisabled}
+                  onValueChange={(v) => setCommentsDisabled(!v)}
+                  trackColor={{ false: theme.border, true: theme.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
 
               {/* Error */}
               {error && (
@@ -493,6 +709,64 @@ const styles = StyleSheet.create({
   errorText: {
     ...Typography.caption,
     marginTop: Spacing.sm,
+  },
+  draftChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  draftChipText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  draftDiscard: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tagSuggest: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    marginTop: Spacing.xs,
+    overflow: 'hidden',
+  },
+  tagSuggestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  tagSuggestHash: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tagSuggestName: {
+    ...Typography.body,
+    fontSize: 14,
+    flex: 1,
+  },
+  tagSuggestCount: {
+    fontSize: 12,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  optionLabel: {
+    ...Typography.body,
+    fontSize: 14,
+    flex: 1,
+  },
+  optionValue: {
+    fontSize: 12,
   },
   mediaScroll: {
     marginTop: Spacing.md,

@@ -30,6 +30,7 @@ export const icons = {
   reply: 'arrow-undo-outline' as const,
   copy: 'copy-outline' as const,
   pin: 'pin' as const,
+  history: 'time-outline' as const,
   trash: 'trash-outline' as const,
   attach: 'attach-outline' as const,
   smile: 'happy-outline' as const,

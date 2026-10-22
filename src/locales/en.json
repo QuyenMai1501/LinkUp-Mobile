@@ -778,7 +778,12 @@
     "mediaWarning": "Some attachments were skipped",
     "confirmTitle": "Publish post?",
     "confirmMessage": "Are you sure you want to publish this post?",
-    "success": "Post created successfully!"
+    "success": "Post created successfully!",
+    "comments": "Comments",
+    "commentsOn": "On",
+    "commentsOff": "Off",
+    "draftRestored": "Draft restored",
+    "discardDraft": "Discard"
   },
   "search": {
     "title": "Search results for \"{{keyword}}\"",

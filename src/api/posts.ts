@@ -116,7 +116,7 @@ export const deletePost = (postId: string) =>
     method: 'DELETE',
   });
 
-export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId, clientKey }: CreatePostInput): Promise<CreatePostResponse> => {
+export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId, commentsEnabled = true, clientKey }: CreatePostInput): Promise<CreatePostResponse> => {
   const token = await tokenStorage.getAccessToken();
   const formData = new FormData();
 
@@ -125,6 +125,7 @@ export const createPost = async ({ title, content, status, mediaUris = [], gifUr
   if (status) formData.append('status', status);
   if (gifUrl) formData.append('gif_url', gifUrl);
   if (communityId) formData.append('community_id', communityId);
+  formData.append('comments_enabled', String(commentsEnabled));
 
   for (const file of mediaUris) {
     const response = await fetch(file.uri);

@@ -778,7 +778,12 @@
     "mediaWarning": "Một số file đính kèm bị bỏ qua",
     "confirmTitle": "Đăng bài viết?",
     "confirmMessage": "Bạn có chắc muốn đăng bài viết này?",
-    "success": "Đăng bài thành công!"
+    "success": "Đăng bài thành công!",
+    "comments": "Bình luận",
+    "commentsOn": "Đang bật",
+    "commentsOff": "Đã tắt",
+    "draftRestored": "Đã khôi phục bản nháp",
+    "discardDraft": "Xóa"
   },
   "search": {
     "title": "Kết quả tìm kiếm cho \"{{keyword}}\"",
