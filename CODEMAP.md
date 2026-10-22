@@ -37,7 +37,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Types: `types/post.ts`, `types/report.ts` (`ReportTargetType`, `ViolationRule`)
 
 ### Báo cáo / Vi phạm
-- Components: `components/report-sheet.tsx` (sheet radio lý do + "Lý do khác" bắt buộc,severity pill, mount conditional — post-card/post-detail mount nội bộ, comment-sheet render **sibling** của Modal; **drag-to-dismiss gesture mirror comment-sheet** — pan + native scroll song song, backdrop fade/scale theo tiến độ vuốt, **chặn hoàn toàn pan khi `submitting`** qua shared value `blocked`), `components/menu-sheet.tsx` (menu ⋯ generic — copy link/report/toggle comments)
+- Components: `components/report-sheet.tsx` (sheet radio lý do + "Lý do khác" bắt buộc,severity pill, mount conditional — post-card/post-detail mount nội bộ, comment-sheet render **sibling** của Modal; **drag-to-dismiss gesture mirror comment-sheet** — pan + native scroll song song, backdrop fade/scale theo tiến độ vuốt, **chặn hoàn toàn pan khi `submitting`** qua shared value `blocked`), `components/menu-sheet.tsx` (menu ⋯ generic — copy link/report/toggle comments; **drag-to-dismiss gesture mirror comment-sheet** — luôn mount theo prop `visible`, slide-up khi mở/reset khi đóng, item press = animate close + `onPress` chạy ngay)
 - API: `api/reports.ts` (`getViolationRules(targetType)`, `createReport`) · Types: `types/report.ts`
 - Chú ý: ẩn report bài/bình luận của chính mình; lỗi hiển thị `ApiError.serverMessage`
 

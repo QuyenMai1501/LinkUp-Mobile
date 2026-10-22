@@ -396,7 +396,6 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const hasMedia = mediaList.length > 0;
 
   const handleCopyLink = () => {
-    setMenuVisible(false);
     Clipboard.setString(postLink(post.id));
     Alert.alert(t('postDetail.copied'), postLink(post.id));
   };
