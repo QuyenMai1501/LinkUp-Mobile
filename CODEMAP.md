@@ -124,3 +124,22 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 ### Networking / API base
 - `api/client.ts` — `request<T>()` với refresh-token mutex; `API_BASE` lấy từ `EXPO_PUBLIC_API_URL` (**phải gồm hậu tố `/api`**), fallback từ Metro hostUri
 - WS đều derive từ `API_BASE` (`http→ws`) trong các hook socket + `notification-context`
+
+---
+
+## Feed parity với Web (Phase 1→8)
+
+Scope đã chốt: **không ads, không realtime, không story editor** — backend/web không sửa gì, chỉ port giao diện + hành vi sang mobile.
+
+| Phase | Commit | Nội dung |
+|---|---|---|
+| 1 | `6183ae0` | `types/report.ts` + `api/reports.ts` — violation rules + tạo báo cáo |
+| 2 | `2e7a8f8` | `menu-sheet` + `report-sheet` — báo cáo post/comment từ card/detail/comment-sheet (sibling của Modal), ẩn report của mình |
+| 3 | `bef443a` | follow/unfollow từ feed + detail (optimistic, sync mọi post cùng `user_id`), badge "Đang theo dõi"/nút "Theo dõi" |
+| 4 | `7c02f3a` | tab **Following** — segmented Khám phá/Đang theo dõi ở home, `filter=following`, empty state riêng |
+| 5 | `a4e2f89` | card polish — ghim/privacy badge, +N media overlay, double-tap like + tim burst, view count own post, hashtag→search, sort bình luận (newest/oldest/relevant) |
+| 6 | `6d0e63a` | composer — toggle `comments_enabled`, hashtag autocomplete (`#` → debounce 300ms), draft AsyncStorage (`linkup.composer.draft`) |
+| 7 | `7814a06` | detail — menu ⋯ (copy link `https://linkup.io.vn/posts/{id}` qua `constants/links.ts`, toggle comments owner, report non-owner), stats row like/share/view, ẩn input khi `!comments_enabled` |
+| 8 | — | locales dọn 10 keys thừa (ns `post`/`postDetail`/`composer`) — vi/en đồng bộ 0 lệch, 0 unused trong các ns đã sửa |
+
+Verify mỗi phase: `npx tsc --noEmit` + `npm run lint` (baseline 28/15/13) + JSON parse 2 locales.
