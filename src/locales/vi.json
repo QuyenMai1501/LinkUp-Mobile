@@ -176,7 +176,12 @@
     "justNow": "vừa xong",
     "minutesAgo": "{minutes} phút trước",
     "hoursAgo": "{hours} giờ trước",
-    "daysAgo": "{days} ngày trước"
+    "daysAgo": "{days} ngày trước",
+    "pinned": "Đã ghim",
+    "privacyPublic": "Công khai",
+    "privacyFriend": "Bạn bè",
+    "privacyPrivate": "Riêng tư",
+    "noContent": "Bài viết không có nội dung"
   },
   "postDetail": {
     "title": "Bài viết",

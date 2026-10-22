@@ -85,7 +85,7 @@ export default function CommentSheet({
   const [replyingTo, setReplyingTo] = useState<CommentItemType | null>(null);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [reportCommentId, setReportCommentId] = useState<string | null>(null);
-  const [commentSort] = useState<CommentSort>('newest');
+  const [commentSort, setCommentSort] = useState<CommentSort>('newest');
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
@@ -214,6 +214,7 @@ export default function CommentSheet({
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setComments([]);
+    setCommentSort('newest');
     setCommentPage(1);
     setCommentText('');
     setReplyingTo(null);
@@ -307,6 +308,28 @@ export default function CommentSheet({
     }
   };
 
+  // Đổi sort → tải lại trang 1 (mirror post-detail handleSortChange)
+  const handleSortChange = useCallback(
+    (sort: CommentSort) => {
+      setCommentSort(sort);
+      setComments([]);
+      setCommentPage(1);
+      setCommentsLoading(true);
+      hasMoreRef.current = true;
+      loadingMoreRef.current = false;
+      commentsLenRef.current = 0;
+      getComments(postId, 1, COMMENT_PAGE_SIZE, sort)
+        .then((res) => {
+          setComments(res.data);
+          commentsLenRef.current = res.data.length;
+          hasMoreRef.current = res.data.length < res.total;
+        })
+        .catch(() => {})
+        .finally(() => setCommentsLoading(false));
+    },
+    [postId],
+  );
+
   const commentTree = buildCommentTree(comments, commentSort);
 
   const handleScroll = useCallback((e: any) => {
@@ -348,6 +371,32 @@ export default function CommentSheet({
                 <ThemedText style={styles.headerTitle}>
                   {t('postDetail.comments')}
                 </ThemedText>
+              </View>
+
+              {/* Comment sort */}
+              <View style={[styles.sortBar, { borderBottomColor: theme.border }]}>
+                {(['newest', 'oldest', 'relevant'] as CommentSort[]).map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => handleSortChange(s)}
+                    style={[
+                      styles.sortBtn,
+                      commentSort === s && { backgroundColor: theme.bgSecondary },
+                    ]}>
+                    <ThemedText
+                      style={[
+                        styles.sortBtnText,
+                        { color: commentSort === s ? theme.text : theme.textSecondary },
+                        commentSort === s && { fontWeight: '600' },
+                      ]}>
+                      {s === 'newest'
+                        ? t('postDetail.sortNewest')
+                        : s === 'oldest'
+                          ? t('postDetail.sortOldest')
+                          : t('postDetail.sortRelevant')}
+                    </ThemedText>
+                  </Pressable>
+                ))}
               </View>
 
               {/* Comments list — FlatList cuộn qua Gesture.Native riêng,
@@ -463,6 +512,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  sortBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sortBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  sortBtnText: {
+    fontSize: 12,
   },
   listContent: {
     padding: 16,

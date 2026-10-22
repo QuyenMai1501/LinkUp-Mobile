@@ -32,7 +32,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 
 ### Feed / Posts / Bình luận
 - Screens: `app/(drawer)/index.tsx` (home — gồm segmented tabs **Khám phá / Đang theo dõi** ngay dưới tab `home|friends|notifications`, chỉ render khi đang ở tab home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
-- Components: `components/feed.tsx` (props `filter?: string` — `'following'` = chỉ bài từ người theo dõi — + `onExplore`; remount qua key gồm feedKey + feedFilter để reset cursor/pagination khi đổi tab), `post-card.tsx` (menu ⋯ → report + follow badge/nút ở nameRow), `post-composer.tsx`, `post-detail.tsx` (toggle follow ở authorRow + report), `comment-sheet.tsx`, `comment-input.tsx`, `comment-item.tsx` (nút flag report), `share-options-sheet.tsx`, `media-viewer.tsx`
+- Components: `components/feed.tsx` (props `filter?: string` — `'following'` = chỉ bài từ người theo dõi — + `onExplore`; remount qua key gồm feedKey + feedFilter để reset cursor/pagination khi đổi tab), `post-card.tsx` (menu ⋯ → report + follow badge/nút ở nameRow, ghim badge + privacy icon public/friend/private, +N overlay media, double-tap media để thích + tim burst, view count thay save khi own post, empty placeholder, hashtag → search), `post-composer.tsx`, `post-detail.tsx` (toggle follow ở authorRow + report + hashtag link), `comment-sheet.tsx` (sort newest/oldest/relevant — reload trang 1), `comment-input.tsx`, `comment-item.tsx` (nút flag report), `share-options-sheet.tsx`, `media-viewer.tsx`, `rich-content.tsx` (prop `onHashtagPress`/`hashtagStyle` — không truyền thì hashtag là text thường)
 - API: `api/posts.ts` (`getFeedPosts(cursor, pageSize, filter?)` — filter=following lấy từ server; dùng chung cho feed, saved, profile posts), `api/reports.ts` (violation rules + tạo báo cáo), `api/follow.ts` (`followUser` toggle — optimistic ở feed/detail)
 - Types: `types/post.ts`, `types/report.ts` (`ReportTargetType`, `ViolationRule`)
 
@@ -105,7 +105,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Utils: `utils/profile-nav.ts` — `navigateToProfile(router, userId)` dùng chung khi bấm avatar/tên (feed, comment, chat, bạn bè…)
 
 ### Tìm kiếm
-- Screen: `app/(drawer)/search.tsx` · API: `api/search.ts` · Types: `types/search.ts`
+- Screen: `app/(drawer)/search.tsx` (hỗ trợ deep-link `?q=#tag` từ hashtag trong bài — prefill + tìm ngay khi mount) · API: `api/search.ts` · Types: `types/search.ts`
 
 ### Emoji / GIF (Giphy)
 - Components: `components/emoji-picker.tsx`, `giphy-gif-picker.tsx`

@@ -6,12 +6,32 @@ import type { EmojiItem } from '@/utils/emojis';
 
 const EMOJI_RE = /(:[a-z0-9+_-]+:)/gi;
 const URL_RE = /(https?:\/\/[^\s]+)/gi;
+const HASHTAG_RE = /#[\p{L}\p{N}_]+/giu;
 
 type Segment =
   | { k: 'text'; v: string }
   | { k: 'code'; v: string }
   | { k: 'giphy'; v: string }
   | { k: 'emojifyi'; v: string };
+
+/** Chia text thành đoạn thường + hashtag (mirror web POST_TOKEN_RE; tránh lookbehind để an toàn Hermes). */
+function splitTextWithHashtags(text: string): { t: string; tag?: string }[] {
+  const out: { t: string; tag?: string }[] = [];
+  let last = 0;
+  HASHTAG_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = HASHTAG_RE.exec(text)) !== null) {
+    const start = m.index;
+    const prev = start > 0 ? text[start - 1] : '';
+    // `a#b` / `email#x` không phải hashtag — chỉ nhận # sau khoảng trắng hoặc đầu chuỗi
+    if (prev && /[\p{L}\p{N}]/u.test(prev)) continue;
+    if (start > last) out.push({ t: text.slice(last, start) });
+    out.push({ t: m[0], tag: m[0].slice(1) });
+    last = start + m[0].length;
+  }
+  if (last < text.length) out.push({ t: text.slice(last) });
+  return out;
+}
 
 /** Chia nội dung thành text / `:code:` / URL GIPHY / URL emojifyi. */
 export function splitContentSegments(content: string): Segment[] {
@@ -45,6 +65,9 @@ interface RichContentProps {
   /** Kích thước emoji/GIF inline (px). */
   size?: number;
   numberOfLines?: number;
+  /** Bấm `#hashtag` (vd. mở search). Không truyền → hashtag render text thường. */
+  onHashtagPress?: (tag: string) => void;
+  hashtagStyle?: StyleProp<TextStyle>;
 }
 
 /**
@@ -52,8 +75,9 @@ interface RichContentProps {
  * - URL emojifyi -> ảnh inline (emoji chèn từ picker)
  * - URL GIPHY cũ -> ảnh inline (nội dung legacy, đổi sang bản still)
  * - `:code:` -> ảnh (nếu có emojiMap) hoặc text thô
+ * - `#hashtag` -> pressable (nếu có onHashtagPress)
  */
-export function RichContent({ content, style, emojiMap, size = 18, numberOfLines }: RichContentProps) {
+export function RichContent({ content, style, emojiMap, size = 18, numberOfLines, onHashtagPress, hashtagStyle }: RichContentProps) {
   const segments = splitContentSegments(content);
 
   return (
@@ -91,6 +115,20 @@ export function RichContent({ content, style, emojiMap, size = 18, numberOfLines
               />
             );
           }
+        }
+        if (seg.k === 'text' && onHashtagPress) {
+          return splitTextWithHashtags(seg.v).map((part, j) =>
+            part.tag ? (
+              <Text
+                key={`${i}-${j}`}
+                onPress={() => onHashtagPress(part.tag!)}
+                style={hashtagStyle}>
+                {part.t}
+              </Text>
+            ) : (
+              part.t
+            ),
+          );
         }
         return seg.v;
       })}

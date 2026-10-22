@@ -176,7 +176,12 @@
     "justNow": "just now",
     "minutesAgo": "{minutes}m ago",
     "hoursAgo": "{hours}h ago",
-    "daysAgo": "{days}d ago"
+    "daysAgo": "{days}d ago",
+    "pinned": "Pinned",
+    "privacyPublic": "Public",
+    "privacyFriend": "Friends",
+    "privacyPrivate": "Private",
+    "noContent": "This post has no content"
   },
   "postDetail": {
     "title": "Post",

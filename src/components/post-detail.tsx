@@ -103,6 +103,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const router = useRouter();
   const currentUserId = user?.id ?? null;
 
+  const openHashtag = (tag: string) => {
+    (router as any).push(`/(drawer)/search?q=${encodeURIComponent('#' + tag)}`);
+  };
+
   const [post, setPost] = useState<FeedPost | null>(postData ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -544,7 +548,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                 {isRepost && sharedPost ? (
                   <View>
                     {post.share_content ? (
-                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} />
+                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                     ) : null}
                     <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
                       <Pressable
@@ -571,7 +575,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                         <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
                       ) : null}
                       {sharedPost.content ? (
-                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} />
+                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                       ) : null}
                     </View>
                   </View>
@@ -579,7 +583,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   <>
                     {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
                     {post.content ? (
-                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} />
+                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                     ) : null}
                   </>
                 )}
@@ -867,6 +871,10 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     lineHeight: 22,
+  },
+  hashtag: {
+    color: '#12A5A1',
+    fontWeight: '600',
   },
   embeddedPost: {
     borderWidth: 1,
