@@ -24,13 +24,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { batchGetPresence } from "@/api/presence";
-import { deleteChat, listChats, uploadChatMedia } from "@/api/chat";
+import { deleteChat, getChatBackground, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
+import { ChatBackgroundLayer } from "@/components/chat/chat-background";
+import { ChatBackgroundPicker } from "@/components/chat/chat-background-picker";
 import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
 import { MediaStack } from "@/components/chat/media-stack";
+import { MenuSheet } from "@/components/menu-sheet";
 import { MessageActions } from "@/components/chat/message-actions";
 import {
   SystemMessage,
@@ -53,6 +56,7 @@ import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
 import type {
+  ChatBackground,
   ChatConversation,
   ChatMessage,
   ReplyPreview,
@@ -135,6 +139,11 @@ export default function ChatScreen() {
     chatId: string;
     conv: ChatConversation;
   } | null>(null);
+  // P3d: nền trò chuyện per-conversation (1-1) + menu⋮ / picker nền.
+  const [chatBackground, setChatBackground] =
+    useState<ChatBackground | null>(null);
+  const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   // Giới hạn retry của onScrollToIndexFailed (index offscreen chưa render kịp).
   const scrollFailCountRef = useRef(0);
@@ -182,6 +191,23 @@ export default function ChatScreen() {
         if (cancelled) return;
         const conv = res.data.find((c) => c.chat_id === chatId);
         if (conv) setConvEntry({ chatId, conv });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId]);
+
+  // P3d: load nền trò chuyện — picker ở ngay trong màn này nên onApplied set
+  // state luôn; effect chỉ fetch lần đầu (hoặc đổi chatId).
+  useEffect(() => {
+    if (!chatId) return;
+    let cancelled = false;
+    getChatBackground(chatId)
+      .then((res) => {
+        if (cancelled) return;
+        const bg = res.data;
+        setChatBackground(bg?.type ? bg : null);
       })
       .catch(() => {});
     return () => {
@@ -902,6 +928,13 @@ export default function ChatScreen() {
           </Pressable>
 
           <Pressable
+            onPress={() => setMenuVisible(true)}
+            hitSlop={8}
+            style={styles.headerAction}>
+            <Icon name="more" size={18} color={theme.textSecondary} />
+          </Pressable>
+
+          <Pressable
             onPress={() => setShowDeleteChat(true)}
             hitSlop={8}
             style={styles.headerAction}>
@@ -1025,6 +1058,8 @@ export default function ChatScreen() {
         {/* Messages */}
         <View
           style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
+          {/* P3d: nền trò chuyện (layer dưới cùng, absoluteFill + scrim) */}
+          <ChatBackgroundLayer background={chatBackground} />
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View
@@ -1447,6 +1482,33 @@ export default function ChatScreen() {
           onClose={() => setLightbox(null)}
         />
       )}
+
+      {/* Menu⋮ header — chọn nền trò chuyện 1-1 */}
+      <MenuSheet
+        visible={menuVisible}
+        items={[
+          {
+            key: "background",
+            label: t("chat.background"),
+            icon: "palette",
+            onPress: () => setBackgroundPickerOpen(true),
+          },
+        ]}
+        onClose={() => setMenuVisible(false)}
+      />
+
+      {/* Picker nền trò chuyện 1-1 (mode direct → api /chats/:id/background) */}
+      <ChatBackgroundPicker
+        visible={backgroundPickerOpen}
+        onClose={() => setBackgroundPickerOpen(false)}
+        mode="direct"
+        chatId={chatId}
+        currentBackground={chatBackground}
+        onApplied={(bg) => {
+          setChatBackground(bg);
+          notifyChatListDirty(); // conversations list có background_* → refresh
+        }}
+      />
     </SafeAreaView>
   );
 }
