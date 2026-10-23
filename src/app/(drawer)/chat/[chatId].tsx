@@ -805,6 +805,9 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* P3d: nền trò chuyện bao phủ toàn màn hình — dải status bar → header →
+          search/pinned → vùng tin nhắn → composer + keyboard gap. */}
+      <ChatBackgroundLayer background={chatBackground} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior="padding"
@@ -813,7 +816,10 @@ export default function ChatScreen() {
         <View
           style={[
             styles.header,
-            { borderBottomColor: theme.border, backgroundColor: theme.bg },
+            {
+              borderBottomColor: theme.border,
+              backgroundColor: chatBackground ? "transparent" : theme.bg,
+            },
           ]}>
           <Pressable
             onPress={() => router.navigate("/(drawer)/messages")}
@@ -948,7 +954,9 @@ export default function ChatScreen() {
             style={[
               styles.searchBar,
               {
-                backgroundColor: theme.bgSecondary,
+                backgroundColor: chatBackground
+                  ? "transparent"
+                  : theme.bgSecondary,
                 borderBottomColor: theme.border,
               },
             ]}>
@@ -1003,7 +1011,10 @@ export default function ChatScreen() {
           <View
             style={[
               styles.pinnedBar,
-              { backgroundColor: theme.card, borderBottomColor: theme.border },
+              {
+                backgroundColor: chatBackground ? "transparent" : theme.card,
+                borderBottomColor: theme.border,
+              },
             ]}>
             <View style={styles.pinnedBarHeader}>
               <ThemedText
@@ -1057,9 +1068,14 @@ export default function ChatScreen() {
 
         {/* Messages */}
         <View
-          style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-          {/* P3d: nền trò chuyện (layer dưới cùng, absoluteFill + scrim) */}
-          <ChatBackgroundLayer background={chatBackground} />
+          style={[
+            styles.messagesWrap,
+            {
+              backgroundColor: chatBackground
+                ? "transparent"
+                : theme.bgSecondary,
+            },
+          ]}>
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View
@@ -1342,6 +1358,7 @@ export default function ChatScreen() {
 
         {/* Composer */}
         <ChatComposer
+          bgTransparent={!!chatBackground}
           onSend={handleSend}
           onSendVoice={handleSendVoice}
           onTyping={handleTyping}

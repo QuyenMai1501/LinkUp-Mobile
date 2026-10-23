@@ -646,12 +646,18 @@ export default function GroupChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* P3b: nền trò chuyện bao phủ toàn màn hình — dải status bar → header →
+          search/pinned → vùng tin nhắn → composer + keyboard gap. */}
+      <ChatBackgroundLayer background={chatBackground} />
       <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
         {/* Header */}
         <View
           style={[
             styles.header,
-            { borderBottomColor: theme.border, backgroundColor: theme.bg },
+            {
+              borderBottomColor: theme.border,
+              backgroundColor: chatBackground ? 'transparent' : theme.bg,
+            },
           ]}>
           <Pressable
             onPress={() => router.navigate('/(drawer)/messages')}
@@ -756,7 +762,9 @@ export default function GroupChatScreen() {
             style={[
               styles.searchBar,
               {
-                backgroundColor: theme.bgSecondary,
+                backgroundColor: chatBackground
+                  ? 'transparent'
+                  : theme.bgSecondary,
                 borderBottomColor: theme.border,
               },
             ]}>
@@ -796,7 +804,10 @@ export default function GroupChatScreen() {
           <View
             style={[
               styles.pinnedBar,
-              { backgroundColor: theme.card, borderBottomColor: theme.border },
+              {
+                backgroundColor: chatBackground ? 'transparent' : theme.card,
+                borderBottomColor: theme.border,
+              },
             ]}>
             <View style={styles.pinnedBarHeader}>
               <ThemedText
@@ -845,9 +856,15 @@ export default function GroupChatScreen() {
         )}
 
         {/* Messages */}
-        <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-          {/* P3b: nền trò chuyện (layer dưới cùng, absoluteFill + scrim) */}
-          <ChatBackgroundLayer background={chatBackground} />
+        <View
+          style={[
+            styles.messagesWrap,
+            {
+              backgroundColor: chatBackground
+                ? 'transparent'
+                : theme.bgSecondary,
+            },
+          ]}>
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View
@@ -1086,6 +1103,7 @@ export default function GroupChatScreen() {
 
         {/* Composer */}
         <ChatComposer
+          bgTransparent={!!chatBackground}
           onSend={handleSend}
           onSendVoice={handleSendVoice}
           onTyping={handleTyping}

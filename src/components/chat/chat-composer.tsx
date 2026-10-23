@@ -41,6 +41,9 @@ interface Props {
   onClearForward?: () => void;
   /** Draft trả lời story — prefill text 1 lần khi mount (không hiện bar chuyển tiếp). */
   initialText?: string | null;
+  /** Nền trò chuyện bao phủ toàn màn hình → root composer trong suốt
+   *  (pill input/reply bên trong vẫn giữ màu theme cho dễ đọc). */
+  bgTransparent?: boolean;
 }
 
 export function ChatComposer({
@@ -53,6 +56,7 @@ export function ChatComposer({
   forwarding,
   onClearForward,
   initialText,
+  bgTransparent,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -191,7 +195,14 @@ export function ChatComposer({
   };
 
   return (
-    <View style={[styles.container, { borderTopColor: theme.border, backgroundColor: theme.bg }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          borderTopColor: theme.border,
+          backgroundColor: bgTransparent ? 'transparent' : theme.bg,
+        },
+      ]}>
       {/* Reply bar */}
       {replyingTo && (
         <View style={[styles.replyBar, { backgroundColor: theme.bgSecondary, borderLeftColor: theme.primary }]}>
