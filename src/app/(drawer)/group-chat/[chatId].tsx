@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -21,9 +20,9 @@ import {
   type GroupChatBackground,
 } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
+import { ChatBackgroundLayer } from '@/components/chat/chat-background';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
-import { parseGradientColors } from '@/components/chat/chat-background-picker';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MediaStack } from '@/components/chat/media-stack';
@@ -847,28 +846,8 @@ export default function GroupChatScreen() {
 
         {/* Messages */}
         <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-          {/* P3b: nền trò chuyện (layer dưới cùng, absoluteFill) */}
-          {chatBackground?.value ? (
-            chatBackground.type === 'solid' ? (
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  { backgroundColor: chatBackground.value },
-                ]}
-              />
-            ) : chatBackground.type === 'gradient' ? (
-              <LinearGradient
-                colors={parseGradientColors(chatBackground.value)}
-                style={StyleSheet.absoluteFill}
-              />
-            ) : (
-              <Image
-                source={{ uri: chatBackground.value }}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-              />
-            )
-          ) : null}
+          {/* P3b: nền trò chuyện (layer dưới cùng, absoluteFill + scrim) */}
+          <ChatBackgroundLayer background={chatBackground} />
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View

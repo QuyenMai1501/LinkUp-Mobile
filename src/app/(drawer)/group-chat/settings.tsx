@@ -27,6 +27,7 @@ import {
 } from '@/api/group-chat';
 import { uploadMedia } from '@/api/profile';
 import { AddGroupMemberModal } from '@/components/chat/add-group-member-modal';
+import { ChatBackgroundLayer } from '@/components/chat/chat-background';
 import { ChatBackgroundPicker } from '@/components/chat/chat-background-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -648,13 +649,15 @@ export default function GroupChatSettingsScreen() {
                     : t('chat.backgroundApplied')
                   : t('chat.backgroundDefault')}
               </ThemedText>
-              {background?.type === 'solid' && background.value ? (
+              {/* Thumbnail 20px preview đủ 4 loại (solid/gradient/preset/custom) */}
+              {background?.value ? (
                 <View
                   style={[
                     styles.bgSwatch,
-                    { backgroundColor: background.value, borderColor: theme.border },
-                  ]}
-                />
+                    { backgroundColor: theme.bgSecondary },
+                  ]}>
+                  <ChatBackgroundLayer background={background} />
+                </View>
               ) : null}
               <Icon name="chevronRight" size={16} color={theme.textSecondary} />
             </Pressable>
@@ -1051,6 +1054,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
   nameEditRow: {
     flexDirection: 'row',
