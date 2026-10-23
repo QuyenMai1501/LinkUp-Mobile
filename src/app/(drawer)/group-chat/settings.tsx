@@ -685,6 +685,7 @@ export default function GroupChatSettingsScreen() {
       <ChatBackgroundPicker
         visible={backgroundPickerOpen}
         onClose={() => setBackgroundPickerOpen(false)}
+        mode="group"
         chatId={chatId ?? ''}
         currentBackground={background}
         onApplied={(bg) => {
