@@ -53,14 +53,14 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Hooks: `useChatRoom`, `useChatSocket`, `useChatE2E`, `useMessageMedia`, `useVoiceRecorder`
 - API: `api/chat.ts` · Types: `types/chat.ts`
 - Utils: `utils/chat.ts`, `chatMediaGroup.ts`, `chat-list-dirty.ts` (đánh dấu list cần refresh), `forward-draft.ts`, `videoLink.ts`
-- **Nền trò chuyện (1-1)**: render `components/chat/chat-background.tsx` (`ChatBackgroundLayer` — solid/gradient/preset/custom + scrim adaptive `utils/chat-readability.ts`) trong `messagesWrap`; mở picker (mode `direct`) từ Menu⋮ header (`menu-sheet.tsx`, icon `more` cạnh trash → item `chat.background` icon palette); preset ảnh local bundle `constants/chat-bg-presets.ts` + `assets/chat-bg/preset-01..12.jpg` (value = filename khớp Web — Web render `url(/presets/…)`); API `getChatBackground`/`updateChatBackground`/`deleteChatBackground` (`api/chat.ts`)
+- **Nền trò chuyện (1-1)**: render `components/chat/chat-background.tsx` (`ChatBackgroundLayer` — solid/gradient/preset/custom + scrim adaptive `utils/chat-readability.ts`) trong `messagesWrap`; mở picker (mode `direct`) từ Menu⋮ header (`menu-sheet.tsx`, icon `more` cạnh trash → item `chat.background` icon palette); preset ảnh local bundle `constants/chat-bg-presets.ts` + `assets/chat-bg/preset-01..12.jpg` (value = filename khớp Web — Web render `url(/presets/…)`); API `getChatBackground`/`updateChatBackground`/`deleteChatBackground` (`api/chat.ts`); parity Web — header nền riêng `ChatHeaderBackground` (solid/gradient nguyên bản, preset/custom + đen 0.55 cố định, không scrim adaptive) + chữ header buộc trắng khi có nền (`headerChrome`/`chromeIcon`/`chromeSub`), busyBg armor (bubble theirs viền+shadow, text-shadow tin mình `MessageText textShadow`, `newMessagesBar`) khi preset/custom, composer glass `BlurView` (`expo-blur`) khi `bgTransparent`
 
 ### Chat nhóm (group chat)
 - Screens: `app/(drawer)/group-chat/[chatId].tsx`, `group-chat/settings.tsx`, `group-chat/shared-content.tsx`
-- Components: `components/group-chat/` — `create-group-modal`, `group-invite-bubble`; `components/chat/add-group-member-modal.tsx`, `group-conversation-list-item.tsx`, `chat-background.tsx` (layer), `chat-background-picker.tsx` (mode `group`)
+- Components: `components/group-chat/` — `create-group-modal`, `group-invite-bubble`; `components/chat/add-group-member-modal.tsx`, `group-conversation-list-item.tsx`, `chat-background.tsx` (layer + `ChatHeaderBackground`), `chat-background-picker.tsx` (mode `group`)
 - Hooks: `useGroupChatRoom`, `useGroupChatSocket`
 - API: `api/group-chat.ts` · Types: `types/group-chat.ts`
-- **Nền trò chuyện (group)**: cùng layer `chat-background.tsx` với 1-1 — state `chatBackground` trong `group-chat/[chatId].tsx`, picker + thumbnail preview 20px (dùng layer) trong `group-chat/settings.tsx`; API `get/update/deleteGroupChatBackground` (kèm `overlay_strength` 30–150) `api/group-chat.ts`
+- **Nền trò chuyện (group)**: cùng layer `chat-background.tsx` với 1-1 — state `chatBackground` trong `group-chat/[chatId].tsx`, picker + thumbnail preview 20px (dùng layer) trong `group-chat/settings.tsx`; API `get/update/deleteGroupChatBackground` (kèm `overlay_strength` 30–150) `api/group-chat.ts`; parity Web như 1-1 — `ChatHeaderBackground` + chữ header trắng + busyBg armor + composer glass
 
 ### Cuộc gọi (1-1 & nhóm)
 - Contexts: `contexts/call-context.tsx`, `contexts/group-call-context.tsx` — overlay gắn ở root `app/_layout.tsx`

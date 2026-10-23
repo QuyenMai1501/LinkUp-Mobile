@@ -71,3 +71,32 @@ function BackgroundFill({ background }: { background: ChatBackground }) {
       );
   }
 }
+
+/**
+ * Nền RIÊNG của header khi có nền trò chuyện — mirror Web `chatHeaderStyle`:
+ * solid/gradient hiển thị NGUYÊN BẢN (không scrim adaptive), preset/custom =
+ * ảnh + lớp đen 0.55 CỐ ĐỊNH (không theo slider strength). absoluteFill,
+ * không chặn touch. Đặt làm child đầu tiên của header.
+ */
+export function ChatHeaderBackground({ background }: Props) {
+  if (!background?.value) return null;
+  // Preset lạ (file không bundle) → không vẽ gì (header giữ nền mặc định).
+  if (background.type === 'preset' && !PRESET_IMAGES[background.value]) {
+    return null;
+  }
+  const isImage =
+    background.type === 'preset' || background.type === 'custom';
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <BackgroundFill background={background} />
+      {isImage ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: 'rgba(0,0,0,0.55)' },
+          ]}
+        />
+      ) : null}
+    </View>
+  );
+}

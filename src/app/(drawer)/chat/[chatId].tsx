@@ -26,7 +26,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { batchGetPresence } from "@/api/presence";
 import { deleteChat, getChatBackground, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
-import { ChatBackgroundLayer } from "@/components/chat/chat-background";
+import {
+  ChatBackgroundLayer,
+  ChatHeaderBackground,
+} from "@/components/chat/chat-background";
 import { ChatBackgroundPicker } from "@/components/chat/chat-background-picker";
 import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
@@ -144,6 +147,13 @@ export default function ChatScreen() {
     useState<ChatBackground | null>(null);
   const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  // Chrome header khi có nền (mirror Web .headerWithBg): buộc trắng.
+  const headerChrome = !!chatBackground;
+  const chromeIcon = headerChrome ? "rgba(255,255,255,0.9)" : theme.textSecondary;
+  const chromeSub = headerChrome ? "rgba(255,255,255,0.8)" : theme.textSecondary;
+  // busyBg (Web): preset/custom = ảnh bận → armor viền bubble + text-shadow.
+  const busyBg =
+    chatBackground?.type === "preset" || chatBackground?.type === "custom";
   const flatListRef = useRef<FlatList>(null);
   // Giới hạn retry của onScrollToIndexFailed (index offscreen chưa render kịp).
   const scrollFailCountRef = useRef(0);
@@ -817,15 +827,23 @@ export default function ChatScreen() {
           style={[
             styles.header,
             {
-              borderBottomColor: theme.border,
+              borderBottomColor: headerChrome
+                ? "rgba(255,255,255,0.15)"
+                : theme.border,
               backgroundColor: chatBackground ? "transparent" : theme.bg,
             },
           ]}>
+          {/* Nền riêng của header (Web chatHeaderStyle) */}
+          <ChatHeaderBackground background={chatBackground} />
           <Pressable
             onPress={() => router.navigate("/(drawer)/messages")}
             hitSlop={8}
             style={styles.backBtn}>
-            <Icon name="chevronLeft" size={22} color={theme.text} />
+            <Icon
+              name="chevronLeft"
+              size={22}
+              color={headerChrome ? chromeIcon : theme.text}
+            />
           </Pressable>
 
           <Pressable
@@ -844,23 +862,41 @@ export default function ChatScreen() {
                 style={[
                   styles.avatar,
                   styles.avatarPlaceholder,
-                  { backgroundColor: theme.primaryLight },
+                  {
+                    backgroundColor: headerChrome
+                      ? "rgba(255,255,255,0.2)"
+                      : theme.primaryLight,
+                  },
                 ]}>
                 <ThemedText
-                  style={[styles.avatarLetter, { color: theme.primary }]}>
+                  style={{ color: headerChrome ? "#FFFFFF" : theme.primary }}>
                   {(partner?.display_name || "?")[0]?.toUpperCase()}
                 </ThemedText>
               </View>
             )}
 
             <View style={styles.headerMeta}>
-              <ThemedText style={styles.headerName} numberOfLines={1}>
+              <ThemedText
+                style={[
+                  styles.headerName,
+                  headerChrome && { color: "#FFFFFF" },
+                ]}
+                numberOfLines={1}>
                 {partner?.display_name || t("chat.unknown")}
               </ThemedText>
               <View style={styles.headerMetaRow}>
                 {encryption.ready && (
-                  <ThemedText style={styles.e2eBadge}>
-                    <Icon name="lock" size={12} /> {t("chat.e2eBadge")}
+                  <ThemedText
+                    style={[
+                      styles.e2eBadge,
+                      headerChrome && { color: chromeSub },
+                    ]}>
+                    <Icon
+                      name="lock"
+                      size={12}
+                      color={headerChrome ? chromeSub : undefined}
+                    />{" "}
+                    {t("chat.e2eBadge")}
                   </ThemedText>
                 )}
                 {/* A4: trạng thái online/offline của đối phương */}
@@ -868,7 +904,13 @@ export default function ChatScreen() {
                   <ThemedText
                     style={[
                       styles.presenceBadge,
-                      { color: partnerOnline ? "#22C55E" : theme.textSecondary },
+                      {
+                        color: headerChrome
+                          ? chromeSub
+                          : partnerOnline
+                            ? "#22C55E"
+                            : theme.textSecondary,
+                      },
                     ]}>
                     {partnerOnline ? t("chat.online") : t("chat.offline")}
                   </ThemedText>
@@ -892,7 +934,7 @@ export default function ChatScreen() {
                 }
                 hitSlop={8}
                 style={styles.headerAction}>
-                <Icon name="call" size={18} color={theme.textSecondary} />
+                <Icon name="call" size={18} color={chromeIcon} />
               </Pressable>
 
               <Pressable
@@ -908,7 +950,7 @@ export default function ChatScreen() {
                 }
                 hitSlop={8}
                 style={styles.headerAction}>
-                <Icon name="video" size={18} color={theme.textSecondary} />
+                <Icon name="video" size={18} color={chromeIcon} />
               </Pressable>
             </>
           )}
@@ -924,12 +966,22 @@ export default function ChatScreen() {
             hitSlop={8}
             style={[
               styles.headerAction,
-              searchActive && { backgroundColor: theme.bgSecondary },
+              searchActive && {
+                backgroundColor: headerChrome
+                  ? "rgba(255,255,255,0.2)"
+                  : theme.bgSecondary,
+              },
             ]}>
             <Icon
               name="search"
               size={18}
-              color={searchActive ? theme.primary : theme.textSecondary}
+              color={
+                searchActive
+                  ? headerChrome
+                    ? "#FFFFFF"
+                    : theme.primary
+                  : chromeIcon
+              }
             />
           </Pressable>
 
@@ -937,14 +989,14 @@ export default function ChatScreen() {
             onPress={() => setMenuVisible(true)}
             hitSlop={8}
             style={styles.headerAction}>
-            <Icon name="more" size={18} color={theme.textSecondary} />
+            <Icon name="more" size={18} color={chromeIcon} />
           </Pressable>
 
           <Pressable
             onPress={() => setShowDeleteChat(true)}
             hitSlop={8}
             style={styles.headerAction}>
-            <Icon name="trash" size={18} color={theme.textSecondary} />
+            <Icon name="trash" size={18} color={chromeIcon} />
           </Pressable>
         </View>
 
@@ -1305,6 +1357,7 @@ export default function ChatScreen() {
                       {showDate && dateSep(msg.created_at)}
                       <ChatBubble
                         message={msg}
+                        busyBg={busyBg}
                         isMine={msg.sender_id === myUserId}
                         showTime={showTime}
                         isPinned={room.pinnedMessages.some(
@@ -1348,7 +1401,20 @@ export default function ChatScreen() {
         {/* New messages bar – like Web */}
         {newMessagesCount > 0 && !isNearBottom && (
           <Pressable
-            style={[styles.newMessagesBar, { backgroundColor: theme.primary }]}
+            style={[
+              styles.newMessagesBar,
+              { backgroundColor: theme.primary },
+              // busyBg armor (Web): viền + shadow tách khỏi ảnh nền.
+              busyBg && {
+                borderWidth: 1,
+                borderColor: theme.textSecondary,
+                shadowColor: "#000",
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 4,
+              },
+            ]}
             onPress={scrollToBottom}>
             <ThemedText style={styles.newMessagesText}>
               ↓ {newMessagesCount} {t("chat.scrollToLower")}

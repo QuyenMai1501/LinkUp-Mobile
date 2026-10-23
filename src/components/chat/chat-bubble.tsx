@@ -54,6 +54,9 @@ interface Props {
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
   onReact?: (messageId: string, emojiId: string) => void;
+  /** busyBg (Web): nền preset/custom là ảnh bận → armor: bubble bên nhận thêm
+   *  viền + shadow, text tin mình thêm text-shadow (giữ brand, thêm tách lớp). */
+  busyBg?: boolean;
 }
 
 export function ChatBubble({
@@ -73,6 +76,7 @@ export function ChatBubble({
   onMediaPress,
   onOpenPost,
   onReact,
+  busyBg = false,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -241,6 +245,17 @@ export function ChatBubble({
             borderBottomLeftRadius: isMine ? Radius.lg : Radius.sm,
           },
           noFrame && styles.bubbleNoFrame,
+          // busyBg armor (Web .busyBg .theirs .bubble): viền + shadow-md.
+          busyBg &&
+            !isMine && {
+              borderWidth: 1,
+              borderColor: theme.textSecondary,
+              shadowColor: "#000",
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 4,
+            },
         ]}>
         {/* Reply snippet */}
         {message.reply_to && (
@@ -337,6 +352,7 @@ export function ChatBubble({
                 content={message.content}
                 emojiMap={emojiMap}
                 color={textColor}
+                textShadow={busyBg && isMine}
               />
             )}
 
@@ -348,6 +364,7 @@ export function ChatBubble({
                 content={message.content}
                 emojiMap={emojiMap}
                 color={textColor}
+                textShadow={busyBg && isMine}
               />
             ) : null}
 
@@ -482,17 +499,28 @@ function MessageText({
   content,
   emojiMap,
   color,
+  textShadow = false,
 }: {
   content: string;
   emojiMap: Map<string, EmojiItem>;
   color: string;
+  /** busyBg armor (Web .busyBg .mine .msgText): text-shadow nhẹ trên ảnh nền. */
+  textShadow?: boolean;
 }) {
   return (
     <RichContent
       content={content}
       emojiMap={emojiMap}
       size={18}
-      style={[styles.content, { color }]} 
+      style={[
+        styles.content,
+        { color },
+        textShadow && {
+          textShadowColor: "rgba(0,0,0,0.25)",
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 2,
+        },
+      ]}
     />
   );
 }
