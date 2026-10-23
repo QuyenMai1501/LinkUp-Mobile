@@ -35,7 +35,6 @@ import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
-import { MediaStack } from "@/components/chat/media-stack";
 import { MenuSheet } from "@/components/menu-sheet";
 import { MessageActions } from "@/components/chat/message-actions";
 import {
@@ -70,15 +69,11 @@ import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
-import {
-  groupMediaTimeline,
-  type MediaGroupItem,
-} from "@/utils/chatMediaGroup";
 
 type CallTimelineItem = { kind: "call"; item: CallHistoryItem };
-type GroupedItem = ChatMessage | MediaGroupItem | CallTimelineItem;
+type GroupedItem = ChatMessage | CallTimelineItem;
 
-/** Prev item cho date-separator/showTime: group media → tin cuối; call → thời điểm gọi. */
+/** Prev item cho date-separator/showTime: call → thời điểm gọi; còn lại → tin trước. */
 function resolvePrevMsg(
   items: GroupedItem[],
   index: number,
@@ -86,16 +81,10 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ("kind" in prev) {
-    if (prev.kind === "call") {
-      return {
-        createdAt: new Date(prev.item.created_at).toISOString(),
-        senderId: "",
-      };
-    }
-    const last = prev.msgs[prev.msgs.length - 1];
-    return last
-      ? { createdAt: last.created_at, senderId: last.sender_id }
-      : undefined;
+    return {
+      createdAt: new Date(prev.item.created_at).toISOString(),
+      senderId: "",
+    };
   }
   return { createdAt: prev.created_at, senderId: prev.sender_id };
 }
@@ -340,33 +329,28 @@ export default function ChatScreen() {
     return () => clearTimeout(timer);
   }, [flashId]);
 
-  // Timeline gộp messages (đã group media) + lịch sử cuộc gọi, sort theo thời gian.
+  // Timeline gộp messages + lịch sử cuộc gọi, sort theo thời gian.
   const timeline = useMemo<GroupedItem[]>(() => {
     const created = (g: GroupedItem): number => {
-      if ("kind" in g) {
-        if (g.kind === "call") return g.item.created_at;
-        const first = g.msgs[0];
-        return first ? new Date(first.created_at).getTime() : 0;
-      }
+      if ("kind" in g) return g.item.created_at;
       return new Date(g.created_at).getTime();
     };
     const callItems: CallTimelineItem[] = callHistory.map((item) => ({
       kind: "call",
       item,
     }));
-    return [...groupMediaTimeline(room.messages), ...callItems].sort(
+    return [...room.messages, ...callItems].sort(
       (a, b) => created(a) - created(b),
     );
   }, [room.messages, callHistory]);
 
-  /** Index trên mảng timeline (group media/call chiếm 1 slot) — dùng cho scrollToIndex. */
+  /** Index trên mảng timeline (call chiếm 1 slot) — dùng cho scrollToIndex. */
   const findIndexInGrouped = useCallback(
     (messageId: string): number => {
       for (let i = 0; i < timeline.length; i++) {
         const item = timeline[i];
         if ("kind" in item) {
           if (item.kind === "call") continue;
-          if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
         }
@@ -1230,11 +1214,7 @@ export default function ChatScreen() {
                 ref={flatListRef}
                 data={timeline}
                 keyExtractor={(item: GroupedItem) =>
-                  "kind" in item
-                    ? item.kind === "call"
-                      ? `call-${item.item.id}`
-                      : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
-                    : item.id
+                  "kind" in item ? `call-${item.item.id}` : item.id
                 }
                 onScrollToIndexFailed={handleScrollToIndexFailed}
                 renderItem={({
@@ -1269,7 +1249,7 @@ export default function ChatScreen() {
                     </View>
                   );
 
-                  if ("kind" in item && item.kind === "call") {
+                  if ("kind" in item) {
                     const iso = new Date(item.item.created_at).toISOString();
                     const showDate =
                       !prev ||
@@ -1286,27 +1266,6 @@ export default function ChatScreen() {
                           onCallback={handleCallBack}
                         />
                       </Fragment>
-                    );
-                  }
-
-                  if ("kind" in item) {
-                    const groupMine = item.msgs[0]?.sender_id === myUserId;
-                    return (
-                      <View
-                        style={[
-                          styles.groupRow,
-                          groupMine
-                            ? styles.groupRowMine
-                            : styles.groupRowTheirs,
-                        ]}>
-                        <MediaStack
-                          msgs={item.msgs}
-                          onOpen={(i) =>
-                            setLightbox({ msgs: item.msgs, index: i })
-                          }
-                          onLongPress={handleLongPress}
-                        />
-                      </View>
                     );
                   }
 
@@ -1718,16 +1677,6 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
-  },
-  groupRow: {
-    marginVertical: 2,
-    paddingHorizontal: Spacing.md,
-  },
-  groupRowMine: {
-    alignItems: "flex-end",
-  },
-  groupRowTheirs: {
-    alignItems: "flex-start",
   },
   dateSep: {
     flexDirection: "row",

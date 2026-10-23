@@ -28,7 +28,6 @@ import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
-import { MediaStack } from '@/components/chat/media-stack';
 import { MessageActions } from '@/components/chat/message-actions';
 import {
   SystemMessage,
@@ -51,10 +50,6 @@ import type { ChatMessage, ReplyPreview } from '@/types/chat';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatConversation } from '@/types/group-chat';
 import { formatChatDate } from '@/utils/chat';
-import {
-  groupMediaTimeline,
-  type MediaGroupItem,
-} from '@/utils/chatMediaGroup';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 
 /** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
@@ -63,20 +58,17 @@ interface GroupCallTimelineItem {
   call: GroupCallHistoryItem;
 }
 
-type GroupedItem = ChatMessage | MediaGroupItem | GroupCallTimelineItem;
+type GroupedItem = ChatMessage | GroupCallTimelineItem;
 
 /** created timestamp ms của mọi kind item trong timeline. */
 function itemCreatedMs(item: GroupedItem): number {
   if ('kind' in item) {
-    if (item.kind === 'group_call') {
-      return new Date(item.call.created_at).getTime();
-    }
-    return new Date(item.msgs[0]?.created_at ?? 0).getTime();
+    return new Date(item.call.created_at).getTime();
   }
   return new Date(item.created_at).getTime();
 }
 
-/** Prev item cho date-separator/showTime: group media → tin cuối. */
+/** Prev item cho date-separator/showTime: group_call → caller; còn lại → tin trước. */
 function resolvePrevMsg(
   items: GroupedItem[],
   index: number,
@@ -84,13 +76,7 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ('kind' in prev) {
-    if (prev.kind === 'group_call') {
-      return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
-    }
-    const last = prev.msgs[prev.msgs.length - 1];
-    return last
-      ? { createdAt: last.created_at, senderId: last.sender_id }
-      : undefined;
+    return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
   }
   return { createdAt: prev.created_at, senderId: prev.sender_id };
 }
@@ -268,11 +254,10 @@ export default function GroupChatScreen() {
   const { byId: serverEmojis } = useServerEmojis();
 
   const timeline = useMemo<GroupedItem[]>(() => {
-    const msgItems = groupMediaTimeline(room.messages);
-    if (room.callHistory.length === 0) return msgItems;
+    if (room.callHistory.length === 0) return room.messages;
     // Xen call-history bubbles vào timeline theo created_at (mirror Web useChatTimeline).
     const merged: GroupedItem[] = [
-      ...msgItems,
+      ...room.messages,
       ...room.callHistory.map<GroupCallTimelineItem>((call) => ({
         kind: 'group_call',
         call,
@@ -291,7 +276,6 @@ export default function GroupChatScreen() {
         const item = timeline[i];
         if ('kind' in item) {
           if (item.kind === 'group_call') continue;
-          if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
         }
@@ -1004,11 +988,7 @@ export default function GroupChatScreen() {
               ref={flatListRef}
               data={timeline}
               keyExtractor={(item: GroupedItem) =>
-                'kind' in item
-                  ? item.kind === 'group_call'
-                    ? `gc-${item.call.call_id}`
-                    : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
-                  : item.id
+                'kind' in item ? `gc-${item.call.call_id}` : item.id
               }
               onScrollToIndexFailed={handleScrollToIndexFailed}
               renderItem={({ item, index }: { item: GroupedItem; index: number }) => {
@@ -1029,53 +1009,37 @@ export default function GroupChatScreen() {
                 );
 
                 if ('kind' in item) {
-                  if (item.kind === 'group_call') {
-                    const gc = item.call;
-                    return (
-                      <GroupCallHistoryBubble
-                        call={gc}
-                        myUserId={myUserId}
-                        callerName={
-                          gc.caller_id === myUserId
-                            ? t('groupCall.callerYou')
-                            : room.memberNames[gc.caller_id] || t('chat.unknown')
-                        }
-                        avatarUri={room.memberAvatars[gc.caller_id] ?? null}
-                        showAvatar={prev?.senderId !== gc.caller_id}
-                        activeCallId={activeGroupCallId}
-                        onRequestJoin={(callId) => {
-                          Alert.alert(
-                            t('groupCall.requestJoin'),
-                            t('groupCall.pendingRequestBody', {
-                              name:
-                                room.memberNames[gc.caller_id] ||
-                                t('chat.unknown'),
-                            }),
-                            [
-                              { text: t('common.cancel'), style: 'cancel' },
-                              {
-                                text: t('groupCall.join'),
-                                onPress: () => void joinGroupCall(callId),
-                              },
-                            ],
-                          );
-                        }}
-                      />
-                    );
-                  }
-                  const groupMine = item.msgs[0]?.sender_id === myUserId;
+                  const gc = item.call;
                   return (
-                    <View
-                      style={[
-                        styles.mediaGroupRow,
-                        groupMine ? styles.rowMine : styles.rowTheirs,
-                      ]}>
-                      <MediaStack
-                        msgs={item.msgs}
-                        onOpen={(i) => setLightbox({ msgs: item.msgs, index: i })}
-                        onLongPress={handleLongPress}
-                      />
-                    </View>
+                    <GroupCallHistoryBubble
+                      call={gc}
+                      myUserId={myUserId}
+                      callerName={
+                        gc.caller_id === myUserId
+                          ? t('groupCall.callerYou')
+                          : room.memberNames[gc.caller_id] || t('chat.unknown')
+                      }
+                      avatarUri={room.memberAvatars[gc.caller_id] ?? null}
+                      showAvatar={prev?.senderId !== gc.caller_id}
+                      activeCallId={activeGroupCallId}
+                      onRequestJoin={(callId) => {
+                        Alert.alert(
+                          t('groupCall.requestJoin'),
+                          t('groupCall.pendingRequestBody', {
+                            name:
+                              room.memberNames[gc.caller_id] ||
+                              t('chat.unknown'),
+                          }),
+                          [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            {
+                              text: t('groupCall.join'),
+                              onPress: () => void joinGroupCall(callId),
+                            },
+                          ],
+                        );
+                      }}
+                    />
                   );
                 }
 
@@ -1443,15 +1407,6 @@ const styles = StyleSheet.create({
   dateSepText: {
     ...Typography.caption,
     fontSize: 11,
-  },
-  mediaGroupRow: {
-    marginVertical: 2,
-  },
-  rowMine: {
-    alignItems: 'flex-end',
-  },
-  rowTheirs: {
-    alignItems: 'flex-start',
   },
   newMessagesBar: {
     position: 'absolute',
