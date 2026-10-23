@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -21,9 +20,12 @@ import {
   type GroupChatBackground,
 } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
+import {
+  ChatBackgroundLayer,
+  ChatHeaderBackground,
+} from '@/components/chat/chat-background';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
-import { parseGradientColors } from '@/components/chat/chat-background-picker';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MediaStack } from '@/components/chat/media-stack';
@@ -130,6 +132,13 @@ export default function GroupChatScreen() {
   // P3b: nền trò chuyện per-group (solid/gradient/custom image).
   const [chatBackground, setChatBackground] =
     useState<GroupChatBackground | null>(null);
+  // Chrome header khi có nền (mirror Web .headerWithBg): buộc trắng.
+  const headerChrome = !!chatBackground;
+  const chromeIcon = headerChrome ? 'rgba(255,255,255,0.9)' : theme.textSecondary;
+  const chromeSub = headerChrome ? 'rgba(255,255,255,0.8)' : theme.textSecondary;
+  // busyBg (Web): preset/custom = ảnh bận → armor viền bubble + text-shadow.
+  const busyBg =
+    chatBackground?.type === 'preset' || chatBackground?.type === 'custom';
   const flatListRef = useRef<FlatList>(null);
   const scrollFailCountRef = useRef(0);
 
@@ -647,18 +656,32 @@ export default function GroupChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* P3b: nền trò chuyện bao phủ toàn màn hình — dải status bar → header →
+          search/pinned → vùng tin nhắn → composer + keyboard gap. */}
+      <ChatBackgroundLayer background={chatBackground} />
       <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
         {/* Header */}
         <View
           style={[
             styles.header,
-            { borderBottomColor: theme.border, backgroundColor: theme.bg },
+            {
+              borderBottomColor: headerChrome
+                ? 'rgba(255,255,255,0.15)'
+                : theme.border,
+              backgroundColor: chatBackground ? 'transparent' : theme.bg,
+            },
           ]}>
+          {/* Nền riêng của header (Web chatHeaderStyle) */}
+          <ChatHeaderBackground background={chatBackground} />
           <Pressable
             onPress={() => router.navigate('/(drawer)/messages')}
             hitSlop={8}
             style={styles.backBtn}>
-            <Icon name="chevronLeft" size={22} color={theme.text} />
+            <Icon
+              name="chevronLeft"
+              size={22}
+              color={headerChrome ? chromeIcon : theme.text}
+            />
           </Pressable>
 
           <Pressable
@@ -682,18 +705,39 @@ export default function GroupChatScreen() {
                 style={[
                   styles.avatar,
                   styles.avatarPlaceholder,
-                  { backgroundColor: theme.primaryLight },
+                  {
+                    backgroundColor: headerChrome
+                      ? 'rgba(255,255,255,0.2)'
+                      : theme.primaryLight,
+                  },
                 ]}>
-                <Icon name="people" size={18} color={theme.primary} />
+                <Icon
+                  name="people"
+                  size={18}
+                  color={headerChrome ? '#FFFFFF' : theme.primary}
+                />
               </View>
             )}
 
             <View style={styles.headerMeta}>
-              <ThemedText style={styles.headerName} numberOfLines={1}>
+              <ThemedText
+                style={[
+                  styles.headerName,
+                  headerChrome && { color: '#FFFFFF' },
+                ]}
+                numberOfLines={1}>
                 {groupName}
               </ThemedText>
               {memberCount > 0 && (
-                <ThemedText themeColor="textSecondary" style={styles.headerMembers}>
+                <ThemedText
+                  style={[
+                    styles.headerMembers,
+                    {
+                      color: headerChrome
+                        ? chromeSub
+                        : theme.textSecondary,
+                    },
+                  ]}>
                   {t('chat.membersCount', { count: memberCount })}
                 </ThemedText>
               )}
@@ -711,12 +755,22 @@ export default function GroupChatScreen() {
             hitSlop={8}
             style={[
               styles.headerAction,
-              searchActive && { backgroundColor: theme.bgSecondary },
+              searchActive && {
+                backgroundColor: headerChrome
+                  ? 'rgba(255,255,255,0.2)'
+                  : theme.bgSecondary,
+              },
             ]}>
             <Icon
               name="search"
               size={18}
-              color={searchActive ? theme.primary : theme.textSecondary}
+              color={
+                searchActive
+                  ? headerChrome
+                    ? '#FFFFFF'
+                    : theme.primary
+                  : chromeIcon
+              }
             />
           </Pressable>
 
@@ -732,7 +786,13 @@ export default function GroupChatScreen() {
             <Icon
               name="video"
               size={20}
-              color={isInGroupCall ? theme.border : theme.textSecondary}
+              color={
+                isInGroupCall
+                  ? headerChrome
+                    ? 'rgba(255,255,255,0.35)'
+                    : theme.border
+                  : chromeIcon
+              }
             />
           </Pressable>
 
@@ -747,7 +807,7 @@ export default function GroupChatScreen() {
             }}
             hitSlop={8}
             style={styles.headerAction}>
-            <Icon name="info" size={20} color={theme.textSecondary} />
+            <Icon name="info" size={20} color={chromeIcon} />
           </Pressable>
         </View>
 
@@ -757,7 +817,9 @@ export default function GroupChatScreen() {
             style={[
               styles.searchBar,
               {
-                backgroundColor: theme.bgSecondary,
+                backgroundColor: chatBackground
+                  ? 'transparent'
+                  : theme.bgSecondary,
                 borderBottomColor: theme.border,
               },
             ]}>
@@ -797,7 +859,10 @@ export default function GroupChatScreen() {
           <View
             style={[
               styles.pinnedBar,
-              { backgroundColor: theme.card, borderBottomColor: theme.border },
+              {
+                backgroundColor: chatBackground ? 'transparent' : theme.card,
+                borderBottomColor: theme.border,
+              },
             ]}>
             <View style={styles.pinnedBarHeader}>
               <ThemedText
@@ -846,29 +911,15 @@ export default function GroupChatScreen() {
         )}
 
         {/* Messages */}
-        <View style={[styles.messagesWrap, { backgroundColor: theme.bgSecondary }]}>
-          {/* P3b: nền trò chuyện (layer dưới cùng, absoluteFill) */}
-          {chatBackground?.value ? (
-            chatBackground.type === 'solid' ? (
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  { backgroundColor: chatBackground.value },
-                ]}
-              />
-            ) : chatBackground.type === 'gradient' ? (
-              <LinearGradient
-                colors={parseGradientColors(chatBackground.value)}
-                style={StyleSheet.absoluteFill}
-              />
-            ) : (
-              <Image
-                source={{ uri: chatBackground.value }}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-              />
-            )
-          ) : null}
+        <View
+          style={[
+            styles.messagesWrap,
+            {
+              backgroundColor: chatBackground
+                ? 'transparent'
+                : theme.bgSecondary,
+            },
+          ]}>
           {room.searchResults ? (
             <View style={styles.searchResults}>
               <View
@@ -1059,6 +1110,7 @@ export default function GroupChatScreen() {
                     {showDate && dateSep(msg.created_at)}
                     <ChatBubble
                       message={msg}
+                      busyBg={busyBg}
                       isMine={msg.sender_id === myUserId}
                       showTime={showTime}
                       seen={
@@ -1097,7 +1149,20 @@ export default function GroupChatScreen() {
         {/* New messages bar */}
         {newMessagesCount > 0 && !isNearBottom && (
           <Pressable
-            style={[styles.newMessagesBar, { backgroundColor: theme.primary }]}
+            style={[
+              styles.newMessagesBar,
+              { backgroundColor: theme.primary },
+              // busyBg armor (Web): viền + shadow tách khỏi ảnh nền.
+              busyBg && {
+                borderWidth: 1,
+                borderColor: theme.textSecondary,
+                shadowColor: '#000',
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 4,
+              },
+            ]}
             onPress={scrollToBottom}>
             <ThemedText style={styles.newMessagesText}>
               ↓ {newMessagesCount} {t('chat.scrollToLower')}
@@ -1107,6 +1172,7 @@ export default function GroupChatScreen() {
 
         {/* Composer */}
         <ChatComposer
+          bgTransparent={!!chatBackground}
           onSend={handleSend}
           onSendVoice={handleSendVoice}
           onTyping={handleTyping}

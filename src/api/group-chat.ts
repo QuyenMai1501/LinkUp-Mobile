@@ -128,10 +128,13 @@ export const getGroupSharedContent = (
   );
 
 // GET/PUT/DELETE /group-chats/:chatID/background — nền chat per-group.
-// Server dto.ChatBackgroundDTO: body { type, value }; response { data: { type, value } }.
+// Server dto.ChatBackgroundDTO: body { type, value, overlay_strength? };
+// response { data: { type, value, overlay_strength } }.
 export interface GroupChatBackground {
   type: string;
   value: string;
+  /** 30–150; thiếu = 100 (mặc định server). */
+  overlay_strength?: number;
 }
 
 export const getGroupChatBackground = (chatId: string) =>
@@ -143,12 +146,17 @@ export const updateGroupChatBackground = (
   chatId: string,
   type: string,
   value: string,
+  overlayStrength?: number,
 ) =>
   request<{ data: GroupChatBackground }>(
     `/group-chats/${chatId}/background`,
     {
       method: 'PUT',
-      body: JSON.stringify({ type, value }),
+      body: JSON.stringify(
+        overlayStrength != null
+          ? { type, value, overlay_strength: overlayStrength }
+          : { type, value },
+      ),
     },
   );
 

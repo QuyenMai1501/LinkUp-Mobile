@@ -79,12 +79,23 @@ export interface ReplyPreview {
   decrypt_failed?: boolean;
 }
 
+/** Nền chat per-conversation (cả 1-1 và group) — server ChatBackgroundResponse. */
+export interface ChatBackground {
+  type: string;
+  value: string;
+  /** 30–150; thiếu = 100 (mặc định server). */
+  overlay_strength?: number;
+}
+
 export interface ChatConversation {
   chat_id: string;
   partner: ChatPartner;
   last_message?: ChatMessage | null;
   is_encrypted?: boolean;
   updated_at: string;
+  background_type?: string;
+  background_value?: string;
+  background_overlay?: number;
 }
 
 export interface ChatListResponse {

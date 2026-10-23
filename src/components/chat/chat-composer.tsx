@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +9,7 @@ import { GiphyGifPicker } from '@/components/giphy-gif-picker';
 import { VoicePlayer, formatAudioTime } from '@/components/chat/voice-player';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useVoiceRecorder, type VoiceRecording } from '@/hooks/use-voice-recorder';
@@ -41,6 +43,9 @@ interface Props {
   onClearForward?: () => void;
   /** Draft trả lời story — prefill text 1 lần khi mount (không hiện bar chuyển tiếp). */
   initialText?: string | null;
+  /** Nền trò chuyện bao phủ toàn màn hình → root composer trong suốt
+   *  (pill input/reply bên trong vẫn giữ màu theme cho dễ đọc). */
+  bgTransparent?: boolean;
 }
 
 export function ChatComposer({
@@ -53,8 +58,10 @@ export function ChatComposer({
   forwarding,
   onClearForward,
   initialText,
+  bgTransparent,
 }: Props) {
   const theme = useTheme();
+  const { scheme } = useThemeMode();
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -191,7 +198,36 @@ export function ChatComposer({
   };
 
   return (
-    <View style={[styles.container, { borderTopColor: theme.border, backgroundColor: theme.bg }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          borderTopColor: theme.border,
+          backgroundColor: bgTransparent ? 'transparent' : theme.bg,
+        },
+      ]}>
+      {/* Glass (Web composer: card 60/55% + blur 24px) — chỉ khi nền hoạt động */}
+      {bgTransparent ? (
+        <>
+          <BlurView
+            intensity={70}
+            tint={scheme === 'dark' ? 'dark' : 'light'}
+            blurMethod="dimezisBlurViewSdk31Plus"
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor:
+                  theme.card + (scheme === 'dark' ? '8C' : '99'),
+              },
+            ]}
+          />
+        </>
+      ) : null}
       {/* Reply bar */}
       {replyingTo && (
         <View style={[styles.replyBar, { backgroundColor: theme.bgSecondary, borderLeftColor: theme.primary }]}>

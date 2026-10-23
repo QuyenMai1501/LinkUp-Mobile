@@ -1,6 +1,7 @@
 import { request, API_BASE } from './client';
 import { tokenStorage } from './token-storage';
 import type {
+  ChatBackground,
   ChatInviteItem,
   ChatInviteResponse,
   ChatListResponse,
@@ -36,6 +37,32 @@ export const createChatInvite = (targetUserId: string) =>
 
 export const deleteChat = (chatId: string) =>
   request<{ message: string }>(`/chats/${chatId}`, {
+    method: 'DELETE',
+  });
+
+// GET/PUT/DELETE /chats/:chatID/background — nền chat per-conversation (1-1).
+// Server dto.ChatBackgroundDTO: body { type, value, overlay_strength? };
+// response { data: { type, value, overlay_strength } }.
+export const getChatBackground = (chatId: string) =>
+  request<{ data: ChatBackground }>(`/chats/${chatId}/background`);
+
+export const updateChatBackground = (
+  chatId: string,
+  type: string,
+  value: string,
+  overlayStrength?: number,
+) =>
+  request<{ data: ChatBackground }>(`/chats/${chatId}/background`, {
+    method: 'PUT',
+    body: JSON.stringify(
+      overlayStrength != null
+        ? { type, value, overlay_strength: overlayStrength }
+        : { type, value },
+    ),
+  });
+
+export const deleteChatBackground = (chatId: string) =>
+  request<{ message?: string }>(`/chats/${chatId}/background`, {
     method: 'DELETE',
   });
 

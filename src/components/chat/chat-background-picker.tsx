@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,40 +16,48 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { uploadMedia } from '@/api/profile';
+import { deleteChatBackground, updateChatBackground } from '@/api/chat';
 import {
   deleteGroupChatBackground,
   updateGroupChatBackground,
-  type GroupChatBackground,
 } from '@/api/group-chat';
+import { PRESET_FILENAMES, PRESET_IMAGES } from '@/constants/chat-bg-presets';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { ChatBackground } from '@/types/chat';
+import {
+  backgroundClashes,
+  recommendedStrength,
+} from '@/utils/chat-readability';
 
-// Mirror Web ChatBackgroundPicker — bỏ tab preset (static files chỉ có ở Web).
+// Bộ màu/gradient khớp Web ChatBackgroundPicker (parity 1-1).
 const SOLID_COLORS = [
-  '#FFE4C4', '#E8D5B7', '#B5D8CC', '#AEC6CF', '#C7CEEA', '#F6C6CE',
-  '#F0E68C', '#DDA0DD', '#98FB98', '#FFB6C1', '#B0E0E6', '#D2B48C',
-  '#E6E6FA', '#FFF0F5', '#F5FFFA', '#F0FFF0', '#F5F5DC', '#FAEBD7',
-  '#FFE4E1', '#FFF8DC', '#F5F5F5', '#FAFAFA',
+  '#12A5A1', '#0E8B88', '#0A6E6B', '#0A1F44', '#14315E', '#1E4A7A',
+  '#B5D8CC', '#AEC6CF', '#C7CEEA', '#E6F4F3', '#F5F5F5', '#1A1A1A',
 ];
 
 // Gradient lưu đúng CSS string của Web — render parse 2 màu đầu.
 const GRADIENTS = [
-  'linear-gradient(135deg, #667eea, #764ba2)',
-  'linear-gradient(135deg, #f093fb, #f5576c)',
+  'linear-gradient(135deg, #12A5A1, #0A1F44)',
+  'linear-gradient(135deg, #0A1F44, #764ba2)',
+  'linear-gradient(135deg, #0A1F44, #3B4A6B)',
   'linear-gradient(135deg, #4facfe, #00f2fe)',
   'linear-gradient(135deg, #43e97b, #38f9d7)',
-  'linear-gradient(135deg, #fa709a, #fee140)',
-  'linear-gradient(135deg, #a18cd1, #fbc2eb)',
-  'linear-gradient(135deg, #fad0c4, #ffd1ff)',
-  'linear-gradient(135deg, #ffecd2, #fcb69f)',
+  'linear-gradient(135deg, #667eea, #764ba2)',
   'linear-gradient(135deg, #89f7fe, #66a6ff)',
-  'linear-gradient(135deg, #fddb92, #d1fdff)',
-  'linear-gradient(135deg, #c1dfc4, #deecdd)',
+  'linear-gradient(135deg, #a1c4fd, #c2e9fb)',
   'linear-gradient(135deg, #0ba360, #3cba92)',
+  'linear-gradient(135deg, #c1dfc4, #deecdd)',
 ];
+
+const STRENGTH_MIN = 30;
+const STRENGTH_MAX = 150;
+const STRENGTH_STEP = 5;
+const SLIDER_THUMB = 22;
+const SLIDER_H = 32;
 
 /** Parse "linear-gradient(135deg, #aaa, #bbb)" → ['#aaa', '#bbb']. */
 export function parseGradientColors(css: string): [string, string] {
@@ -59,20 +68,23 @@ export function parseGradientColors(css: string): [string, string] {
 interface Props {
   visible: boolean;
   onClose: () => void;
+  /** direct = chat 1-1 (api /chats), group = chat nhóm (api /group-chats). */
+  mode: 'direct' | 'group';
   chatId: string;
-  currentBackground: GroupChatBackground | null;
-  onApplied: (bg: GroupChatBackground | null) => void;
+  currentBackground: ChatBackground | null;
+  onApplied: (bg: ChatBackground | null) => void;
 }
 
-type TabKey = 'solid' | 'gradient' | 'custom';
+type TabKey = 'solid' | 'gradient' | 'preset' | 'custom';
 
 /**
- * Chọn nền trò chuyện cho nhóm — mirror Web ChatBackgroundPicker
- * (solid/gradient/custom; bỏ preset vì static files chỉ phục vụ Web).
+ * Chọn nền trò chuyện — mirror Web ChatBackgroundPicker đầy đủ
+ * (solid/gradient/preset/custom + slider độ phủ + cảnh báo màu xung đột).
  */
 export function ChatBackgroundPicker({
   visible,
   onClose,
+  mode,
   chatId,
   currentBackground,
   onApplied,
@@ -83,25 +95,47 @@ export function ChatBackgroundPicker({
   // Ô màu vuông px cố định — width % + aspectRatio bị Yoga bỏ qua trong
   // flexWrap trên RN 0.86 (thành dải ngang). 4 cột: padding md 2 bên + 3 gap.
   const CELL = Math.floor((winW - Spacing.md * 2 - Spacing.sm * 3) / 4);
+  // Preset 3 cột như Web.
+  const PRESET_CELL = Math.floor((winW - Spacing.md * 2 - Spacing.sm * 2) / 3);
   const [activeTab, setActiveTab] = useState<TabKey>('solid');
-  const [selected, setSelected] = useState<GroupChatBackground | null>(
+  const [selected, setSelected] = useState<ChatBackground | null>(
     currentBackground,
   );
+  const [strength, setStrength] = useState(
+    () => currentBackground?.overlay_strength ?? 100,
+  );
+  // Badge "Tự động" — bật khi slider còn đúng giá trị đề xuất; tắt khi kéo.
+  const [strengthAuto, setStrengthAuto] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [trackW, setTrackW] = useState(0);
   const prevVisibleRef = useRef(false);
 
   useEffect(() => {
     if (visible && !prevVisibleRef.current) {
       setSelected(currentBackground);
       setActiveTab('solid');
+      setStrength(currentBackground?.overlay_strength ?? 100);
+      setStrengthAuto(true);
     }
     prevVisibleRef.current = visible;
   }, [visible, currentBackground]);
 
+  const handleSelect = useCallback((bg: ChatBackground) => {
+    setSelected(bg);
+    // Đề xuất độ phủ cho lựa chọn mới (color-clash → 130); người dùng vẫn
+    // kéo slider sau đó (kéo = bỏ badge tự động).
+    setStrength(recommendedStrength(bg));
+    setStrengthAuto(true);
+  }, []);
+
   const handleRemove = useCallback(() => {
     if (saving) return;
     setSaving(true);
-    deleteGroupChatBackground(chatId)
+    const req =
+      mode === 'group'
+        ? deleteGroupChatBackground(chatId)
+        : deleteChatBackground(chatId);
+    req
       .then(() => {
         setSelected(null);
         onApplied(null);
@@ -113,14 +147,22 @@ export function ChatBackgroundPicker({
         Alert.alert(t('common.error'), msg || t('common.error'));
       })
       .finally(() => setSaving(false));
-  }, [saving, chatId, onApplied, onClose, t]);
+  }, [saving, mode, chatId, onApplied, onClose, t]);
 
   const handleApply = useCallback(() => {
     if (!selected || saving) return;
     setSaving(true);
-    updateGroupChatBackground(chatId, selected.type, selected.value)
+    const clamped = Math.min(
+      STRENGTH_MAX,
+      Math.max(STRENGTH_MIN, Math.round(strength)),
+    );
+    const req =
+      mode === 'group'
+        ? updateGroupChatBackground(chatId, selected.type, selected.value, clamped)
+        : updateChatBackground(chatId, selected.type, selected.value, clamped);
+    req
       .then(() => {
-        onApplied(selected);
+        onApplied({ ...selected, overlay_strength: clamped });
         Alert.alert(t('chat.backgroundApplied'));
         onClose();
       })
@@ -129,7 +171,7 @@ export function ChatBackgroundPicker({
         Alert.alert(t('common.error'), msg || t('common.error'));
       })
       .finally(() => setSaving(false));
-  }, [selected, saving, chatId, onApplied, onClose, t]);
+  }, [selected, strength, saving, mode, chatId, onApplied, onClose, t]);
 
   const handleUpload = useCallback(() => {
     if (saving) return;
@@ -160,14 +202,75 @@ export function ChatBackgroundPicker({
     })();
   }, [saving, t]);
 
+  // Slider 30–150 step 5 bằng PanResponder (view thuần — không thêm dep).
+  const setStrengthFromX = useCallback(
+    (x: number) => {
+      if (trackW <= 0) return;
+      const ratio = Math.min(1, Math.max(0, x / trackW));
+      const raw = STRENGTH_MIN + ratio * (STRENGTH_MAX - STRENGTH_MIN);
+      const stepped = Math.round(raw / STRENGTH_STEP) * STRENGTH_STEP;
+      setStrength(Math.min(STRENGTH_MAX, Math.max(STRENGTH_MIN, stepped)));
+      setStrengthAuto(false);
+    },
+    [trackW],
+  );
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => setStrengthFromX(e.nativeEvent.locationX),
+        onPanResponderMove: (e) => setStrengthFromX(e.nativeEvent.locationX),
+      }),
+    [setStrengthFromX],
+  );
+
+  const strengthRatio =
+    (Math.min(STRENGTH_MAX, Math.max(STRENGTH_MIN, strength)) - STRENGTH_MIN) /
+    (STRENGTH_MAX - STRENGTH_MIN);
+
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'solid', label: t('chat.backgroundSolid') },
     { key: 'gradient', label: t('chat.backgroundGradient') },
+    { key: 'preset', label: t('chat.backgroundPreset') },
     { key: 'custom', label: t('chat.backgroundCustom') },
   ];
 
-  const isSelected = (bg: GroupChatBackground) =>
+  const isSelected = (bg: ChatBackground) =>
     selected?.type === bg.type && selected?.value === bg.value;
+
+  const renderPreviewFill = () => {
+    if (!selected) return null;
+    if (selected.type === 'solid') {
+      return (
+        <View style={[styles.previewFill, { backgroundColor: selected.value }]} />
+      );
+    }
+    if (selected.type === 'gradient') {
+      return (
+        <LinearGradient
+          colors={parseGradientColors(selected.value)}
+          style={styles.previewFill}
+        />
+      );
+    }
+    if (selected.type === 'preset') {
+      const src = PRESET_IMAGES[selected.value];
+      if (!src) return null;
+      return <Image source={src} style={styles.previewFill} contentFit="cover" />;
+    }
+    if (selected.type === 'custom' && selected.value) {
+      return (
+        <Image
+          source={{ uri: selected.value }}
+          style={styles.previewFill}
+          contentFit="cover"
+        />
+      );
+    }
+    return null;
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -217,7 +320,7 @@ export function ChatBackgroundPicker({
                 return (
                   <Pressable
                     key={color}
-                    onPress={() => setSelected({ type: 'solid', value: color })}
+                    onPress={() => handleSelect({ type: 'solid', value: color })}
                     style={[
                       styles.swatch,
                       { width: CELL, height: CELL, backgroundColor: color },
@@ -236,7 +339,7 @@ export function ChatBackgroundPicker({
                 return (
                   <Pressable
                     key={css}
-                    onPress={() => setSelected({ type: 'gradient', value: css })}
+                    onPress={() => handleSelect({ type: 'gradient', value: css })}
                     style={[
                       styles.swatch,
                       { width: CELL, height: CELL, overflow: 'hidden' },
@@ -245,6 +348,30 @@ export function ChatBackgroundPicker({
                     <LinearGradient
                       colors={parseGradientColors(css)}
                       style={styles.swatchFill}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {activeTab === 'preset' && (
+            <View style={styles.grid}>
+              {PRESET_FILENAMES.map((file) => {
+                const active = isSelected({ type: 'preset', value: file });
+                return (
+                  <Pressable
+                    key={file}
+                    onPress={() => handleSelect({ type: 'preset', value: file })}
+                    style={[
+                      styles.swatch,
+                      { width: PRESET_CELL, height: PRESET_CELL, overflow: 'hidden' },
+                      active && { borderColor: theme.primary, borderWidth: 3 },
+                    ]}>
+                    <Image
+                      source={PRESET_IMAGES[file]}
+                      style={styles.swatchFill}
+                      contentFit="cover"
                     />
                   </Pressable>
                 );
@@ -290,18 +417,68 @@ export function ChatBackgroundPicker({
                 {t('chat.backgroundPicker')}
               </ThemedText>
               <View style={[styles.preview, { borderColor: theme.border }]}>
-                {selected.type === 'solid' ? (
-                  <View style={[styles.previewFill, { backgroundColor: selected.value }]} />
-                ) : selected.type === 'gradient' ? (
-                  <LinearGradient
-                    colors={parseGradientColors(selected.value)}
-                    style={styles.previewFill}
-                  />
-                ) : null}
+                {renderPreviewFill()}
               </View>
             </View>
           )}
         </ScrollView>
+
+        {/* Slider độ phủ — luôn hiện (parity Web) */}
+        <View style={[styles.strengthSection, { borderTopColor: theme.border }]}>
+          <View style={styles.strengthRow}>
+            <ThemedText
+              style={[styles.strengthLabel, { color: theme.textSecondary }]}>
+              {t('chat.bgOverlayStrength')}
+            </ThemedText>
+            <View
+              style={styles.sliderWrap}
+              onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+              pointerEvents={saving ? 'none' : 'auto'}
+              {...panResponder.panHandlers}>
+              <View
+                style={[styles.sliderTrack, { backgroundColor: theme.bgSecondary }]}
+              />
+              <View
+                style={[
+                  styles.sliderFill,
+                  {
+                    backgroundColor: theme.primary,
+                    width: strengthRatio * trackW,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.sliderThumb,
+                  {
+                    backgroundColor: theme.primary,
+                    left: strengthRatio * Math.max(0, trackW - SLIDER_THUMB),
+                  },
+                ]}
+              />
+            </View>
+            <ThemedText style={[styles.strengthValue, { color: theme.text }]}>
+              {strength}%
+              {strengthAuto ? ` · ${t('chat.bgAuto')}` : ''}
+            </ThemedText>
+          </View>
+
+          {selected && backgroundClashes(selected) && (
+            <View
+              style={[styles.clashWarn, { backgroundColor: theme.warningLight }]}>
+              <Icon
+                name="warning"
+                size={16}
+                color={theme.warning}
+                style={styles.clashWarnIcon}
+              />
+              <ThemedText
+                style={[styles.clashWarnText, { color: theme.text }]}>
+                {t('chat.bgClashWarning')}
+              </ThemedText>
+            </View>
+          )}
+        </View>
 
         {/* Footer */}
         <View style={[styles.footer, { borderTopColor: theme.border }]}>
@@ -422,6 +599,77 @@ const styles = StyleSheet.create({
   },
   previewFill: {
     flex: 1,
+  },
+  strengthSection: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingBottom: Spacing.sm,
+  },
+  strengthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  strengthLabel: {
+    ...Typography.caption,
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  sliderWrap: {
+    flex: 1,
+    height: SLIDER_H,
+    justifyContent: 'center',
+  },
+  sliderTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 4,
+    borderRadius: 2,
+  },
+  sliderFill: {
+    position: 'absolute',
+    left: 0,
+    height: 4,
+    borderRadius: 2,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: SLIDER_THUMB,
+    height: SLIDER_THUMB,
+    borderRadius: SLIDER_THUMB / 2,
+    top: (SLIDER_H - SLIDER_THUMB) / 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  strengthValue: {
+    ...Typography.caption,
+    fontWeight: '700',
+    minWidth: 74,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
+  clashWarn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: 8,
+  },
+  clashWarnIcon: {
+    marginTop: 2,
+  },
+  clashWarnText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',
