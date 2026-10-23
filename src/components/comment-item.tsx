@@ -91,6 +91,8 @@ interface CommentItemProps {
   allComments: CommentItemType[];
   onLike: (commentId: string) => void;
   onReply: (comment: CommentItemType) => void;
+  /** Báo cáo bình luận — chỉ truyền khi bình luận không phải của mình. */
+  onReport?: () => void;
   depth?: number;
 }
 
@@ -100,6 +102,7 @@ export default function CommentItem({
   allComments,
   onLike,
   onReply,
+  onReport,
   depth = 0,
 }: CommentItemProps) {
   const theme = useTheme();
@@ -172,6 +175,15 @@ export default function CommentItem({
                 {t('postDetail.reply')}
               </ThemedText>
             </Pressable>
+            {onReport && (
+              <Pressable
+                style={styles.actionBtn}
+                hitSlop={6}
+                accessibilityLabel={t('report.menuReport')}
+                onPress={onReport}>
+                <Icon name="flag" size={14} />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -185,6 +197,7 @@ export default function CommentItem({
               allComments={allComments}
               onLike={onLike}
               onReply={onReply}
+              onReport={onReport}
               depth={depth + 1}
             />
           ))}

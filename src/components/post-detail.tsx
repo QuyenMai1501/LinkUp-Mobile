@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Alert,
+  Clipboard,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -20,8 +21,11 @@ import CommentInput from '@/components/comment-input';
 import VideoPlayer from '@/components/video-player';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { ShareOptionsSheet } from '@/components/share-options-sheet';
+import { MenuSheet, type MenuItem } from '@/components/menu-sheet';
+import ReportSheet from '@/components/report-sheet';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { postLink } from '@/constants/links';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -37,8 +41,11 @@ import {
   sharePost,
   deletePost,
   getEmojis,
+  setCommentsEnabled,
 } from '../api/posts';
+import { followUser } from '../api/follow';
 import type { FeedPost, CommentItem as CommentItemType, EmojiItem, CommentSort } from '../types/post';
+import type { ReportTargetType } from '../types/report';
 
 const COMMENT_PAGE_SIZE = 10;
 const EMOJI_MAP = getEmojiTextMap();
@@ -99,6 +106,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const router = useRouter();
   const currentUserId = user?.id ?? null;
 
+  const openHashtag = (tag: string) => {
+    (router as any).push(`/(drawer)/search?q=${encodeURIComponent('#' + tag)}`);
+  };
+
   const [post, setPost] = useState<FeedPost | null>(postData ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +126,12 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const [shareToChatPostId, setShareToChatPostId] = useState<string | null>(null);
   // Bottom sheet chọn Đăng lại / Gửi cho bạn bè
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  // Menu ⋯ ở header (báo cáo với bài của người khác) + target đang báo cáo
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [togglingComments, setTogglingComments] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTargetType; id: string } | null>(
+    null,
+  );
 
   const flatListRef = useRef<FlatList>(null);
   const hasMoreRef = useRef(true);
@@ -337,6 +354,19 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     setReplyingTo((cur) => (cur?.id === comment.id ? null : comment));
   };
 
+  // Follow/unfollow tác giả từ trang chi tiết (optimistic + rollback).
+  const handleFollowToggle = async () => {
+    if (!post || post.user_id === currentUserId) return;
+    const next = !post.is_following;
+    setPost((prev) => (prev ? { ...prev, is_following: next } : prev));
+    try {
+      await followUser(post.user_id);
+    } catch {
+      setPost((prev) => (prev ? { ...prev, is_following: !next } : prev));
+      Alert.alert(t('common.error'), t('common.error'));
+    }
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.center}>
@@ -365,7 +395,63 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const mediaList = (isRepost && sharedPost ? sharedPost.media : post.media) ?? [];
   const hasMedia = mediaList.length > 0;
 
+  const handleCopyLink = () => {
+    Clipboard.setString(postLink(post.id));
+    Alert.alert(t('postDetail.copied'), postLink(post.id));
+  };
+
+  const handleToggleComments = async () => {
+    if (togglingComments) return;
+    const prev = post.comments_enabled;
+    const next = !prev;
+    setTogglingComments(true);
+    setPost((p) => (p ? { ...p, comments_enabled: next } : p));
+    try {
+      const res = await setCommentsEnabled(post.id, next);
+      setPost((p) => (p ? { ...p, comments_enabled: res.data.comments_enabled } : p));
+      Alert.alert(
+        res.data.comments_enabled
+          ? t('postDetail.commentsEnabledToast')
+          : t('postDetail.commentsDisabledToast'),
+      );
+    } catch (e) {
+      setPost((p) => (p ? { ...p, comments_enabled: prev } : p));
+      Alert.alert(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setTogglingComments(false);
+    }
+  };
+
+  const postMenuItems: MenuItem[] = [
+    {
+      key: 'copyLink',
+      label: t('post.copyLink'),
+      icon: 'link',
+      onPress: handleCopyLink,
+    },
+    ...(isOwner
+      ? [
+          {
+            key: 'toggleComments',
+            label: post.comments_enabled
+              ? t('postDetail.disableComments')
+              : t('postDetail.enableComments'),
+            icon: 'chat' as const,
+            onPress: handleToggleComments,
+          },
+        ]
+      : [
+          {
+            key: 'report',
+            label: t('report.menuReport'),
+            icon: 'flag' as const,
+            onPress: () => setReportTarget({ type: 'post', id: post.id }),
+          },
+        ]),
+  ];
+
   return (
+    <>
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -382,6 +468,12 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               <Icon name="trash" size={20} color="#E53935" />
             </Pressable>
           )}
+          <Pressable
+            onPress={() => setMenuVisible(true)}
+            style={styles.backBtn}
+            accessibilityLabel={t('postDetail.title')}>
+            <Icon name="more" size={20} color={theme.text} />
+          </Pressable>
         </View>
 
         {/* Content */}
@@ -397,6 +489,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               allComments={comments}
               onLike={handleToggleCommentLike}
               onReply={handleReply}
+              onReport={
+                currentUserId && item.comment.user_id !== currentUserId
+                  ? () => setReportTarget({ type: 'comment', id: item.comment.id })
+                  : undefined
+              }
             />
           )}
           ListHeaderComponent={
@@ -426,6 +523,35 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     @{post.username} · {formatRelativeTime(post.created_at)}
                   </ThemedText>
                 </View>
+                {/* Follow toggle (mirror Web PostDetailModal header, non-owner) */}
+                {!isOwner &&
+                  (post.is_following ? (
+                    <Pressable
+                      style={[
+                        styles.followBtn,
+                        { borderColor: theme.border, backgroundColor: theme.bgSecondary },
+                      ]}
+                      hitSlop={6}
+                      onPress={handleFollowToggle}>
+                      <ThemedText
+                        style={[styles.followBtnText, { color: theme.textSecondary }]}>
+                        {t('post.following')}
+                      </ThemedText>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.followBtn,
+                        { borderColor: theme.primary, backgroundColor: theme.primary },
+                        pressed && { opacity: 0.85 },
+                      ]}
+                      hitSlop={6}
+                      onPress={handleFollowToggle}>
+                      <ThemedText style={[styles.followBtnText, styles.followBtnTextPrimary]}>
+                        {t('post.follow')}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
               </Pressable>
 
               {/* Media carousel */}
@@ -470,7 +596,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                 {isRepost && sharedPost ? (
                   <View>
                     {post.share_content ? (
-                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} />
+                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                     ) : null}
                     <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
                       <Pressable
@@ -497,7 +623,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                         <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
                       ) : null}
                       {sharedPost.content ? (
-                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} />
+                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                       ) : null}
                     </View>
                   </View>
@@ -505,7 +631,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   <>
                     {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
                     {post.content ? (
-                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} />
+                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                     ) : null}
                   </>
                 )}
@@ -514,10 +640,13 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               {/* Stats */}
               <View style={[styles.stats, { borderTopColor: theme.border }]}>
                 <ThemedText themeColor="textSecondary" style={styles.statsText}>
-                  {t('postDetail.viewCount', { count: formatCount(post.views_count) })}
+                  {t('postDetail.likeCount', { count: formatCount(post.likes_count) })}
                 </ThemedText>
                 <ThemedText themeColor="textSecondary" style={styles.statsText}>
-                  {t('postDetail.commentCount', { count: formatCount(post.comments_count) })}
+                  {t('postDetail.shareCount', { count: formatCount(post.shares_count) })}
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.statsText}>
+                  {t('postDetail.viewCount', { count: formatCount(post.views_count) })}
                 </ThemedText>
               </View>
 
@@ -614,14 +743,22 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
         />
 
         {/* Comment input */}
-        <CommentInput
-          value={commentText}
-          onChangeText={setCommentText}
-          onSubmit={handleSubmitComment}
-          replyingTo={replyingTo}
-          onCancelReply={() => setReplyingTo(null)}
-          submitting={submittingComment}
-        />
+        {post.comments_enabled ? (
+          <CommentInput
+            value={commentText}
+            onChangeText={setCommentText}
+            onSubmit={handleSubmitComment}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+            submitting={submittingComment}
+          />
+        ) : (
+          <View style={[styles.commentsOff, { borderTopColor: theme.border }]}>
+            <ThemedText themeColor="textSecondary" style={styles.commentsOffText}>
+              {t('postDetail.commentsDisabled')}
+            </ThemedText>
+          </View>
+        )}
 
         {/* Share options: Đăng lại / Gửi cho bạn bè */}
         <ShareOptionsSheet
@@ -643,6 +780,21 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
         />
       </ThemedView>
     </KeyboardAvoidingView>
+
+      <MenuSheet
+        visible={menuVisible}
+        title={t('postDetail.title')}
+        items={postMenuItems}
+        onClose={() => setMenuVisible(false)}
+      />
+      {reportTarget && (
+        <ReportSheet
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -719,6 +871,19 @@ const styles = StyleSheet.create({
   authorMeta: {
     flex: 1,
   },
+  followBtn: {
+    borderWidth: 1,
+    borderRadius: 9999,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  followBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  followBtnTextPrimary: {
+    color: '#FFFFFF',
+  },
   displayName: {
     ...Typography.body,
     fontWeight: '600',
@@ -765,6 +930,10 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     lineHeight: 22,
+  },
+  hashtag: {
+    color: '#12A5A1',
+    fontWeight: '600',
   },
   embeddedPost: {
     borderWidth: 1,
@@ -872,6 +1041,14 @@ const styles = StyleSheet.create({
   noComments: {
     padding: Spacing.md,
     textAlign: 'center',
+    fontSize: 13,
+  },
+  commentsOff: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  commentsOffText: {
     fontSize: 13,
   },
   listContent: {

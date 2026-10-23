@@ -30,6 +30,16 @@ interface ApiErrorBody {
   message?: string;
 }
 
+/**
+ * Lỗi API — `message` GIỮ NGUYÊN hành vi cũ (ưu tiên error code) để các chỗ
+ * đang so sánh `err.message.includes('...CODE...')` không đổi; kèm
+ * `serverMessage` (tiếng Việt) cho UI muốn hiển thị thông báo dễ đọc.
+ */
+export class ApiError extends Error {
+  code?: string;
+  serverMessage?: string;
+}
+
 // --- Token refresh mutex ---
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
@@ -93,7 +103,10 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   if (!res.ok) {
     const body: ApiErrorBody | null = await res.json().catch(() => null);
-    throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
+    const err = new ApiError(body?.error || body?.message || `HTTP ${res.status}`);
+    err.code = body?.error;
+    err.serverMessage = body?.message;
+    throw err;
   }
 
   return (await res.json()) as T;

@@ -22,6 +22,7 @@ import StoryComposer from './story/story-composer';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
 import { getFeedStories, toggleMuteStoryUser } from '../api/story';
 import { getMyProfile } from '../api/profile';
+import { followUser } from '../api/follow';
 import { useAuth } from '@/contexts/auth-context';
 import type { FeedPost, EmojiItem } from '../types/post';
 import type { StoryFeedItem, StoryItem } from '../types/story';
@@ -70,9 +71,13 @@ function SkeletonCard() {
 interface FeedProps {
   onPostPress?: (postId: string) => void;
   onOpenComposer?: () => void;
+  /** Bộ lọc feed: undefined = Khám phá, 'following' = chỉ bài từ người đang theo dõi. */
+  filter?: string;
+  /** Chuyển về tab Khám phá (dùng ở empty state của tab Following). */
+  onExplore?: () => void;
 }
 
-export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
+export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }: FeedProps) {
   const theme = useTheme();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
@@ -180,7 +185,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     setError(null);
     const isFirst = cursorRef.current === null;
     try {
-      const res = await getFeedPosts(cursorRef.current, isFirst ? INITIAL_PAGE_SIZE : PAGE_SIZE);
+      const res = await getFeedPosts(cursorRef.current, isFirst ? INITIAL_PAGE_SIZE : PAGE_SIZE, filter);
       setPosts((prev) => {
         const list = isFirst ? res.data : [...prev, ...res.data];
         const seen = new Set<string>();
@@ -199,7 +204,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
       setInitialLoading(false);
       loadingRef.current = false;
     }
-  }, [t]);
+  }, [t, filter]);
 
   useEffect(() => {
     fetchNext();
@@ -248,6 +253,21 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
     } catch {
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, is_saved: !p.is_saved } : p)),
+      );
+    }
+  }, []);
+
+  // Follow từ feed: optimistic is_following=true cho MỌI post của tác giả,
+  // lỗi → rollback false (mirror Web Feed.tsx:263-278).
+  const handleFollow = useCallback(async (userId: string) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.user_id === userId ? { ...p, is_following: true } : p)),
+    );
+    try {
+      await followUser(userId);
+    } catch {
+      setPosts((prev) =>
+        prev.map((p) => (p.user_id === userId ? { ...p, is_following: false } : p)),
       );
     }
   }, []);
@@ -382,6 +402,7 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
             onPress={onPostPress}
             onLike={handleLike}
             onSave={handleSave}
+            onFollow={handleFollow}
             onMediaPress={(index, targetPost) => handleOpenMedia(targetPost ?? item, index)}
             onCommentPress={() => handleOpenComments(item)}
             onSharePress={() => handleShare(item)}
@@ -437,11 +458,21 @@ export default function Feed({ onPostPress, onOpenComposer }: FeedProps) {
         ListEmptyComponent={
           !initialLoading && !error ? (
             <View style={styles.centerContent}>
-              <Icon name="newspaper" size={48} />
-              <ThemedText style={styles.emptyTitle}>{t('feed.emptyTitle')}</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
-                {t('feed.emptySubtitle')}
+              <Icon name={filter === 'following' ? 'people' : 'newspaper'} size={48} />
+              <ThemedText style={styles.emptyTitle}>
+                {filter === 'following' ? t('feed.emptyFollowing') : t('feed.emptyTitle')}
               </ThemedText>
+              {filter === 'following' ? (
+                <Pressable onPress={onExplore} hitSlop={8}>
+                  <ThemedText themeColor="primary" style={styles.exploreLink}>
+                    {t('feed.exploreLink')}
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <ThemedText themeColor="textSecondary" style={styles.emptySubtitle}>
+                  {t('feed.emptySubtitle')}
+                </ThemedText>
+              )}
             </View>
           ) : null
         }
@@ -533,6 +564,11 @@ const styles = StyleSheet.create({
 
   emptyTitle: { ...Typography.h2, textAlign: 'center' },
   emptySubtitle: { ...Typography.body, textAlign: 'center' },
+  exploreLink: {
+    ...Typography.body,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   retryBtn: {
     backgroundColor: '#12A5A1',
     paddingVertical: Spacing.sm,

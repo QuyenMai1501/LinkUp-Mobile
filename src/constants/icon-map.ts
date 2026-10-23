@@ -30,6 +30,7 @@ export const icons = {
   reply: 'arrow-undo-outline' as const,
   copy: 'copy-outline' as const,
   pin: 'pin' as const,
+  history: 'time-outline' as const,
   trash: 'trash-outline' as const,
   attach: 'attach-outline' as const,
   smile: 'happy-outline' as const,
@@ -59,6 +60,7 @@ export const icons = {
   warning: 'warning-outline' as const,
   hourglass: 'hourglass-outline' as const,
   check: 'checkmark' as const,
+  flag: 'flag-outline' as const,
 
   // Privacy
   lock: 'lock-closed-outline' as const,
@@ -96,6 +98,11 @@ export const icons = {
   stats: 'stats-chart-outline' as const,
   more: 'ellipsis-horizontal' as const,
   addCircle: 'add-circle-outline' as const,
+
+  // Communities
+  key: 'key-outline' as const,
+  calendar: 'calendar-outline' as const,
+  pencil: 'create-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;

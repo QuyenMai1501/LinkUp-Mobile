@@ -31,10 +31,15 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Component: `components/google-auth-button.tsx`
 
 ### Feed / Posts / Bình luận
-- Screens: `app/(drawer)/index.tsx` (home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
-- Components: `components/feed.tsx`, `post-card.tsx`, `post-composer.tsx`, `post-detail.tsx`, `comment-sheet.tsx`, `comment-input.tsx`, `comment-item.tsx`, `share-options-sheet.tsx`, `media-viewer.tsx`
-- API: `api/posts.ts` (dùng chung cho feed, saved, profile posts)
-- Types: `types/post.ts`
+- Screens: `app/(drawer)/index.tsx` (home — gồm segmented tabs **Khám phá / Đang theo dõi** ngay dưới tab `home|friends|notifications`, chỉ render khi đang ở tab home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
+- Components: `components/feed.tsx` (props `filter?: string` — `'following'` = chỉ bài từ người theo dõi — + `onExplore`; remount qua key gồm feedKey + feedFilter để reset cursor/pagination khi đổi tab), `post-card.tsx` (menu ⋯ → report + follow badge/nút ở nameRow, ghim badge + privacy icon public/friend/private, +N overlay media, double-tap media để thích + tim burst, view count thay save khi own post, empty placeholder, hashtag → search), `post-composer.tsx` (toggle comments_enabled — mirror web commentsDisabled; hashtag autocomplete: gõ `#` → debounce 300ms `search(..., 'hashtags')` → tap chèn `#name `; draft AsyncStorage key `linkup.composer.draft` debounce 400ms — chip "Đã khôi phục bản nháp" + Xóa, xóa khi đăng thành công), `post-detail.tsx` (toggle follow ở authorRow + hashtag link; menu ⋯ hiện cho cả owner: copy link — hằng `postLink(id)` từ `constants/links.ts` → `https://linkup.io.vn/posts/{id}` — + owner toggle comments_enabled optimistic qua `setCommentsEnabled` + non-owner report; stats row like/share/view mirror web; ẩn comment input + hiện "Bài viết này đã tắt bình luận" khi `!comments_enabled`), `comment-sheet.tsx` (sort newest/oldest/relevant — reload trang 1), `comment-input.tsx`, `comment-item.tsx` (nút flag report), `share-options-sheet.tsx`, `media-viewer.tsx`, `rich-content.tsx` (prop `onHashtagPress`/`hashtagStyle` — không truyền thì hashtag là text thường)
+- API: `api/posts.ts` (`getFeedPosts(cursor, pageSize, filter?)` — filter=following lấy từ server; dùng chung cho feed, saved, profile posts; `setCommentsEnabled(postId, enabled)` PATCH `/posts/:id/comments`), `api/reports.ts` (violation rules + tạo báo cáo), `api/follow.ts` (`followUser` toggle — optimistic ở feed/detail)
+- Types: `types/post.ts`, `types/report.ts` (`ReportTargetType`, `ViolationRule`)
+
+### Báo cáo / Vi phạm
+- Components: `components/report-sheet.tsx` (sheet radio lý do + "Lý do khác" bắt buộc,severity pill, mount conditional — post-card/post-detail mount nội bộ, comment-sheet render **sibling** của Modal; **drag-to-dismiss gesture mirror comment-sheet** — pan + native scroll song song, backdrop fade/scale theo tiến độ vuốt, **chặn hoàn toàn pan khi `submitting`** qua shared value `blocked`), `components/menu-sheet.tsx` (menu ⋯ generic — copy link/report/toggle comments; **drag-to-dismiss gesture mirror comment-sheet** — luôn mount theo prop `visible`, slide-up khi mở/reset khi đóng, item press = animate close + `onPress` chạy ngay)
+- API: `api/reports.ts` (`getViolationRules(targetType)`, `createReport`) · Types: `types/report.ts`
+- Chú ý: ẩn report bài/bình luận của chính mình; lỗi hiển thị `ApiError.serverMessage`
 
 ### Stories (tin)
 - Components: `components/story/` — `story-bar` (thanh story trên feed), `story-viewer` (xem full-screen: auto-advance 5s, react 6 emoji, share, reply→chat, xóa, phát video story từ Web, tin chữ), `story-composer` (tạo tin: nhiều ảnh + caption/tin chữ), `story-stats-modal` (thống kê chủ tin), `story-avatar-ring` (avatar bọc ring gradient — dùng chung bar + ProfileHeader)
@@ -75,8 +80,12 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Components: `components/friend-card.tsx`, `friend-request-card.tsx`, `friends-list-panel.tsx`; `components/profile/FriendButton.tsx`, `MutualFriends.tsx`
 - API: `api/friends.ts`, `api/follow.ts`, `api/block.ts` · Hooks: `useFollowStats` · Types: `types/friend.ts`
 
-### Communities
-- Screen: `app/(drawer)/communities.tsx` — **chỉ là placeholder UI, chưa có API module**
+### Communities (cộng đồng)
+- Screens: `app/(drawer)/communities/index.tsx` (list: tab discover/joined/created + search debounce + filter privacy), `communities/create.tsx` (tạo — **route riêng**, không RN Modal), `communities/[communityId].tsx` (detail: header + tab posts/members/rules/manage, remount theo `key={communityId}`) — **nhóm có `_layout.tsx` Stack con** (mirror `settings/`) để back = stack pop thay vì drawer history sập về feed
+- Components: `components/communities/` — `community-card` (card list), `community-header` (cover + join/leave/pending/CTA code), `about-card` (giới thiệu + preview thành viên/quy tắc), `community-feed` (feed trong community, cursor derived `last.created_at,last.id` — server không trả next_cursor), `member-list` (admin: menu đổi vai trò + kick kèm lý do), `rule-list` + `rule-form` (CRUD quy tắc, group theo category, đánh số liên tục), `manage-tab` (4 section: settings / join-requests / invite-codes / transfer), `join-code-modal` (mã 6 ký tự `[A-Z0-9]`)
+- API: `api/communities.ts` (22 hàm + `communityErrorText` — server community trả HTTP 400 cho gần như mọi lỗi, hiển thị `serverMessage`) · Types: `types/community.ts` (`isCommunityPrivileged`, `ManageableRole`)
+- Tích hợp: `components/post-composer.tsx` (prop `communityId` → đăng bài trong community), `app/(drawer)/search.tsx` (kết quả tab communities → detail), `app/(drawer)/_layout.tsx` (screen drawer `communities` — create/detail là stack con, không đăng ký riêng), `constants/icon-map.ts` (`key`, `calendar`, `pencil`)
+- Chú ý: **cố ý KHÔNG port bug Web** — feed cursor tự lấy từ bài cuối; join code tự uppercase; pending derive từ `request_id` thay vì hard-code; filter privacy chạy client-side trên response
 
 ### Thông báo & Push
 - Context: `contexts/notification-context.tsx` (WS + unread badge, gắn ở root layout)
@@ -96,7 +105,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Utils: `utils/profile-nav.ts` — `navigateToProfile(router, userId)` dùng chung khi bấm avatar/tên (feed, comment, chat, bạn bè…)
 
 ### Tìm kiếm
-- Screen: `app/(drawer)/search.tsx` · API: `api/search.ts` · Types: `types/search.ts`
+- Screen: `app/(drawer)/search.tsx` (hỗ trợ deep-link `?q=#tag` từ hashtag trong bài — prefill + tìm ngay khi mount) · API: `api/search.ts` · Types: `types/search.ts`
 
 ### Emoji / GIF (Giphy)
 - Components: `components/emoji-picker.tsx`, `giphy-gif-picker.tsx`
@@ -115,3 +124,22 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 ### Networking / API base
 - `api/client.ts` — `request<T>()` với refresh-token mutex; `API_BASE` lấy từ `EXPO_PUBLIC_API_URL` (**phải gồm hậu tố `/api`**), fallback từ Metro hostUri
 - WS đều derive từ `API_BASE` (`http→ws`) trong các hook socket + `notification-context`
+
+---
+
+## Feed parity với Web (Phase 1→8)
+
+Scope đã chốt: **không ads, không realtime, không story editor** — backend/web không sửa gì, chỉ port giao diện + hành vi sang mobile.
+
+| Phase | Commit | Nội dung |
+|---|---|---|
+| 1 | `6183ae0` | `types/report.ts` + `api/reports.ts` — violation rules + tạo báo cáo |
+| 2 | `2e7a8f8` | `menu-sheet` + `report-sheet` — báo cáo post/comment từ card/detail/comment-sheet (sibling của Modal), ẩn report của mình |
+| 3 | `bef443a` | follow/unfollow từ feed + detail (optimistic, sync mọi post cùng `user_id`), badge "Đang theo dõi"/nút "Theo dõi" |
+| 4 | `7c02f3a` | tab **Following** — segmented Khám phá/Đang theo dõi ở home, `filter=following`, empty state riêng |
+| 5 | `a4e2f89` | card polish — ghim/privacy badge, +N media overlay, double-tap like + tim burst, view count own post, hashtag→search, sort bình luận (newest/oldest/relevant) |
+| 6 | `6d0e63a` | composer — toggle `comments_enabled`, hashtag autocomplete (`#` → debounce 300ms), draft AsyncStorage (`linkup.composer.draft`) |
+| 7 | `7814a06` | detail — menu ⋯ (copy link `https://linkup.io.vn/posts/{id}` qua `constants/links.ts`, toggle comments owner, report non-owner), stats row like/share/view, ẩn input khi `!comments_enabled` |
+| 8 | — | locales dọn 10 keys thừa (ns `post`/`postDetail`/`composer`) — vi/en đồng bộ 0 lệch, 0 unused trong các ns đã sửa |
+
+Verify mỗi phase: `npx tsc --noEmit` + `npm run lint` (baseline 28/15/13) + JSON parse 2 locales.

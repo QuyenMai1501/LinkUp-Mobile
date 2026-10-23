@@ -36,6 +36,7 @@ export interface FeedPost {
   shared_from_post_id?: string;
   share_content?: string;
   shared_post?: FeedPost;
+  comments_enabled: boolean;
 }
 
 export interface FeedResponse {
@@ -89,6 +90,8 @@ export interface CreatePostInput {
   mediaUris?: { uri: string; type: string; name: string }[];
   gifUrl?: string;
   communityId?: string;
+  /** Cho phép bình luận (server form field `comments_enabled`, default true). */
+  commentsEnabled?: boolean;
   clientKey?: string;
 }
 

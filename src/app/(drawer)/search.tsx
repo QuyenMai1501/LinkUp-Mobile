@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
 import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
@@ -44,8 +44,10 @@ export default function SearchScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { t } = useTranslation();
+  // Deep-link từ hashtag trong bài viết: /(drawer)/search?q=#tag
+  const { q } = useLocalSearchParams<{ q?: string }>();
 
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => (typeof q === 'string' ? q : ''));
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,6 +130,15 @@ export default function SearchScreen() {
     [query, executeSearch],
   );
 
+  // Deep-link từ hashtag: prefill ô search + tìm ngay 1 lần khi mount
+  useEffect(() => {
+    if (typeof q === 'string' && q.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      executeSearch(q.trim(), activeTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     return () => {
       debounceRef.current && clearTimeout(debounceRef.current);
@@ -154,8 +165,8 @@ export default function SearchScreen() {
     executeSearch(`#${name}`, activeTab);
   };
 
-  const navigateToCommunities = () => {
-    (router as any).push('/(drawer)/communities');
+  const navigateToCommunity = (communityId: string) => {
+    (router as any).push(`/(drawer)/communities/${communityId}`);
   };
 
   // ---------- RENDER HELPERS ----------
@@ -225,7 +236,7 @@ export default function SearchScreen() {
   const renderCommunityItem = ({ item }: { item: CommunitySearchResult }) => (
     <Pressable
       style={({ pressed }) => [styles.itemRow, pressed && { backgroundColor: theme.bgHover }]}
-      onPress={navigateToCommunities}>
+      onPress={() => navigateToCommunity(item.id)}>
       <View style={[styles.avatar, { backgroundColor: theme.bgHover }]}>
         {item.avatar_uri ? (
           <Image source={{ uri: item.avatar_uri }} style={styles.avatarImg} contentFit="cover" />

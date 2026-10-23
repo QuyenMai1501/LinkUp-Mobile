@@ -32,6 +32,12 @@ export const savePost = (postId: string) =>
 
 export const getEmojis = () => request<{ data: EmojiItem[] }>('/emojis');
 
+export const setCommentsEnabled = (postId: string, enabled: boolean) =>
+  request<{ message: string; data: FeedPost }>(`/posts/${postId}/comments`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  });
+
 export const getUserPosts = (userId: string, cursor: string | null, pageSize = 10) => {
   const params = new URLSearchParams();
   params.set('page_size', String(pageSize));
@@ -116,7 +122,7 @@ export const deletePost = (postId: string) =>
     method: 'DELETE',
   });
 
-export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId, clientKey }: CreatePostInput): Promise<CreatePostResponse> => {
+export const createPost = async ({ title, content, status, mediaUris = [], gifUrl, communityId, commentsEnabled = true, clientKey }: CreatePostInput): Promise<CreatePostResponse> => {
   const token = await tokenStorage.getAccessToken();
   const formData = new FormData();
 
@@ -125,6 +131,7 @@ export const createPost = async ({ title, content, status, mediaUris = [], gifUr
   if (status) formData.append('status', status);
   if (gifUrl) formData.append('gif_url', gifUrl);
   if (communityId) formData.append('community_id', communityId);
+  formData.append('comments_enabled', String(commentsEnabled));
 
   for (const file of mediaUris) {
     const response = await fetch(file.uri);

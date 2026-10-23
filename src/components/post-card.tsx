@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
@@ -7,18 +7,34 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
+import { MenuSheet, type MenuItem } from '@/components/menu-sheet';
+import ReportSheet from '@/components/report-sheet';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
+import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
 import { navigateToProfile } from '@/utils/profile-nav';
 import { separateGiphyUrls } from '@/api/giphy';
 import VideoPlayer from './video-player';
+import type { IconName } from '@/constants/icon-map';
 import type { FeedPost, FeedMedia } from '../types/post';
 
 const CONTENT_TRUNCATE_LENGTH = 200;
 const EMOJI_MAP = getEmojiTextMap();
+
+const PRIVACY_ICONS: Record<string, IconName | undefined> = {
+  public: 'globe',
+  friend: 'people',
+  private: 'lock',
+};
+
+const PRIVACY_LABELS: Record<string, string | undefined> = {
+  public: 'post.privacyPublic',
+  friend: 'post.privacyFriend',
+  private: 'post.privacyPrivate',
+};
 
 /** Cắt nội dung dài, không cắt giữa URL (URL GIPHY bị cắt dở sẽ hỏng ảnh). */
 function truncateAvoidingUrl(content: string, max: number): string {
@@ -93,6 +109,12 @@ function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
               contentFit="cover"
             />
           )}
+          {/* +N overlay trên ô cuối khi media > 4 (mirror Web MediaGrid) */}
+          {idx === 3 && media.length > 4 && (
+            <View style={styles.mediaMoreOverlay} pointerEvents="none">
+              <ThemedText style={styles.mediaMoreText}>+{media.length - 4}</ThemedText>
+            </View>
+          )}
         </Pressable>
       ))}
     </View>
@@ -106,6 +128,7 @@ interface PostCardProps {
   onMediaPress?: (index: number, targetPost?: FeedPost) => void;
   onLike?: (postId: string) => void;
   onSave?: (postId: string) => void;
+  onFollow?: (userId: string) => void;
   onCommentPress?: () => void;
   onSharePress?: () => void;
 }
@@ -117,16 +140,76 @@ export default function PostCard({
   onMediaPress,
   onLike,
   onSave,
+  onFollow,
   onCommentPress,
   onSharePress,
 }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const theme = useTheme();
   const { t } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
   const isOwner = user?.id != null && post.user_id === user.id;
   const sharedPost = post.shared_from_post_id ? post.shared_post : undefined;
   const isRepost = Boolean(sharedPost);
+  const privacyIcon = PRIVACY_ICONS[post.status];
+  const privacyLabelKey = PRIVACY_LABELS[post.status];
+
+  // Double-tap media để thích (mirror Web PostCard handleMediaClick) + tim burst
+  const [burst, setBurst] = useState(false);
+  const burstAnim = useMemo(() => new Animated.Value(0), []);
+  const lastTapRef = useRef(0);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      if (burstTimerRef.current) clearTimeout(burstTimerRef.current);
+    };
+  }, []);
+
+  const openHashtag = (tag: string) => {
+    (router as any).push(`/(drawer)/search?q=${encodeURIComponent('#' + tag)}`);
+  };
+
+  const triggerBurst = () => {
+    setBurst(true);
+    burstAnim.setValue(0.3);
+    Animated.spring(burstAnim, { toValue: 1, friction: 4, useNativeDriver: true }).start();
+    if (burstTimerRef.current) clearTimeout(burstTimerRef.current);
+    burstTimerRef.current = setTimeout(() => setBurst(false), 600);
+  };
+
+  const handleMediaPress = (index: number, targetPost?: FeedPost) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      if (navTimerRef.current) {
+        clearTimeout(navTimerRef.current);
+        navTimerRef.current = null;
+      }
+      onLike?.(post.id);
+      triggerBurst();
+      return;
+    }
+    lastTapRef.current = now;
+    navTimerRef.current = setTimeout(() => {
+      navTimerRef.current = null;
+      onMediaPress?.(index, targetPost);
+    }, 280);
+  };
+
+  const menuItems: MenuItem[] = [
+    {
+      key: 'report',
+      label: t('report.menuReport'),
+      icon: 'flag',
+      onPress: () => setReporting(true),
+    },
+  ];
 
   // Tách URL GIPHY dính nhau TRƯỚC khi cắt — chuỗi liền mạch không có space
   // sẽ bị truncateAvoidingUrl trả về '...' (mất trắng nội dung).
@@ -155,6 +238,7 @@ export default function PostCard({
   };
 
   return (
+    <>
     <ThemedView style={styles.card}>
       {/* Zone 1: Header — avatar → hồ sơ; tên/giờ/nền → chi tiết bài */}
       <Pressable style={styles.header} onPress={() => onPress?.(post.id)}>
@@ -174,14 +258,60 @@ export default function PostCard({
           </View>
         </Pressable>
         <View style={styles.authorMeta}>
-          <ThemedText style={styles.displayName}>
-            {post.display_name}
-            {isRepost ? ` · ${t('post.sharedPost')}` : ''}
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
-            @{post.username} · {formatRelativeTime(post.created_at, t)}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText style={styles.displayName}>
+              {post.display_name}
+              {isRepost ? ` · ${t('post.sharedPost')}` : ''}
+            </ThemedText>
+            {post.is_pinned && (
+              <View style={styles.pinBadge}>
+                <Icon name="pin" size={11} color={theme.textSecondary} />
+                <ThemedText themeColor="textSecondary" style={styles.pinBadgeText}>
+                  {t('post.pinned')}
+                </ThemedText>
+              </View>
+            )}
+            {/* Follow badge/button — chỉ khi parent truyền onFollow (mirror Web PostCard:325-338) */}
+            {!isOwner && onFollow &&
+              (post.is_following ? (
+                <View style={[styles.followBadge, styles.followingBadge, { borderColor: theme.border }]}>
+                  <ThemedText style={[styles.followBadgeText, { color: theme.textSecondary }]}>
+                    {t('post.following')}
+                  </ThemedText>
+                </View>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.followBadge,
+                    { borderColor: theme.primary },
+                    pressed && { backgroundColor: theme.primaryLight },
+                  ]}
+                  onPress={() => onFollow(post.user_id)}>
+                  <ThemedText style={[styles.followBadgeText, { color: theme.primary }]}>
+                    {t('post.follow')}
+                  </ThemedText>
+                </Pressable>
+              ))}
+          </View>
+          <View style={styles.metaRow}>
+            <ThemedText themeColor="textSecondary" style={styles.usernameTime}>
+              @{post.username} · {formatRelativeTime(post.created_at, t)}
+            </ThemedText>
+            {privacyIcon && privacyLabelKey ? (
+              <View accessibilityLabel={t(privacyLabelKey)} accessibilityRole="image">
+                <Icon name={privacyIcon} size={12} color={theme.textSecondary} />
+              </View>
+            ) : null}
+          </View>
         </View>
+        {!isOwner && (
+          <Pressable
+            hitSlop={8}
+            accessibilityLabel={t('report.menuReport')}
+            onPress={() => setMenuVisible(true)}>
+            <Icon name="more" size={18} color={theme.textSecondary} />
+          </Pressable>
+        )}
       </Pressable>
 
       {/* Zone 2: Content — normal post or repost embed */}
@@ -189,7 +319,7 @@ export default function PostCard({
         {isRepost && sharedPost ? (
           <View>
             {post.share_content ? (
-              <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} />
+              <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
             ) : null}
             <View style={styles.embeddedPost}>
               <Pressable
@@ -216,7 +346,7 @@ export default function PostCard({
                 <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
               ) : null}
               {displaySharedContent ? (
-                <RichContent content={displaySharedContent} emojiMap={EMOJI_MAP} style={styles.embeddedContent} />
+                <RichContent content={displaySharedContent} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
               ) : null}
               <MediaGrid
                 media={sharedPost.media}
@@ -230,7 +360,7 @@ export default function PostCard({
             {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
             {post.content ? (
               <View>
-                <RichContent content={displayContent} emojiMap={EMOJI_MAP} style={styles.content} />
+                <RichContent content={displayContent} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
                 {needsTruncation && (
                   <ThemedText style={styles.toggleBtn}>
                     {expanded ? t('post.collapse') : t('post.readMore')}
@@ -238,13 +368,30 @@ export default function PostCard({
                 )}
               </View>
             ) : null}
+            {!post.title && !post.content && post.media.length === 0 && (
+              <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+                {t('post.noContent')}
+              </ThemedText>
+            )}
           </>
         )}
       </Pressable>
 
       {/* Zone 3: Media — outer media only for non-reposts (repost media is embedded above) */}
       {!isRepost && (
-        <MediaGrid media={post.media} onPress={(index) => onMediaPress?.(index, post)} />
+        <View>
+          <MediaGrid media={post.media} onPress={handleMediaPress} />
+          {burst && (
+            <Animated.View
+              style={[
+                styles.burstHeart,
+                { opacity: burstAnim, transform: [{ scale: burstAnim }] },
+              ]}
+              pointerEvents="none">
+              <Icon name="heartFilled" size={72} color="#E53935" />
+            </Animated.View>
+          )}
+        </View>
       )}
 
       {/* Zone 4: Action bar */}
@@ -277,14 +424,36 @@ export default function PostCard({
           </ThemedText>
         </Pressable>
 
-        <Pressable
-          style={styles.actionBtn}
-          onPress={() => onSave?.(post.id)}
-          disabled={isOwner}>
-          <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : isOwner ? '#00000040' : undefined} />
-        </Pressable>
+        {isOwner ? (
+          <View style={styles.viewStat}>
+            <Icon name="eye" size={16} color={theme.textSecondary} />
+            <ThemedText
+              themeColor="textSecondary"
+              style={styles.actionCount}
+              accessibilityLabel={t('postDetail.viewCount', { count: post.views_count })}>
+              {formatCount(post.views_count)}
+            </ThemedText>
+          </View>
+        ) : (
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => onSave?.(post.id)}>
+            <Icon name={post.is_saved ? 'bookmarkFilled' : 'bookmark'} size={18} color={post.is_saved ? '#FBBC04' : undefined} />
+          </Pressable>
+        )}
       </View>
     </ThemedView>
+
+      <MenuSheet
+        visible={menuVisible}
+        title={t('postDetail.title')}
+        items={menuItems}
+        onClose={() => setMenuVisible(false)}
+      />
+      {reporting && (
+        <ReportSheet targetType="post" targetId={post.id} onClose={() => setReporting(false)} />
+      )}
+    </>
   );
 }
 
@@ -330,10 +499,42 @@ const styles = StyleSheet.create({
   authorMeta: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+  },
   displayName: {
     ...Typography.body,
     fontWeight: '600',
     fontSize: 14,
+  },
+  followBadge: {
+    borderWidth: 1,
+    borderRadius: 9999,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+  },
+  followingBadge: {
+    borderStyle: 'solid',
+  },
+  followBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  pinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  pinBadgeText: {
+    fontSize: 11,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   usernameTime: {
     fontSize: 12,
@@ -357,6 +558,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginTop: Spacing.xs,
+  },
+  hashtag: {
+    color: '#12A5A1',
+    fontWeight: '600',
+  },
+  emptyBody: {
+    fontSize: 14,
   },
   shareContent: {
     ...Typography.body,
@@ -446,6 +654,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  mediaMoreOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaMoreText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  burstHeart: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actionBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
@@ -462,5 +686,13 @@ const styles = StyleSheet.create({
   },
   actionCount: {
     fontSize: 12,
+  },
+  viewStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginLeft: 'auto',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
 });
