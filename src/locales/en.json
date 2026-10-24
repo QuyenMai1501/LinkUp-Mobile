@@ -670,6 +670,7 @@
     "currentPackage": "Current Package",
     "noPackage": "No package yet — choose a package below to get started",
     "daysLeft": "{days} days left",
+    "days": "{days} days",
     "slotsUsed": "{used}/{max} slots",
     "select": "Select package",
     "selected": "Selected",

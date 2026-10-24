@@ -1,16 +1,21 @@
+import { useMemo } from 'react';
 import { TouchableOpacity, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
 
+import { decodeToken } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { type IconName } from '@/constants/icon-map';
+import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
 import { useTranslation } from '@/hooks/useTranslation';
 
-const SETTINGS_ITEMS: { key: string; icon: IconName; labelKey: string; descKey: string }[] = [
+type SettingsItem = { key: string; icon: IconName; labelKey: string; descKey: string; path?: string };
+
+const SETTINGS_ITEMS: SettingsItem[] = [
   { key: 'change-password', icon: 'lock', labelKey: 'settings.items.changePassword.label', descKey: 'settings.items.changePassword.desc' },
   { key: 'privacy', icon: 'shield', labelKey: 'settings.items.privacy.label', descKey: 'settings.items.privacy.desc' },
   { key: 'security', icon: 'lock', labelKey: 'settings.items.security.label', descKey: 'settings.items.security.desc' },
@@ -26,10 +31,35 @@ export default function SettingsIndex() {
   const navigation = useNavigation();
   const colors = useTheme();
   const { t } = useTranslation();
+  const { accessToken } = useAuth();
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
   };
+
+  // Role lấy từ JWT (USER → "Become a Partner"; PARTNER+ → "Partner Hub").
+  const items = useMemo(() => {
+    const role = accessToken ? decodeToken(accessToken)?.role : undefined;
+    if (!role) return SETTINGS_ITEMS;
+    const partner: SettingsItem =
+      role === 'USER'
+        ? {
+            key: 'partner-packages',
+            icon: 'stats',
+            labelKey: 'settings.items.partnerBecome.label',
+            descKey: 'settings.items.partnerBecome.desc',
+            path: '/partner/packages',
+          }
+        : {
+            key: 'partner-hub',
+            icon: 'stats',
+            labelKey: 'settings.items.partnerHub.label',
+            descKey: 'settings.items.partnerHub.desc',
+            path: '/partner/dashboard',
+          };
+    const idx = SETTINGS_ITEMS.findIndex((i) => i.key === 'deactivate');
+    return [...SETTINGS_ITEMS.slice(0, idx), partner, ...SETTINGS_ITEMS.slice(idx)];
+  }, [accessToken]);
 
   return (
     <ThemedView style={styles.container}>
@@ -41,16 +71,20 @@ export default function SettingsIndex() {
           <ThemedText style={styles.header}>{t('settings.title')}</ThemedText>
         </ThemedView>
         <ScrollView contentContainerStyle={styles.list}>
-          {SETTINGS_ITEMS.map((item, index) => (
+          {items.map((item, index) => (
             <TouchableOpacity
               key={item.key}
-              onPress={() => router.push(`/(drawer)/settings/${item.key}` as any)}
+              onPress={() =>
+                router.push(
+                  (item.path ?? `/(drawer)/settings/${item.key}`) as never,
+                )
+              }
               activeOpacity={0.7}>
               <ThemedView
                 style={[
                   styles.item,
                   { backgroundColor: colors.card },
-                  index === SETTINGS_ITEMS.length - 1 && styles.itemLast,
+                  index === items.length - 1 && styles.itemLast,
                 ]}>
                 <Icon name={item.icon} size={24} color={colors.text} />
                 <ThemedView style={styles.itemContent}>

@@ -670,6 +670,7 @@
     "currentPackage": "Gói hiện tại",
     "noPackage": "Chưa có gói — chọn gói bên dưới để bắt đầu",
     "daysLeft": "còn {days} ngày",
+    "days": "{days} ngày",
     "slotsUsed": "{used}/{max} slot",
     "select": "Chọn gói",
     "selected": "Đã chọn",
