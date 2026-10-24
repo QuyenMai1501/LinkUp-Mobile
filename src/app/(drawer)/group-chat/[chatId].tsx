@@ -27,6 +27,7 @@ import {
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
+import { MediaCluster } from '@/components/chat/media-cluster';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MessageActions } from '@/components/chat/message-actions';
 import {
@@ -50,6 +51,11 @@ import type { ChatMessage, ReplyPreview } from '@/types/chat';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatConversation } from '@/types/group-chat';
 import { formatChatDate } from '@/utils/chat';
+import { newId } from '@/utils/id';
+import {
+  clusterTimelineMedia,
+  type MediaClusterItem,
+} from '@/utils/media-cluster';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 
 /** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
@@ -58,17 +64,21 @@ interface GroupCallTimelineItem {
   call: GroupCallHistoryItem;
 }
 
-type GroupedItem = ChatMessage | GroupCallTimelineItem;
+type GroupedItem = ChatMessage | MediaClusterItem | GroupCallTimelineItem;
 
 /** created timestamp ms của mọi kind item trong timeline. */
 function itemCreatedMs(item: GroupedItem): number {
   if ('kind' in item) {
+    if (item.kind === 'media_cluster') {
+      const first = item.msgs[0];
+      return first ? new Date(first.created_at).getTime() : 0;
+    }
     return new Date(item.call.created_at).getTime();
   }
   return new Date(item.created_at).getTime();
 }
 
-/** Prev item cho date-separator/showTime: group_call → caller; còn lại → tin trước. */
+/** Prev item cho date-separator/showTime: media_cluster → tin cuối; group_call → caller; còn lại → tin trước. */
 function resolvePrevMsg(
   items: GroupedItem[],
   index: number,
@@ -76,6 +86,12 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ('kind' in prev) {
+    if (prev.kind === 'media_cluster') {
+      const last = prev.msgs[prev.msgs.length - 1];
+      return last
+        ? { createdAt: last.created_at, senderId: last.sender_id }
+        : undefined;
+    }
     return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
   }
   return { createdAt: prev.created_at, senderId: prev.sender_id };
@@ -87,6 +103,7 @@ type UploadJob = {
   durationSeconds?: number;
   caption?: string;
   replyToMessageId?: string;
+  mediaGroupId?: string;
 };
 
 function buildReplyPreview(m: ChatMessage, senderLabel: string): ReplyPreview {
@@ -254,10 +271,11 @@ export default function GroupChatScreen() {
   const { byId: serverEmojis } = useServerEmojis();
 
   const timeline = useMemo<GroupedItem[]>(() => {
-    if (room.callHistory.length === 0) return room.messages;
+    const msgItems = clusterTimelineMedia(room.messages);
+    if (room.callHistory.length === 0) return msgItems;
     // Xen call-history bubbles vào timeline theo created_at (mirror Web useChatTimeline).
     const merged: GroupedItem[] = [
-      ...room.messages,
+      ...msgItems,
       ...room.callHistory.map<GroupCallTimelineItem>((call) => ({
         kind: 'group_call',
         call,
@@ -276,6 +294,7 @@ export default function GroupChatScreen() {
         const item = timeline[i];
         if ('kind' in item) {
           if (item.kind === 'group_call') continue;
+          if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
         }
@@ -316,7 +335,7 @@ export default function GroupChatScreen() {
             mediaType: res.data.file_type,
             durationSeconds: res.data.duration_seconds ?? job.durationSeconds,
           },
-          { content: job.caption, replyToMessageId: job.replyToMessageId },
+          { content: job.caption, replyToMessageId: job.replyToMessageId, mediaGroupId: job.mediaGroupId },
         );
       } catch (err) {
         if (!uploadJobsRef.current.has(tempId)) return;
@@ -348,6 +367,9 @@ export default function GroupChatScreen() {
       if (attachments && attachments.length > 0 && chatId) {
         setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
+        // 1 batch nhiều ảnh → 1 media_group_id chung (lưới cụm trên timeline).
+        const mediaGroupId =
+          attachments.length > 1 ? newId() : undefined;
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
           const isFirst = i === 0;
@@ -360,12 +382,14 @@ export default function GroupChatScreen() {
                 ? buildReplyPreview(replyingTo, replySenderLabel)
                 : null,
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           });
           if (!tempId) continue;
           const job: UploadJob = {
             file: att,
             caption: isFirst ? caption : '',
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           };
           uploadJobsRef.current.set(tempId, job);
           // Upload tuần tự — thứ tự bubble = thứ tự wire/echo.
@@ -988,7 +1012,11 @@ export default function GroupChatScreen() {
               ref={flatListRef}
               data={timeline}
               keyExtractor={(item: GroupedItem) =>
-                'kind' in item ? `gc-${item.call.call_id}` : item.id
+                'kind' in item
+                  ? item.kind === 'media_cluster'
+                    ? `clu-${item.msgs[0]?.id ?? item.msgs.length}`
+                    : `gc-${item.call.call_id}`
+                  : item.id
               }
               onScrollToIndexFailed={handleScrollToIndexFailed}
               renderItem={({ item, index }: { item: GroupedItem; index: number }) => {
@@ -1009,6 +1037,37 @@ export default function GroupChatScreen() {
                 );
 
                 if ('kind' in item) {
+                  if (item.kind === 'media_cluster') {
+                    const clusterMine = item.msgs[0]?.sender_id === myUserId;
+                    const clusterHead = item.msgs[0];
+                    const showClusterTime =
+                      !prev ||
+                      prev.senderId !== clusterHead?.sender_id ||
+                      new Date(clusterHead?.created_at ?? 0).getTime() -
+                        new Date(prev.createdAt).getTime() >
+                        60000;
+                    return (
+                      <View
+                        style={[
+                          styles.clusterRow,
+                          clusterMine
+                            ? styles.clusterRowMine
+                            : styles.clusterRowTheirs,
+                        ]}>
+                        <MediaCluster
+                          msgs={item.msgs}
+                          isMine={clusterMine}
+                          myUserId={myUserId}
+                          busyBg={busyBg}
+                          showTime={showClusterTime}
+                          onOpen={(i) =>
+                            setLightbox({ msgs: item.msgs, index: i })
+                          }
+                          onLongPress={handleLongPress}
+                        />
+                      </View>
+                    );
+                  }
                   const gc = item.call;
                   return (
                     <GroupCallHistoryBubble
@@ -1407,6 +1466,16 @@ const styles = StyleSheet.create({
   dateSepText: {
     ...Typography.caption,
     fontSize: 11,
+  },
+  clusterRow: {
+    marginVertical: 2,
+    paddingHorizontal: Spacing.md,
+  },
+  clusterRowMine: {
+    alignItems: 'flex-end',
+  },
+  clusterRowTheirs: {
+    alignItems: 'flex-start',
   },
   newMessagesBar: {
     position: 'absolute',

@@ -34,6 +34,7 @@ import { ChatBackgroundPicker } from "@/components/chat/chat-background-picker";
 import { ChatBubble } from "@/components/chat/chat-bubble";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
+import { MediaCluster } from "@/components/chat/media-cluster";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
 import { MenuSheet } from "@/components/menu-sheet";
 import { MessageActions } from "@/components/chat/message-actions";
@@ -69,11 +70,16 @@ import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
+import { newId } from "@/utils/id";
+import {
+  clusterTimelineMedia,
+  type MediaClusterItem,
+} from "@/utils/media-cluster";
 
 type CallTimelineItem = { kind: "call"; item: CallHistoryItem };
-type GroupedItem = ChatMessage | CallTimelineItem;
+type GroupedItem = ChatMessage | MediaClusterItem | CallTimelineItem;
 
-/** Prev item cho date-separator/showTime: call → thời điểm gọi; còn lại → tin trước. */
+/** Prev item cho date-separator/showTime: call → thời điểm gọi; media_cluster → tin cuối; còn lại → tin trước. */
 function resolvePrevMsg(
   items: GroupedItem[],
   index: number,
@@ -81,6 +87,12 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ("kind" in prev) {
+    if (prev.kind === "media_cluster") {
+      const last = prev.msgs[prev.msgs.length - 1];
+      return last
+        ? { createdAt: last.created_at, senderId: last.sender_id }
+        : undefined;
+    }
     return {
       createdAt: new Date(prev.item.created_at).toISOString(),
       senderId: "",
@@ -96,6 +108,7 @@ type UploadJob = {
   durationSeconds?: number;
   caption?: string;
   replyToMessageId?: string;
+  mediaGroupId?: string;
 };
 
 // Preview reply cho bubble optimistic — content trong list tin đã giải mã
@@ -329,28 +342,35 @@ export default function ChatScreen() {
     return () => clearTimeout(timer);
   }, [flashId]);
 
-  // Timeline gộp messages + lịch sử cuộc gọi, sort theo thời gian.
+  // Timeline gộp messages (ảnh cụm media_group_id → lưới) + lịch sử cuộc gọi, sort theo thời gian.
   const timeline = useMemo<GroupedItem[]>(() => {
     const created = (g: GroupedItem): number => {
-      if ("kind" in g) return g.item.created_at;
+      if ("kind" in g) {
+        if (g.kind === "media_cluster") {
+          const first = g.msgs[0];
+          return first ? new Date(first.created_at).getTime() : 0;
+        }
+        return g.item.created_at;
+      }
       return new Date(g.created_at).getTime();
     };
     const callItems: CallTimelineItem[] = callHistory.map((item) => ({
       kind: "call",
       item,
     }));
-    return [...room.messages, ...callItems].sort(
+    return [...clusterTimelineMedia(room.messages), ...callItems].sort(
       (a, b) => created(a) - created(b),
     );
   }, [room.messages, callHistory]);
 
-  /** Index trên mảng timeline (call chiếm 1 slot) — dùng cho scrollToIndex. */
+  /** Index trên mảng timeline (cụm ảnh/call chiếm 1 slot) — dùng cho scrollToIndex. */
   const findIndexInGrouped = useCallback(
     (messageId: string): number => {
       for (let i = 0; i < timeline.length; i++) {
         const item = timeline[i];
         if ("kind" in item) {
           if (item.kind === "call") continue;
+          if (item.msgs.some((m) => m.id === messageId)) return i;
         } else if (item.id === messageId) {
           return i;
         }
@@ -391,7 +411,7 @@ export default function ChatScreen() {
             mediaType: res.data.file_type,
             durationSeconds: res.data.duration_seconds ?? job.durationSeconds,
           },
-          { content: job.caption, replyToMessageId: job.replyToMessageId },
+          { content: job.caption, replyToMessageId: job.replyToMessageId, mediaGroupId: job.mediaGroupId },
         );
       } catch (err) {
         if (!uploadJobsRef.current.has(tempId)) return; // đã bị bỏ — khỏi báo lỗi
@@ -438,6 +458,9 @@ export default function ChatScreen() {
       if (attachments && attachments.length > 0 && chatId) {
         setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
+        // 1 batch nhiều ảnh → 1 media_group_id chung (lưới cụm trên timeline).
+        const mediaGroupId =
+          attachments.length > 1 ? newId() : undefined;
 
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
@@ -453,12 +476,14 @@ export default function ChatScreen() {
                 ? buildReplyPreview(replyingTo, replySenderLabel)
                 : null,
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           });
           if (!tempId) continue;
           const job: UploadJob = {
             file: att,
             caption: isFirst ? caption : "",
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           };
           uploadJobsRef.current.set(tempId, job);
           // Upload tuần tự (await) — thứ tự bubble = thứ tự wire/echo.
@@ -1214,7 +1239,11 @@ export default function ChatScreen() {
                 ref={flatListRef}
                 data={timeline}
                 keyExtractor={(item: GroupedItem) =>
-                  "kind" in item ? `call-${item.item.id}` : item.id
+                  "kind" in item
+                    ? item.kind === "media_cluster"
+                      ? `clu-${item.msgs[0]?.id ?? item.msgs.length}`
+                      : `call-${item.item.id}`
+                    : item.id
                 }
                 onScrollToIndexFailed={handleScrollToIndexFailed}
                 renderItem={({
@@ -1250,6 +1279,38 @@ export default function ChatScreen() {
                   );
 
                   if ("kind" in item) {
+                    if (item.kind === "media_cluster") {
+                      const clusterMine =
+                        item.msgs[0]?.sender_id === myUserId;
+                      const clusterHead = item.msgs[0];
+                      const showClusterTime =
+                        !prev ||
+                        prev.senderId !== clusterHead?.sender_id ||
+                        new Date(clusterHead?.created_at ?? 0).getTime() -
+                          new Date(prev.createdAt).getTime() >
+                          60000;
+                      return (
+                        <View
+                          style={[
+                            styles.clusterRow,
+                            clusterMine
+                              ? styles.clusterRowMine
+                              : styles.clusterRowTheirs,
+                          ]}>
+                          <MediaCluster
+                            msgs={item.msgs}
+                            isMine={clusterMine}
+                            myUserId={myUserId}
+                            busyBg={busyBg}
+                            showTime={showClusterTime}
+                            onOpen={(i) =>
+                              setLightbox({ msgs: item.msgs, index: i })
+                            }
+                            onLongPress={handleLongPress}
+                          />
+                        </View>
+                      );
+                    }
                     const iso = new Date(item.item.created_at).toISOString();
                     const showDate =
                       !prev ||
@@ -1677,6 +1738,16 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
+  },
+  clusterRow: {
+    marginVertical: 2,
+    paddingHorizontal: Spacing.md,
+  },
+  clusterRowMine: {
+    alignItems: "flex-end",
+  },
+  clusterRowTheirs: {
+    alignItems: "flex-start",
   },
   dateSep: {
     flexDirection: "row",
