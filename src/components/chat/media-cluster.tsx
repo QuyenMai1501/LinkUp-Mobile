@@ -1,9 +1,15 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { Radius } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -25,8 +31,12 @@ interface Props {
 /**
  * Cụm ảnh gửi cùng lúc — lưới thích ứng (Messenger/iOS): 2 ảnh = 2 cột đầy,
  * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Giờ + trạng thái (✓/✓✓/
- * spinner) của tin CUỐI cụm hiện dạng pill overlay absolute góc phải-dưới
- * trên ô ảnh cuối (Messenger-style) — dính media, không hở dưới lưới.
+ * spinner) của tin CUỐI cụm: hàng dưới lưới, hug mép phải, dính đáy.
+ *
+ * Ô lưới dùng px CỐ ĐỊNH tính từ bề rộng màn hình (không dùng % width trong
+ * flex-wrap parent auto) — Yoga resolve % qua nhiều pass, grid height dao động
+ * (time nhảy lên đỉnh lúc đầu, gap dư sau settle). Ảnh đơn không dính vì dùng
+ * 240px cố định (message-media).
  */
 export function MediaCluster({
   msgs,
@@ -37,11 +47,16 @@ export function MediaCluster({
   onOpen,
   onLongPress,
 }: Props) {
+  const theme = useTheme();
   const { t } = useTranslation();
+  const { width: winW } = useWindowDimensions();
   const last = msgs[msgs.length - 1];
   const seen = isMine && (last.seen_by ?? []).some((uid) => uid !== myUserId);
   // ≤4 ảnh → 2 cột ô to (hết hụt cột ở cụm 2 ảnh); ≥5 → 3 cột.
-  const wide = msgs.length <= 4;
+  const cols = msgs.length <= 4 ? 2 : 3;
+  // clusterRow padding Spacing.md mỗi bên; wrap maxWidth 78%.
+  const wrapWidth = (winW - 2 * Spacing.md) * 0.78;
+  const cellSize = (wrapWidth - 3 * (cols - 1)) / cols;
 
   return (
     <View
@@ -54,36 +69,37 @@ export function MediaCluster({
           <MediaCell
             key={m.id}
             message={m}
-            wide={wide}
+            size={cellSize}
             busyBg={busyBg && !isMine}
             onPress={() => onOpen(i)}
             onLongPress={() => onLongPress?.(m)}
           />
         ))}
       </View>
-      {/* Pill overlay góc phải-dưới TRÊN ô ảnh cuối (Messenger-style) — dính
-          media 100%, không phụ thuộc hàng dưới; pointerEvents none để tap/long-press
-          vẫn qua ô ảnh. */}
       {showTime || isMine ? (
-        <View style={styles.timeOverlay} pointerEvents="none">
+        <View style={styles.timeRow}>
           {showTime && (
-            <ThemedText style={styles.timeOverlayText}>
+            <ThemedText
+              style={[styles.time, { color: theme.textSecondary }]}>
               {formatChatTime(last.created_at, t)}
             </ThemedText>
           )}
           {isMine && last.failed ? (
-            <ThemedText style={[styles.timeOverlayText, { color: '#F87171' }]}>
+            <ThemedText
+              style={[styles.time, { color: '#F87171' }]}>
               {t('chat.sendFailed')}
             </ThemedText>
           ) : isMine && last.uploading ? (
+            // Bọc khung cố định — Android ignore numeric size → spinner
+            // default ~20dp sẽ phình chiều cao timeRow.
             <View style={styles.spinnerBox}>
-              <ActivityIndicator size={10} color="#FFF" />
+              <ActivityIndicator size={10} color={theme.textSecondary} />
             </View>
           ) : isMine && !last.sending ? (
             <ThemedText
               style={[
-                styles.timeOverlayText,
-                { color: seen ? '#A5F3FC' : '#FFF' },
+                styles.time,
+                { color: seen ? '#A5F3FC' : theme.textSecondary },
               ]}>
               {seen ? '✓✓' : '✓'}
             </ThemedText>
@@ -97,14 +113,14 @@ export function MediaCluster({
 /** 1 ô lưới: ảnh vuông cover crop; loading/failed = ô xám + trạng thái. */
 function MediaCell({
   message,
-  wide,
+  size,
   busyBg,
   onPress,
   onLongPress,
 }: {
   message: ChatMessage;
-  /** true = cột 48.5% (lưới 2 cột), false = cột 31% (lưới 3 cột). */
-  wide: boolean;
+  /** Cạnh ô vuông (px cố định — không dùng % + aspectRatio trong wrap). */
+  size: number;
   busyBg: boolean;
   onPress: () => void;
   onLongPress: () => void;
@@ -119,7 +135,7 @@ function MediaCell({
       delayLongPress={400}
       style={[
         styles.cell,
-        wide ? styles.cellWide : styles.cellNarrow,
+        { width: size, height: size },
         { backgroundColor: theme.bgSecondary },
         busyBg && {
           borderWidth: 1,
@@ -157,42 +173,27 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   cell: {
-    aspectRatio: 1,
     borderRadius: Radius.md,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // 2 cột (2–4 ảnh): ô ~48.5% — to, hết hụt cột ở cụm 2 ảnh.
-  cellWide: {
-    width: '48.5%',
-  },
-  // 3 cột (5+ ảnh): ô ~31%.
-  cellNarrow: {
-    width: '31%',
-  },
-  // Pill overlay absolute trong wrap — anchor góc phải-dưới trên ô ảnh cuối.
-  timeOverlay: {
-    position: 'absolute',
-    right: 6,
-    bottom: 6,
+  timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Hug mép phải-dưới lưới — dính đáy 0px, y hệt bubble 1 ảnh.
+    justifyContent: 'flex-end',
     gap: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  timeOverlayText: {
-    fontSize: 10,
-    lineHeight: 12,
-    color: '#FFF',
   },
   spinnerBox: {
     width: 12,
     height: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  time: {
+    fontSize: 10,
+    // lineHeight khớp cỡ chữ — ThemedText default kế thừa lineHeight 24.
+    lineHeight: 12,
   },
 });
