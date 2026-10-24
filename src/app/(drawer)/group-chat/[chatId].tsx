@@ -1521,7 +1521,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   clusterRow: {
-    marginVertical: 2,
+    // Thoáng giữa các cụm ảnh — bubble thường vẫn marginVertical 2 (parity Web).
+    marginVertical: 8,
     paddingHorizontal: Spacing.md,
   },
   clusterRowMine: {
