@@ -9,6 +9,7 @@ import type {
   SendMessageOptions,
 } from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
+import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { ChatSocket } from './useChatSocket';
 import type { ChatE2E } from './useChatE2E';
 
@@ -739,6 +740,10 @@ export function useChatRoom({
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === tempId);
         if (idx < 0) return prev;
+        // Ghi file local theo mediaId — remount sau echo vẫn hiển thị local, không re-download.
+        if (prev[idx].media_uri) {
+          rememberLocalMediaUri(uploaded.mediaId, prev[idx].media_uri!);
+        }
         const next = [...prev];
         next[idx] = {
           ...next[idx],

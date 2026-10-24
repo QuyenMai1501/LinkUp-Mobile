@@ -12,6 +12,7 @@ import type {
   UploadedMediaInfo,
 } from '@/hooks/useChatRoom';
 import type { GroupChatSocket } from './useGroupChatSocket';
+import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
@@ -692,6 +693,10 @@ export function useGroupChatRoom({
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === tempId);
         if (idx < 0) return prev;
+        // Ghi file local theo mediaId — remount sau echo vẫn hiển thị local, không re-download.
+        if (prev[idx].media_uri) {
+          rememberLocalMediaUri(uploaded.mediaId, prev[idx].media_uri!);
+        }
         const next = [...prev];
         next[idx] = {
           ...next[idx],

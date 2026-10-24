@@ -71,6 +71,7 @@ import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
 import { newId } from "@/utils/id";
+import { mapWithConcurrency } from "@/utils/concurrency";
 import {
   clusterTimelineMedia,
   type MediaClusterItem,
@@ -462,11 +463,12 @@ export default function ChatScreen() {
         const mediaGroupId =
           attachments.length > 1 ? newId() : undefined;
 
+        // PHASE A (sync, trước await đầu tiên): append bubble optimistic TOÀN
+        // BỘ batch → lưới cụm hiện đủ ngay với ô loading, không hiện dần.
+        const pending: { tempId: string; job: UploadJob }[] = [];
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
           const isFirst = i === 0;
-          // Bubble hiện NGAY với file local; upload chạy nền rồi mới gửi WS
-          // (completeMediaUpload lo encrypt caption + append hàng đợi echo).
           const tempId = room.beginMediaUpload({
             localUri: att.uri,
             mediaType: att.type,
@@ -486,8 +488,57 @@ export default function ChatScreen() {
             mediaGroupId,
           };
           uploadJobsRef.current.set(tempId, job);
-          // Upload tuần tự (await) — thứ tự bubble = thứ tự wire/echo.
-          await runUpload(tempId, job);
+          pending.push({ tempId, job });
+        }
+
+        // PHASE B: upload song song (cap 3) — kết quả GIỮ THỨ TỰ chọn.
+        const uploads = await mapWithConcurrency(
+          pending,
+          3,
+          ({ tempId, job }) =>
+            uploadChatMedia(job.file, chatId, job.durationSeconds).then(
+              (res) => ({ tempId, res }),
+            ),
+        );
+
+        // PHASE C: gửi WS tuần tự ĐÚNG thứ tự chọn — FIFO echo khớp, lưới
+        // không nhảy thứ tự. Job lỗi giữ lại để retry qua handleRetry.
+        let failedCount = 0;
+        for (let i = 0; i < uploads.length; i++) {
+          const r = uploads[i];
+          const { tempId, job } = pending[i];
+          if (r.status === "fulfilled") {
+            if (!uploadJobsRef.current.has(tempId)) continue; // đã bị discard
+            uploadJobsRef.current.delete(tempId);
+            const { res } = r.value;
+            await room.completeMediaUpload(
+              tempId,
+              {
+                mediaId: res.data.id,
+                mediaUri: res.data.file_uri,
+                mediaType: res.data.file_type,
+                durationSeconds:
+                  res.data.duration_seconds ?? job.durationSeconds,
+              },
+              {
+                content: job.caption,
+                replyToMessageId: job.replyToMessageId,
+                mediaGroupId: job.mediaGroupId,
+              },
+            );
+          } else if (uploadJobsRef.current.has(tempId)) {
+            failedCount += 1;
+            room.failUpload(tempId);
+          }
+        }
+        if (failedCount > 0) {
+          Alert.alert(
+            t("common.error"),
+            t("chat.uploadFailedCount", {
+              count: failedCount,
+              total: pending.length,
+            }),
+          );
         }
         setReplyingTo(null);
         setTimeout(() => {
@@ -510,7 +561,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, encryption, replyingTo, replySenderLabel, forwardDraft, chatId, t, runUpload],
+    [room, encryption, replyingTo, replySenderLabel, forwardDraft, chatId, t],
   );
 
   const handleTyping = useCallback(
