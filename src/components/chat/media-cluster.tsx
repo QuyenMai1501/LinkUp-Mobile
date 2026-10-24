@@ -176,5 +176,8 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 10,
+    // lineHeight khớp cỡ chữ — ThemedText default kế thừa lineHeight 24
+    // làm khung dòng cao ~24px → hở lớn giữa lưới ảnh và giờ/✓.
+    lineHeight: 12,
   },
 });
