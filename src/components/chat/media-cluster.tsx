@@ -23,9 +23,9 @@ interface Props {
 }
 
 /**
- * Cụm ảnh gửi cùng lúc — lưới 3 cột ô vuông cover crop (kiểu Zalo):
- * 2 ảnh = 1 hàng 2 ô, 3 = 1 hàng 3, 4 = 3+1, hiện đủ số ảnh. Hàng nhỏ dưới
- * lưới: giờ + trạng thái (✓/✓✓/spinner) của tin CUỐI cụm.
+ * Cụm ảnh gửi cùng lúc — lưới thích ứng (Messenger/iOS): 2 ảnh = 2 cột đầy,
+ * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Hàng nhỏ dưới lưới: giờ +
+ * trạng thái (✓/✓✓/spinner) của tin CUỐI cụm.
  */
 export function MediaCluster({
   msgs,
@@ -40,6 +40,8 @@ export function MediaCluster({
   const { t } = useTranslation();
   const last = msgs[msgs.length - 1];
   const seen = isMine && (last.seen_by ?? []).some((uid) => uid !== myUserId);
+  // ≤4 ảnh → 2 cột ô to (hết hụt cột ở cụm 2 ảnh); ≥5 → 3 cột.
+  const wide = msgs.length <= 4;
 
   return (
     <View
@@ -52,6 +54,7 @@ export function MediaCluster({
           <MediaCell
             key={m.id}
             message={m}
+            wide={wide}
             busyBg={busyBg && !isMine}
             onPress={() => onOpen(i)}
             onLongPress={() => onLongPress?.(m)}
@@ -90,11 +93,14 @@ export function MediaCluster({
 /** 1 ô lưới: ảnh vuông cover crop; loading/failed = ô xám + trạng thái. */
 function MediaCell({
   message,
+  wide,
   busyBg,
   onPress,
   onLongPress,
 }: {
   message: ChatMessage;
+  /** true = cột 48.5% (lưới 2 cột), false = cột 31% (lưới 3 cột). */
+  wide: boolean;
   busyBg: boolean;
   onPress: () => void;
   onLongPress: () => void;
@@ -109,6 +115,7 @@ function MediaCell({
       delayLongPress={400}
       style={[
         styles.cell,
+        wide ? styles.cellWide : styles.cellNarrow,
         { backgroundColor: theme.bgSecondary },
         busyBg && {
           borderWidth: 1,
@@ -146,12 +153,19 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   cell: {
-    width: '31%',
     aspectRatio: 1,
     borderRadius: Radius.md,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // 2 cột (2–4 ảnh): ô ~48.5% — to, hết hụt cột ở cụm 2 ảnh.
+  cellWide: {
+    width: '48.5%',
+  },
+  // 3 cột (5+ ảnh): ô ~31%.
+  cellNarrow: {
+    width: '31%',
   },
   timeRow: {
     flexDirection: 'row',
