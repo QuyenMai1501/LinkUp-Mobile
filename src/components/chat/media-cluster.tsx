@@ -24,8 +24,9 @@ interface Props {
 
 /**
  * Cụm ảnh gửi cùng lúc — lưới thích ứng (Messenger/iOS): 2 ảnh = 2 cột đầy,
- * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Hàng nhỏ dưới lưới: giờ +
- * trạng thái (✓/✓✓/spinner) của tin CUỐI cụm.
+ * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Giờ + trạng thái (✓/✓✓/
+ * spinner) của tin CUỐI cụm hiện dạng pill overlay absolute góc phải-dưới
+ * trên ô ảnh cuối (Messenger-style) — dính media, không hở dưới lưới.
  */
 export function MediaCluster({
   msgs,
@@ -36,7 +37,6 @@ export function MediaCluster({
   onOpen,
   onLongPress,
 }: Props) {
-  const theme = useTheme();
   const { t } = useTranslation();
   const last = msgs[msgs.length - 1];
   const seen = isMine && (last.seen_by ?? []).some((uid) => uid !== myUserId);
@@ -61,29 +61,29 @@ export function MediaCluster({
           />
         ))}
       </View>
+      {/* Pill overlay góc phải-dưới TRÊN ô ảnh cuối (Messenger-style) — dính
+          media 100%, không phụ thuộc hàng dưới; pointerEvents none để tap/long-press
+          vẫn qua ô ảnh. */}
       {showTime || isMine ? (
-        <View style={styles.timeRow}>
+        <View style={styles.timeOverlay} pointerEvents="none">
           {showTime && (
-            <ThemedText
-              style={[styles.time, { color: theme.textSecondary }]}>
+            <ThemedText style={styles.timeOverlayText}>
               {formatChatTime(last.created_at, t)}
             </ThemedText>
           )}
           {isMine && last.failed ? (
-            <ThemedText style={[styles.time, { color: '#F87171' }]}>
+            <ThemedText style={[styles.timeOverlayText, { color: '#F87171' }]}>
               {t('chat.sendFailed')}
             </ThemedText>
           ) : isMine && last.uploading ? (
-            // Bọc khung cố định — Android ignore numeric size → spinner
-            // default ~20dp sẽ phình chiều cao timeRow.
             <View style={styles.spinnerBox}>
-              <ActivityIndicator size={10} color={theme.textSecondary} />
+              <ActivityIndicator size={10} color="#FFF" />
             </View>
           ) : isMine && !last.sending ? (
             <ThemedText
               style={[
-                styles.time,
-                { color: seen ? '#A5F3FC' : theme.textSecondary },
+                styles.timeOverlayText,
+                { color: seen ? '#A5F3FC' : '#FFF' },
               ]}>
               {seen ? '✓✓' : '✓'}
             </ThemedText>
@@ -171,23 +171,28 @@ const styles = StyleSheet.create({
   cellNarrow: {
     width: '31%',
   },
-  timeRow: {
+  // Pill overlay absolute trong wrap — anchor góc phải-dưới trên ô ảnh cuối.
+  timeOverlay: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    // Hug góc phải-dưới lưới — dán sát y hệt bubble 1 ảnh (chat-bubble timeRow).
-    justifyContent: 'flex-end',
     gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  timeOverlayText: {
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#FFF',
   },
   spinnerBox: {
     width: 12,
     height: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  time: {
-    fontSize: 10,
-    // lineHeight khớp cỡ chữ — ThemedText default kế thừa lineHeight 24
-    // làm khung dòng cao ~24px → hở lớn giữa lưới ảnh và giờ/✓.
-    lineHeight: 12,
   },
 });
