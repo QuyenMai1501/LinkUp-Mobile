@@ -74,7 +74,11 @@ export function MediaCluster({
               {t('chat.sendFailed')}
             </ThemedText>
           ) : isMine && last.uploading ? (
-            <ActivityIndicator size={10} color={theme.textSecondary} />
+            // Bọc khung cố định — Android ignore numeric size → spinner
+            // default ~20dp sẽ phình chiều cao timeRow.
+            <View style={styles.spinnerBox}>
+              <ActivityIndicator size={10} color={theme.textSecondary} />
+            </View>
           ) : isMine && !last.sending ? (
             <ThemedText
               style={[
@@ -170,9 +174,15 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Hug góc phải-dưới lưới — dán sát y hệt bubble 1 ảnh (chat-bubble timeRow).
+    justifyContent: 'flex-end',
     gap: 4,
-    marginTop: 2,
-    paddingHorizontal: 4,
+  },
+  spinnerBox: {
+    width: 12,
+    height: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   time: {
     fontSize: 10,
