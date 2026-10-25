@@ -114,6 +114,15 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Components: `components/emoji-picker.tsx`, `giphy-gif-picker.tsx`
 - API: `api/giphy.ts`, `api/emojifyi.ts` (emoji từ server) · Hooks: `use-server-emojis` · Utils: `utils/emojis.ts`
 
+### Partner Hub (quảng cáo / ads management)
+- Screens: `app/(drawer)/partner/` — `_layout.tsx` (Stack con, `headerShown:false, swipeEnabled:false`), `packages.tsx` (danh sách gói + chọn radio + thanh toán VNPay "Coming Soon"/gói free active, subscribe → `signIn({user, tokens})` lưu JWT role PARTNER mới → `replace('/partner/dashboard')`, `useFocusEffect` refetch, guard thiếu token → `sessionError`), `dashboard.tsx` (hero Remaining + progress bar spent/total, grid 6 stat card, card subscription, pull-to-refresh + CTA), `ads.tsx` (FlatList phân trang 20/trang + `onEndReached`, search debounce 400ms, filter chips, pull-to-refresh, focus refetch, card thumb 56 + badge + stats + actions pause/play/edit/analytics/trash với Alert confirm), `ad-form.tsx` (mode theo `?id=`; edit prefill `getMyAds().find()` + banner status/rejection_reason; create: media picker images+videos, format chips gate theo capabilities gói, gender/age/locations, dates → RFC3339, validation inline red khi `tried`, footer save), `ad-analytics.tsx` (header card + budget hero (remaining/total/daily + progress) + grid 2×2 metrics + rates CTR/CPC/CPM + video card)
+- Components: `components/sponsored-ad-card.tsx` — card "Tài trợ" (badge, expo-image, CTA → `trackAdAction(id,'click')` fire-and-forget + `Linking.openURL(target_url)`); tích hợp `components/feed.tsx`: `getFeedAds()` 1 lần khi mount (async `.then(setState)` — pass lint react-hooks/set-state-in-effect), `rows` memo union `FeedRow` chèn ad **trước** post khi `idx>0 && (idx+1)%6===0` xoay vòng `feedAds[adSlot % len]`, `keyExtractor` ad → `ad-${slot}`, impression dedupe 1 lần/session qua `trackedAdsRef` trong `onViewableItemsChanged` (cùng viewability threshold 50%/2s với post)
+- API: `api/partner.ts` (`getOverview/getAdAnalytics/getMyAds` unwrap `{data}`; `createAd/updateAd` → **multipart flat fields** `buildAdFormData` (không nhận JSON `data`); `getFeedAds` → `GET /api/customer/feed`; `trackAdAction(adId, 'impression'|'click')`), `api/package.ts` (`getPackages/getMySubscription/subscribe`, 404 `package.NOT_SUBSCRIBED`)
+- Types: `types/partner.ts` (AdPerformance keys khớp DTO: `click_through_rate/cost_per_click/cost_per_thousand_impressions`) · Constants: `constants/ad-status.ts` (`AD_STATUS_BADGES` hex y hệt web `Ads.module.css`) · Utils: `utils/format.ts` (formatVnd/formatCount/formatPercent/formatDate, `language`-aware), `apiErrorMessage` trong `api/client.ts`
+- Entry: `settings/index.tsx` role-gated qua `decodeToken(accessToken)?.role` (USER → `/partner/packages`, PARTNER+ → `/partner/dashboard`, đặt trước deactivate); screen đăng ký `(drawer)/_layout.tsx` (drawer menu custom `NAV_ITEMS` **không hiện** Partner)
+- i18n (vi+en): `partner.*`, `packages.*`, `payment.*`, `settings.items.partnerBecome|partnerHub`, `feed.sponsored`/`feed.sponsoredCta`
+- Chú ý: ad endpoints trả wrapper `{data}` (list nhánh ADMIN không có total); server `RequireRoles(SUPER_ADMIN, ADMIN, PARTNER)`; không `GET /ads-management/:id` (edit prefill qua list); CTR = clicks/impressions×100; web gửi `datetime-local` bị server ignore → mobile dùng `toISOString()`; **không thêm dependency mới**
+
 ### Theme / Giao diện / i18n
 - Tokens: `constants/colors.ts`, `spacing.ts`, `typography.ts`, `icon-map.ts` — **`constants/theme.ts` là shim legacy, không thêm token mới**
 - Contexts: `contexts/theme-context.tsx` (`ThemeModeProvider`/`useThemeMode`), `contexts/language-context.tsx` (`LanguageProvider`, mặc định `vi`)
@@ -132,7 +141,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 
 ## Feed parity với Web (Phase 1→8)
 
-Scope đã chốt: **không ads, không realtime, không story editor** — backend/web không sửa gì, chỉ port giao diện + hành vi sang mobile.
+Scope đã chốt: **không realtime, không story editor** — backend/web không sửa gì, chỉ port giao diện + hành vi sang mobile. (Ads sponsored đã port sau đó ở **Partner Hub Phase 7** — xem mục Partner Hub.)
 
 | Phase | Commit | Nội dung |
 |---|---|---|

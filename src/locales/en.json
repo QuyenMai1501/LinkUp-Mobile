@@ -151,6 +151,8 @@
   },
   "feed": {
     "loadError": "Failed to load data",
+    "sponsored": "Sponsored",
+    "sponsoredCta": "Learn more",
     "endOfFeed": "You've reached the end of the feed.",
     "emptyTitle": "No posts yet",
     "emptySubtitle": "Add friends and follow people to see posts.",
