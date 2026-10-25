@@ -581,6 +581,8 @@
     "ads": {
       "title": "Quảng cáo của tôi",
       "create": "Tạo quảng cáo",
+      "pause": "Tạm dừng",
+      "resume": "Tiếp tục",
       "edit": "Chỉnh sửa",
       "delete": "Xóa",
       "deleteConfirm": "Bạn có chắc muốn xóa quảng cáo này?",

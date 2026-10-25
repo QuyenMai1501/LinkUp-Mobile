@@ -581,6 +581,8 @@
     "ads": {
       "title": "My Ads",
       "create": "Create Ad",
+      "pause": "Pause",
+      "resume": "Resume",
       "edit": "Edit",
       "delete": "Delete",
       "deleteConfirm": "Are you sure you want to delete this ad?",

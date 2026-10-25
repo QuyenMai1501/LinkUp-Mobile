@@ -190,6 +190,13 @@ export default function PartnerDashboardScreen() {
           </View>
         ))}
 
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/partner/ads' as never)}>
+          <ThemedText style={styles.ctaBtnText}>{t('partner.ads.title')}</ThemedText>
+        </TouchableOpacity>
+
         {o.subscription_name ? (
           <ThemedView
             style={[
@@ -276,4 +283,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statValue: { fontSize: 17, fontWeight: '700' },
+  ctaBtn: {
+    height: 46,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });
