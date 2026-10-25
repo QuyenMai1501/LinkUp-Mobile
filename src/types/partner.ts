@@ -65,7 +65,7 @@ export interface AdPerformance {
   unique_reach: number;
   clicks: number;
   interactions: number;
-  ctr: number;
+  click_through_rate: number;
   cost_per_click: number;
   cost_per_thousand_impressions: number;
   video_starts?: number;

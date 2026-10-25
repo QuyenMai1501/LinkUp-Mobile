@@ -42,19 +42,43 @@ export const getMyAds = async (
   };
 };
 
-/**
- * Tạo ad — multipart `data` (JSON) + `media` (file). Không đi qua `request()`
- * vì nó luôn set Content-Type: application/json; và expo/fetch không nhận
- * part {uri,name,type} — phải đọc Blob thật (cùng pattern uploadChatMedia).
- */
-export const createAd = async (
-  input: CreateAdInput,
-  media?: AdMediaFile,
-): Promise<{ id: string }> => {
-  const token = await tokenStorage.getAccessToken();
+type AdFormInput = CreateAdInput | UpdateAdInput;
 
-  const formData = new FormData();
-  formData.append('data', JSON.stringify(input));
+/**
+ * Server CreateAd/UpdateAd đọc PostForm phẳng (title, content, budget, ...)
+ * — KHÔNG nhận JSON body. target_locations phải là JSON string.
+ */
+function buildAdFormData(input: AdFormInput): FormData {
+  const fd = new FormData();
+  fd.append('title', input.title ?? '');
+  fd.append('content', input.content ?? '');
+  fd.append('target_url', input.target_url ?? '');
+  fd.append('budget', String(input.budget ?? 0));
+  fd.append('daily_budget', String(input.daily_budget ?? 0));
+  fd.append('cpm_price', String(input.cpm_price ?? 0));
+  fd.append('cpc_price', String(input.cpc_price ?? 0));
+  fd.append('max_impressions', String(input.max_impressions ?? 0));
+  if ('format' in input && input.format) fd.append('format', input.format);
+  if (input.started_at) fd.append('started_at', input.started_at);
+  if (input.expires_at) fd.append('expires_at', input.expires_at);
+  if (input.target_gender) fd.append('target_gender', input.target_gender);
+  if (input.target_age_min !== undefined)
+    fd.append('target_age_min', String(input.target_age_min));
+  if (input.target_age_max !== undefined)
+    fd.append('target_age_max', String(input.target_age_max));
+  if (input.target_locations?.length)
+    fd.append('target_locations', JSON.stringify(input.target_locations));
+  return fd;
+}
+
+async function submitAdMultipart(
+  path: string,
+  method: string,
+  input: AdFormInput,
+  media?: AdMediaFile,
+): Promise<{ message?: string; data?: unknown }> {
+  const token = await tokenStorage.getAccessToken();
+  const formData = buildAdFormData(input);
   if (media) {
     const raw = await fetch(media.uri);
     if (!raw.ok) throw new Error(`HTTP ${raw.status}`);
@@ -62,26 +86,34 @@ export const createAd = async (
     formData.append('media', blob, media.name);
   }
 
-  const res = await fetch(`${API_BASE}/ads-management`, {
-    method: 'POST',
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
+  const body = await res.json().catch(() => null);
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
     const err = new ApiError(body?.error || body?.message || `HTTP ${res.status}`);
     err.code = body?.error;
     err.serverMessage = body?.message;
     throw err;
   }
-  return res.json();
-};
+  return body;
+}
 
-export const updateAd = (id: string, input: UpdateAdInput) =>
-  request<unknown>(`/ads-management/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  });
+/** Tạo ad — multipart flat fields + media (chỉ CreateAd xử lý file). */
+export const createAd = (
+  input: CreateAdInput,
+  media?: AdMediaFile,
+): Promise<{ message?: string; data?: unknown }> =>
+  submitAdMultipart('/ads-management', 'POST', input, media);
+
+/** Sửa ad — multipart flat fields (server UpdateAd không nhận file media). */
+export const updateAd = (
+  id: string,
+  input: UpdateAdInput,
+): Promise<{ message?: string; data?: unknown }> =>
+  submitAdMultipart(`/ads-management/${id}`, 'PATCH', input);
 
 export const deleteAd = (id: string) =>
   request<unknown>(`/ads-management/${id}`, { method: 'DELETE' });
