@@ -12,6 +12,7 @@ import type {
   UploadedMediaInfo,
 } from '@/hooks/useChatRoom';
 import type { GroupChatSocket } from './useGroupChatSocket';
+import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
@@ -88,7 +89,7 @@ export interface GroupChatRoom {
   completeMediaUpload: (
     tempId: string,
     uploaded: UploadedMediaInfo,
-    opts?: { content?: string; replyToMessageId?: string },
+    opts?: { content?: string; replyToMessageId?: string; mediaGroupId?: string },
   ) => Promise<void>;
   failUpload: (tempId: string) => void;
   markSending: (tempId: string) => void;
@@ -598,6 +599,7 @@ export function useGroupChatRoom({
         media_type: opts?.gifUrl ? 'image/gif' : opts?.mediaType ?? null,
         duration_seconds: opts?.durationSeconds ?? null,
         reply_to_message_id: opts?.replyToMessageId ?? null,
+        media_group_id: opts?.mediaGroupId ?? null,
         forwarded_from: opts?.forwardedFrom ?? null,
         is_anonymized: false,
         sending: true,
@@ -664,6 +666,7 @@ export function useGroupChatRoom({
         duration_seconds: opts.durationSeconds ?? null,
         reply_to: opts.replyTo ?? null,
         reply_to_message_id: opts.replyToMessageId ?? null,
+        media_group_id: opts.mediaGroupId ?? null,
         is_anonymized: false,
         sending: true,
         uploading: true,
@@ -681,7 +684,7 @@ export function useGroupChatRoom({
     async (
       tempId: string,
       uploaded: UploadedMediaInfo,
-      opts?: { content?: string; replyToMessageId?: string },
+      opts?: { content?: string; replyToMessageId?: string; mediaGroupId?: string },
     ): Promise<void> => {
       const wireChatId =
         mediaUploadChatsRef.current.get(tempId) ?? chatIdRef.current ?? '';
@@ -690,6 +693,10 @@ export function useGroupChatRoom({
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === tempId);
         if (idx < 0) return prev;
+        // Ghi file local theo mediaId — remount sau echo vẫn hiển thị local, không re-download.
+        if (prev[idx].media_uri) {
+          rememberLocalMediaUri(uploaded.mediaId, prev[idx].media_uri!);
+        }
         const next = [...prev];
         next[idx] = {
           ...next[idx],
@@ -698,6 +705,8 @@ export function useGroupChatRoom({
           media_type: uploaded.mediaType,
           duration_seconds: uploaded.durationSeconds ?? next[idx].duration_seconds,
           content: opts?.content ?? next[idx].content,
+          media_group_id:
+            opts?.mediaGroupId ?? next[idx].media_group_id ?? null,
           uploading: false,
           sending: true,
         };
@@ -708,7 +717,7 @@ export function useGroupChatRoom({
         chat_id: wireChatId,
         content: opts?.content ?? '',
         media_id: uploaded.mediaId,
-        media_group_id: null,
+        media_group_id: opts?.mediaGroupId ?? null,
         gif_url: null,
         shared_post_id: null,
         reply_to_message_id: opts?.replyToMessageId ?? null,

@@ -9,6 +9,7 @@ import type {
   SendMessageOptions,
 } from '@/types/chat';
 import { useTranslation } from '@/hooks/useTranslation';
+import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { ChatSocket } from './useChatSocket';
 import type { ChatE2E } from './useChatE2E';
 
@@ -104,6 +105,8 @@ export interface BeginMediaUploadOptions {
   durationSeconds?: number;
   replyTo?: ReplyPreview | null;
   replyToMessageId?: string;
+  // Gộp cụm ảnh gửi cùng lúc (client sinh 1 id cho cả batch).
+  mediaGroupId?: string;
 }
 
 // Kết quả upload server trả về, ghi vào bubble rồi mới gửi wire.
@@ -136,7 +139,7 @@ export interface ChatRoom {
   completeMediaUpload: (
     tempId: string,
     uploaded: UploadedMediaInfo,
-    opts?: { content?: string; replyToMessageId?: string },
+    opts?: { content?: string; replyToMessageId?: string; mediaGroupId?: string },
   ) => Promise<void>;
   // Upload thất bại → bubble failed (job do caller giữ để retry upload lại).
   failUpload: (tempId: string) => void;
@@ -626,6 +629,7 @@ export function useChatRoom({
         duration_seconds: opts?.durationSeconds ?? null,
         is_anonymized: false,
         sending: true,
+        media_group_id: opts?.mediaGroupId ?? null,
         forwarded_from: opts?.forwardedFrom ?? null,
         created_at: new Date().toISOString(),
       };
@@ -654,6 +658,7 @@ export function useChatRoom({
         if (e2eEncrypted) wire.e2e_version = 1;
         wire.emoji_id = opts?.emojiId;
         wire.media_id = opts?.mediaId;
+        wire.media_group_id = opts?.mediaGroupId ?? null;
         wire.gif_url = opts?.gifUrl ?? null;
         wire.reply_to_message_id = opts?.replyToMessageId;
         // Server lấy duration từ media record (payload này chỉ để parity với Web).
@@ -709,6 +714,7 @@ export function useChatRoom({
         duration_seconds: opts.durationSeconds ?? null,
         reply_to: opts.replyTo ?? null,
         reply_to_message_id: opts.replyToMessageId ?? null,
+        media_group_id: opts.mediaGroupId ?? null,
         is_anonymized: false,
         sending: true,
         uploading: true,
@@ -726,7 +732,7 @@ export function useChatRoom({
     async (
       tempId: string,
       uploaded: UploadedMediaInfo,
-      opts?: { content?: string; replyToMessageId?: string },
+      opts?: { content?: string; replyToMessageId?: string; mediaGroupId?: string },
     ): Promise<void> => {
       const wireChatId = mediaUploadChatsRef.current.get(tempId) ?? chatIdRef.current ?? '';
       mediaUploadChatsRef.current.delete(tempId);
@@ -734,6 +740,10 @@ export function useChatRoom({
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === tempId);
         if (idx < 0) return prev;
+        // Ghi file local theo mediaId — remount sau echo vẫn hiển thị local, không re-download.
+        if (prev[idx].media_uri) {
+          rememberLocalMediaUri(uploaded.mediaId, prev[idx].media_uri!);
+        }
         const next = [...prev];
         next[idx] = {
           ...next[idx],
@@ -742,6 +752,8 @@ export function useChatRoom({
           media_type: uploaded.mediaType,
           duration_seconds: uploaded.durationSeconds ?? next[idx].duration_seconds,
           content: opts?.content ?? next[idx].content,
+          media_group_id:
+            opts?.mediaGroupId ?? next[idx].media_group_id ?? null,
           uploading: false,
           sending: true,
         };
@@ -768,6 +780,7 @@ export function useChatRoom({
       };
       if (e2eEncrypted) wire.e2e_version = 1;
       wire.media_id = uploaded.mediaId;
+      wire.media_group_id = opts?.mediaGroupId ?? null;
       wire.gif_url = null;
       wire.reply_to_message_id = opts?.replyToMessageId;
       if (uploaded.durationSeconds) wire.duration_seconds = uploaded.durationSeconds;

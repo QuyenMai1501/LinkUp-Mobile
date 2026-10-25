@@ -27,8 +27,8 @@ import {
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
+import { MediaCluster } from '@/components/chat/media-cluster';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
-import { MediaStack } from '@/components/chat/media-stack';
 import { MessageActions } from '@/components/chat/message-actions';
 import {
   SystemMessage,
@@ -51,10 +51,12 @@ import type { ChatMessage, ReplyPreview } from '@/types/chat';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatConversation } from '@/types/group-chat';
 import { formatChatDate } from '@/utils/chat';
+import { newId } from '@/utils/id';
+import { mapWithConcurrency } from '@/utils/concurrency';
 import {
-  groupMediaTimeline,
-  type MediaGroupItem,
-} from '@/utils/chatMediaGroup';
+  clusterTimelineMedia,
+  type MediaClusterItem,
+} from '@/utils/media-cluster';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 
 /** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
@@ -63,20 +65,21 @@ interface GroupCallTimelineItem {
   call: GroupCallHistoryItem;
 }
 
-type GroupedItem = ChatMessage | MediaGroupItem | GroupCallTimelineItem;
+type GroupedItem = ChatMessage | MediaClusterItem | GroupCallTimelineItem;
 
 /** created timestamp ms của mọi kind item trong timeline. */
 function itemCreatedMs(item: GroupedItem): number {
   if ('kind' in item) {
-    if (item.kind === 'group_call') {
-      return new Date(item.call.created_at).getTime();
+    if (item.kind === 'media_cluster') {
+      const first = item.msgs[0];
+      return first ? new Date(first.created_at).getTime() : 0;
     }
-    return new Date(item.msgs[0]?.created_at ?? 0).getTime();
+    return new Date(item.call.created_at).getTime();
   }
   return new Date(item.created_at).getTime();
 }
 
-/** Prev item cho date-separator/showTime: group media → tin cuối. */
+/** Prev item cho date-separator/showTime: media_cluster → tin cuối; group_call → caller; còn lại → tin trước. */
 function resolvePrevMsg(
   items: GroupedItem[],
   index: number,
@@ -84,13 +87,13 @@ function resolvePrevMsg(
   const prev = items[index - 1];
   if (!prev) return undefined;
   if ('kind' in prev) {
-    if (prev.kind === 'group_call') {
-      return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
+    if (prev.kind === 'media_cluster') {
+      const last = prev.msgs[prev.msgs.length - 1];
+      return last
+        ? { createdAt: last.created_at, senderId: last.sender_id }
+        : undefined;
     }
-    const last = prev.msgs[prev.msgs.length - 1];
-    return last
-      ? { createdAt: last.created_at, senderId: last.sender_id }
-      : undefined;
+    return { createdAt: prev.call.created_at, senderId: prev.call.caller_id };
   }
   return { createdAt: prev.created_at, senderId: prev.sender_id };
 }
@@ -101,6 +104,7 @@ type UploadJob = {
   durationSeconds?: number;
   caption?: string;
   replyToMessageId?: string;
+  mediaGroupId?: string;
 };
 
 function buildReplyPreview(m: ChatMessage, senderLabel: string): ReplyPreview {
@@ -268,7 +272,7 @@ export default function GroupChatScreen() {
   const { byId: serverEmojis } = useServerEmojis();
 
   const timeline = useMemo<GroupedItem[]>(() => {
-    const msgItems = groupMediaTimeline(room.messages);
+    const msgItems = clusterTimelineMedia(room.messages);
     if (room.callHistory.length === 0) return msgItems;
     // Xen call-history bubbles vào timeline theo created_at (mirror Web useChatTimeline).
     const merged: GroupedItem[] = [
@@ -332,7 +336,7 @@ export default function GroupChatScreen() {
             mediaType: res.data.file_type,
             durationSeconds: res.data.duration_seconds ?? job.durationSeconds,
           },
-          { content: job.caption, replyToMessageId: job.replyToMessageId },
+          { content: job.caption, replyToMessageId: job.replyToMessageId, mediaGroupId: job.mediaGroupId },
         );
       } catch (err) {
         if (!uploadJobsRef.current.has(tempId)) return;
@@ -364,6 +368,12 @@ export default function GroupChatScreen() {
       if (attachments && attachments.length > 0 && chatId) {
         setForwardDraft(null); // đính kèm + forward không gửi cùng — bỏ draft
         const caption = text;
+        // 1 batch nhiều ảnh → 1 media_group_id chung (lưới cụm trên timeline).
+        const mediaGroupId =
+          attachments.length > 1 ? newId() : undefined;
+        // PHASE A (sync, trước await đầu tiên): append bubble optimistic TOÀN
+        // BỘ batch → lưới cụm hiện đủ ngay với ô loading, không hiện dần.
+        const pending: { tempId: string; job: UploadJob }[] = [];
         for (let i = 0; i < attachments.length; i++) {
           const att = attachments[i];
           const isFirst = i === 0;
@@ -376,16 +386,67 @@ export default function GroupChatScreen() {
                 ? buildReplyPreview(replyingTo, replySenderLabel)
                 : null,
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           });
           if (!tempId) continue;
           const job: UploadJob = {
             file: att,
             caption: isFirst ? caption : '',
             replyToMessageId: isFirst ? replyingTo?.id : undefined,
+            mediaGroupId,
           };
           uploadJobsRef.current.set(tempId, job);
-          // Upload tuần tự — thứ tự bubble = thứ tự wire/echo.
-          await runUpload(tempId, job);
+          pending.push({ tempId, job });
+        }
+
+        // PHASE B: upload song song (cap 3) — kết quả GIỮ THỨ TỰ chọn.
+        const uploads = await mapWithConcurrency(
+          pending,
+          3,
+          ({ tempId, job }) =>
+            uploadChatMedia(job.file, chatId, job.durationSeconds).then(
+              (res) => ({ tempId, res }),
+            ),
+        );
+
+        // PHASE C: gửi WS tuần tự ĐÚNG thứ tự chọn — FIFO echo khớp, lưới
+        // không nhảy thứ tự. Job lỗi giữ lại để retry qua handleRetry.
+        let failedCount = 0;
+        for (let i = 0; i < uploads.length; i++) {
+          const r = uploads[i];
+          const { tempId, job } = pending[i];
+          if (r.status === 'fulfilled') {
+            if (!uploadJobsRef.current.has(tempId)) continue; // đã bị discard
+            uploadJobsRef.current.delete(tempId);
+            const { res } = r.value;
+            await room.completeMediaUpload(
+              tempId,
+              {
+                mediaId: res.data.id,
+                mediaUri: res.data.file_uri,
+                mediaType: res.data.file_type,
+                durationSeconds:
+                  res.data.duration_seconds ?? job.durationSeconds,
+              },
+              {
+                content: job.caption,
+                replyToMessageId: job.replyToMessageId,
+                mediaGroupId: job.mediaGroupId,
+              },
+            );
+          } else if (uploadJobsRef.current.has(tempId)) {
+            failedCount += 1;
+            room.failUpload(tempId);
+          }
+        }
+        if (failedCount > 0) {
+          Alert.alert(
+            t('common.error'),
+            t('chat.uploadFailedCount', {
+              count: failedCount,
+              total: pending.length,
+            }),
+          );
         }
         setReplyingTo(null);
         setTimeout(() => {
@@ -407,7 +468,7 @@ export default function GroupChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     },
-    [room, replyingTo, replySenderLabel, forwardDraft, chatId, runUpload],
+    [room, replyingTo, replySenderLabel, forwardDraft, chatId, t],
   );
 
   const handleTyping = useCallback(
@@ -1005,9 +1066,9 @@ export default function GroupChatScreen() {
               data={timeline}
               keyExtractor={(item: GroupedItem) =>
                 'kind' in item
-                  ? item.kind === 'group_call'
-                    ? `gc-${item.call.call_id}`
-                    : `grp-${item.msgs[0]?.id ?? item.msgs.length}`
+                  ? item.kind === 'media_cluster'
+                    ? `clu-${item.msgs[0]?.id ?? item.msgs.length}`
+                    : `gc-${item.call.call_id}`
                   : item.id
               }
               onScrollToIndexFailed={handleScrollToIndexFailed}
@@ -1029,53 +1090,68 @@ export default function GroupChatScreen() {
                 );
 
                 if ('kind' in item) {
-                  if (item.kind === 'group_call') {
-                    const gc = item.call;
+                  if (item.kind === 'media_cluster') {
+                    const clusterMine = item.msgs[0]?.sender_id === myUserId;
+                    const clusterHead = item.msgs[0];
+                    const showClusterTime =
+                      !prev ||
+                      prev.senderId !== clusterHead?.sender_id ||
+                      new Date(clusterHead?.created_at ?? 0).getTime() -
+                        new Date(prev.createdAt).getTime() >
+                        60000;
                     return (
-                      <GroupCallHistoryBubble
-                        call={gc}
-                        myUserId={myUserId}
-                        callerName={
-                          gc.caller_id === myUserId
-                            ? t('groupCall.callerYou')
-                            : room.memberNames[gc.caller_id] || t('chat.unknown')
-                        }
-                        avatarUri={room.memberAvatars[gc.caller_id] ?? null}
-                        showAvatar={prev?.senderId !== gc.caller_id}
-                        activeCallId={activeGroupCallId}
-                        onRequestJoin={(callId) => {
-                          Alert.alert(
-                            t('groupCall.requestJoin'),
-                            t('groupCall.pendingRequestBody', {
-                              name:
-                                room.memberNames[gc.caller_id] ||
-                                t('chat.unknown'),
-                            }),
-                            [
-                              { text: t('common.cancel'), style: 'cancel' },
-                              {
-                                text: t('groupCall.join'),
-                                onPress: () => void joinGroupCall(callId),
-                              },
-                            ],
-                          );
-                        }}
-                      />
+                      <View
+                        style={[
+                          styles.clusterRow,
+                          clusterMine
+                            ? styles.clusterRowMine
+                            : styles.clusterRowTheirs,
+                        ]}>
+                        <MediaCluster
+                          msgs={item.msgs}
+                          isMine={clusterMine}
+                          myUserId={myUserId}
+                          busyBg={busyBg}
+                          showTime={showClusterTime}
+                          onOpen={(i) =>
+                            setLightbox({ msgs: item.msgs, index: i })
+                          }
+                          onLongPress={handleLongPress}
+                        />
+                      </View>
                     );
                   }
-                  const groupMine = item.msgs[0]?.sender_id === myUserId;
+                  const gc = item.call;
                   return (
-                    <View
-                      style={[
-                        styles.mediaGroupRow,
-                        groupMine ? styles.rowMine : styles.rowTheirs,
-                      ]}>
-                      <MediaStack
-                        msgs={item.msgs}
-                        onOpen={(i) => setLightbox({ msgs: item.msgs, index: i })}
-                        onLongPress={handleLongPress}
-                      />
-                    </View>
+                    <GroupCallHistoryBubble
+                      call={gc}
+                      myUserId={myUserId}
+                      callerName={
+                        gc.caller_id === myUserId
+                          ? t('groupCall.callerYou')
+                          : room.memberNames[gc.caller_id] || t('chat.unknown')
+                      }
+                      avatarUri={room.memberAvatars[gc.caller_id] ?? null}
+                      showAvatar={prev?.senderId !== gc.caller_id}
+                      activeCallId={activeGroupCallId}
+                      onRequestJoin={(callId) => {
+                        Alert.alert(
+                          t('groupCall.requestJoin'),
+                          t('groupCall.pendingRequestBody', {
+                            name:
+                              room.memberNames[gc.caller_id] ||
+                              t('chat.unknown'),
+                          }),
+                          [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            {
+                              text: t('groupCall.join'),
+                              onPress: () => void joinGroupCall(callId),
+                            },
+                          ],
+                        );
+                      }}
+                    />
                   );
                 }
 
@@ -1444,13 +1520,15 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 11,
   },
-  mediaGroupRow: {
-    marginVertical: 2,
+  clusterRow: {
+    // Thoáng giữa các cụm ảnh — bubble thường vẫn marginVertical 2 (parity Web).
+    marginVertical: 8,
+    paddingHorizontal: Spacing.md,
   },
-  rowMine: {
+  clusterRowMine: {
     alignItems: 'flex-end',
   },
-  rowTheirs: {
+  clusterRowTheirs: {
     alignItems: 'flex-start',
   },
   newMessagesBar: {

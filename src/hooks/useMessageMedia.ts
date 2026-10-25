@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { tokenStorage } from '@/api/token-storage';
 import { API_BASE } from '@/api/client';
+import { peekLocalMediaUri } from '@/utils/local-media';
 import type { ChatMessage } from '@/types/chat';
 
 const mediaBlobCache = new Map<string, { url: string; isVideo: boolean }>();
@@ -18,12 +19,19 @@ function getDownloadUrl(messageId: string): string {
 
 export function useMessageMedia(message: ChatMessage): MessageMediaState {
   const cached = mediaBlobCache.get(message.id);
-  const [src, setSrc] = useState<string | null>(message.media_uri ?? cached?.url ?? null);
+  // Echo WS thay temp-N → remount; ưu tiên file local của phiên (không
+  // re-download từ server — tránh nháy/blank từng ô lưới batch gửi).
+  const initialSrc =
+    peekLocalMediaUri(message.media_id) ??
+    message.media_uri ??
+    cached?.url ??
+    null;
+  const [src, setSrc] = useState<string | null>(initialSrc);
   const [isVideo, setIsVideo] = useState(
     message.media_type?.startsWith('video/') ?? cached?.isVideo ?? false,
   );
   const [failed, setFailed] = useState(false);
-  const [loading, setLoading] = useState(() => !(message.media_uri ?? cached?.url));
+  const [loading, setLoading] = useState(() => !initialSrc);
 
   const needsDownload = !message.media_uri && !src;
 
