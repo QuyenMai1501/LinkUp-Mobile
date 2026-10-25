@@ -6,6 +6,7 @@ import type {
   AdPerformance,
   CreateAdInput,
   FeedAd,
+  PartnerAdListItem,
   PartnerAdListResponse,
   UpdateAdInput,
 } from '@/types/partner';
@@ -17,14 +18,28 @@ export interface AdListParams {
   status?: string;
 }
 
-export const getMyAds = (params: AdListParams = {}) => {
+export const getMyAds = async (
+  params: AdListParams = {},
+): Promise<PartnerAdListResponse> => {
   const sp = new URLSearchParams();
   if (params.page) sp.set('page', String(params.page));
   if (params.page_size) sp.set('page_size', String(params.page_size));
   if (params.keyword) sp.set('keyword', params.keyword);
   if (params.status) sp.set('status', params.status);
   const qs = sp.toString();
-  return request<PartnerAdListResponse>(`/ads-management${qs ? `?${qs}` : ''}`);
+  const res = await request<{
+    data: PartnerAdListItem[];
+    total?: number;
+    page?: number;
+    page_size?: number;
+  }>(`/ads-management${qs ? `?${qs}` : ''}`);
+  const ads = res.data ?? [];
+  return {
+    ads,
+    total: res.total ?? ads.length,
+    page: res.page ?? 1,
+    page_size: res.page_size ?? ads.length,
+  };
 };
 
 /**
@@ -77,11 +92,17 @@ export const updateAdStatus = (id: string, status: string) =>
     body: JSON.stringify({ status }),
   });
 
-export const getAdAnalytics = (id: string) =>
-  request<AdPerformance>(`/ads-management/${id}/analytics`);
+export const getAdAnalytics = async (id: string): Promise<AdPerformance> => {
+  const res = await request<{ data: AdPerformance }>(
+    `/ads-management/${id}/analytics`,
+  );
+  return res.data;
+};
 
-export const getOverview = () =>
-  request<AdOverview>('/ads-management/overview');
+export const getOverview = async (): Promise<AdOverview> => {
+  const res = await request<{ data: AdOverview }>('/ads-management/overview');
+  return res.data;
+};
 
 /** Server: GET /api/customer/feed → { data: FeedAd[] } (Auth required). */
 export const getFeedAds = async (): Promise<FeedAd[]> => {

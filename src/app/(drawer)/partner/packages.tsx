@@ -10,7 +10,7 @@ import {
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
 import { decodeToken } from '@/api/auth';
-import { ApiError } from '@/api/client';
+import { ApiError, apiErrorMessage } from '@/api/client';
 import { getMySubscription, getPackages, subscribePackage } from '@/api/package';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -20,17 +20,9 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { AdPackage, SubscriptionResponse } from '@/types/partner';
+import { formatVnd } from '@/utils/format';
 
 const NOT_SUBSCRIBED = 'package.NOT_SUBSCRIBED';
-
-const fmtVnd = (n: number) =>
-  `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} ₫`;
-
-function apiErrorText(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.serverMessage || e.message || fallback;
-  if (e instanceof Error) return e.message;
-  return fallback;
-}
 
 const isNoSubscription = (e: unknown): boolean =>
   e instanceof ApiError &&
@@ -64,7 +56,7 @@ export default function PartnerPackagesScreen() {
     if (pkgs.status === 'fulfilled') {
       setPackages(pkgs.value);
     } else {
-      setLoadError(apiErrorText(pkgs.reason, t('common.error')));
+      setLoadError(apiErrorMessage(pkgs.reason, t('common.error')));
     }
 
     if (subscription.status === 'fulfilled') {
@@ -79,7 +71,7 @@ export default function PartnerPackagesScreen() {
         ),
       );
     } else if (!isNoSubscription(subscription.reason)) {
-      setLoadError(apiErrorText(subscription.reason, t('common.error')));
+      setLoadError(apiErrorMessage(subscription.reason, t('common.error')));
     }
     setLoading(false);
   }, [t]);
@@ -122,7 +114,7 @@ export default function PartnerPackagesScreen() {
         },
       ]);
     } catch (e) {
-      Alert.alert(t('common.error'), apiErrorText(e, t('common.error')));
+      Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
     } finally {
       setSubmitting(false);
     }
@@ -255,7 +247,7 @@ export default function PartnerPackagesScreen() {
                         <View style={styles.pkgPriceCol}>
                           <ThemedText
                             style={[styles.price, { color: colors.primary }]}>
-                            {fmtVnd(pkg.price_monthly)}
+                            {formatVnd(pkg.price_monthly)}
                           </ThemedText>
                           <ThemedText
                             type="small"

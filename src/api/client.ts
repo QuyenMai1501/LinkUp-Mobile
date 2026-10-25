@@ -40,6 +40,13 @@ export class ApiError extends Error {
   serverMessage?: string;
 }
 
+/** Thông báo lỗi thân thiện: serverMessage (VI) → code → fallback. */
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) return e.serverMessage || e.message || fallback;
+  if (e instanceof Error) return e.message;
+  return fallback;
+}
+
 // --- Token refresh mutex ---
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
