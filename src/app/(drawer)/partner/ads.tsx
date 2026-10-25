@@ -18,6 +18,7 @@ import { deleteAd, getMyAds, updateAdStatus } from '@/api/partner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import { AD_STATUS_BADGES } from '@/constants/ad-status';
 import { type IconName } from '@/constants/icon-map';
 import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
@@ -26,15 +27,6 @@ import type { PartnerAdListItem } from '@/types/partner';
 import { formatCount, formatPercent, formatVnd } from '@/utils/format';
 
 const PAGE_SIZE = 20;
-
-// Badge hex y hệt web Ads.module.css:163-186
-const STATUS_BADGES: Record<string, { bg: string; fg: string }> = {
-  active: { bg: '#dcfce7', fg: '#166534' },
-  paused: { bg: '#fef9c3', fg: '#854d0e' },
-  completed: { bg: '#e0e7ff', fg: '#3730a3' },
-  pending: { bg: '#fef3c7', fg: '#92400e' },
-  rejected: { bg: '#fee2e2', fg: '#991b1b' },
-};
 
 const STATUS_FILTERS = ['', 'active', 'paused', 'pending', 'rejected', 'completed'];
 
@@ -173,7 +165,7 @@ export default function PartnerAdsScreen() {
   };
 
   const renderItem = ({ item: ad }: { item: PartnerAdListItem }) => {
-    const badge = STATUS_BADGES[ad.status] ?? {
+    const badge = AD_STATUS_BADGES[ad.status] ?? {
       bg: colors.card,
       fg: colors.text,
     };
