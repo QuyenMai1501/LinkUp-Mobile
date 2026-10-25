@@ -216,6 +216,16 @@ export default function PartnerDashboardScreen() {
                 {formatDate(o.expires_at, language)}
               </ThemedText>
             )}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.upgradeBtn, { borderColor: colors.primary }]}
+              onPress={() => router.push('/partner/packages' as never)}>
+              <ThemedText
+                type="small"
+                style={{ color: colors.primary, fontWeight: '600' }}>
+                {t('partner.packages.upgrade')}
+              </ThemedText>
+            </TouchableOpacity>
           </ThemedView>
         ) : null}
       </ScrollView>
@@ -283,6 +293,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statValue: { fontSize: 17, fontWeight: '700' },
+  upgradeBtn: {
+    marginTop: 4,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ctaBtn: {
     height: 46,
     borderRadius: Radius.md,

@@ -45,6 +45,11 @@ export default function PartnerPackagesScreen() {
   const role = accessToken ? decodeToken(accessToken)?.role : undefined;
   const isPartner = role !== undefined && role !== 'USER';
 
+  // Gói hiện tại (server không trả package_id → so theo name, mirror web isActive).
+  const activePkgId = sub
+    ? (packages.find((p) => p.name === sub.package_name)?.id ?? null)
+    : null;
+
   // Mọi setState nằm SAU await — effect gọi load() không setState đồng bộ
   // (lint react-hooks/set-state-in-effect).
   const load = useCallback(async () => {
@@ -84,7 +89,7 @@ export default function PartnerPackagesScreen() {
     }, [load]),
   );
 
-  const onSubscribe = async () => {
+  const doSubscribe = async () => {
     if (!selectedId || submitting) return;
     if (!isAuthenticated || !user) {
       Alert.alert(t('common.error'), t('packages.loginRequired'));
@@ -107,17 +112,38 @@ export default function PartnerPackagesScreen() {
         Alert.alert(t('common.error'), t('packages.sessionError'));
         return;
       }
-      Alert.alert(t('common.success'), t('packages.success'), [
-        {
-          text: t('common.ok'),
-          onPress: () => router.replace('/partner/dashboard' as never),
-        },
-      ]);
+      Alert.alert(
+        t('common.success'),
+        sub ? t('packages.upgradeSuccess') : t('packages.success'),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => router.replace('/partner/dashboard' as never),
+          },
+        ],
+      );
     } catch (e) {
       Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Đổi/nâng cấp gói = server hủy gói cũ + slots/hạn tính lại từ đầu → confirm.
+  const onSubscribe = () => {
+    if (!selectedId || submitting) return;
+    if (activePkgId && selectedId !== activePkgId) {
+      Alert.alert(
+        t('packages.upgradeConfirm'),
+        t('packages.upgradeConfirmMessage'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.confirm'), onPress: () => void doSubscribe() },
+        ],
+      );
+      return;
+    }
+    void doSubscribe();
   };
 
   return (
@@ -203,6 +229,7 @@ export default function PartnerPackagesScreen() {
             ) : (
               packages.map((pkg) => {
                 const selected = selectedId === pkg.id;
+                const isActive = pkg.id === activePkgId;
                 const features: string[] = [
                   `${t('partner.packages.maxSlots')}: ${pkg.max_slots}`,
                   `${t('partner.packages.maxDuration')}: ${t('packages.days', {
@@ -228,7 +255,7 @@ export default function PartnerPackagesScreen() {
                         styles.pkgCard,
                         {
                           backgroundColor: colors.card,
-                          borderColor: selected
+                          borderColor: selected || isActive
                             ? colors.primary
                             : colors.border,
                         },
@@ -383,18 +410,21 @@ export default function PartnerPackagesScreen() {
             ]}>
             <TouchableOpacity
               activeOpacity={0.8}
-              disabled={!selectedId || submitting}
+              disabled={!selectedId || selectedId === activePkgId || submitting}
               style={[
                 styles.subscribeBtn,
                 { backgroundColor: colors.primary },
-                (!selectedId || submitting) && styles.subscribeBtnDisabled,
+                (!selectedId || selectedId === activePkgId || submitting) &&
+                  styles.subscribeBtnDisabled,
               ]}
-              onPress={() => void onSubscribe()}>
+              onPress={() => onSubscribe()}>
               {submitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <ThemedText style={styles.subscribeText}>
-                  {t('partner.packages.subscribe')}
+                  {selectedId && selectedId === activePkgId
+                    ? t('partner.packages.subscribed')
+                    : t('partner.packages.subscribe')}
                 </ThemedText>
               )}
             </TouchableOpacity>
