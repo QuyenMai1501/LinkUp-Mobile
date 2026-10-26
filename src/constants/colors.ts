@@ -16,17 +16,25 @@ export const Colors = {
     accent: '#FF6F00',
     accentHover: '#E66300',
     accentActive: '#CC5800',
+    accentLight: 'rgba(255, 111, 0, 0.12)',
+
+    // Primary CTA fill — separate from secondary (navy fill for auth CTAs etc.)
+    cta: '#0A1F44',
+    ctaHover: '#0D2A5A',
+    ctaActive: '#0F3570',
+    ctaText: '#FFFFFF',
 
     // Neutral
     bg: '#FFFFFF',
     bgPrimary: '#FFFFFF',
     bgSecondary: '#F5F5F5',
     bgHover: '#ECECEC',
-    text: '#000000',
+    text: '#1A1A1A',
     textSecondary: '#666666',
     card: '#FFFFFF',
     border: '#E0E0E0',
     divider: '#EEEEEE',
+    storyBg: '#000000',
 
     // Semantic
     success: '#388E3C',
@@ -34,9 +42,22 @@ export const Colors = {
     warning: '#FBC02D',
     warningLight: '#FFF8E1',
     danger: '#D32F2F',
+    dangerHover: '#B71616',
     dangerLight: '#FFEBEE',
     info: '#1976D2',
     infoLight: '#E3F2FD',
+
+    // Text on colored backgrounds
+    textOnPrimary: '#FFFFFF',
+    textOnSecondary: '#FFFFFF',
+
+    // Like / Heart (posts & comments)
+    heart: '#D32F2F',
+    heartLight: 'rgba(211, 47, 47, 0.1)',
+
+    // Story ring gradient stops (135deg)
+    storyRingStart: '#12A5A1',
+    storyRingEnd: '#0A1F44',
   },
   dark: {
     // Brand
@@ -50,6 +71,13 @@ export const Colors = {
     accent: '#FF6F00',
     accentHover: '#E66300',
     accentActive: '#CC5800',
+    accentLight: 'rgba(255, 140, 60, 0.18)',
+
+    // Dark CTA: light fill + dark text — high contrast against #111/#1E1E1E
+    cta: '#E5E7EB',
+    ctaHover: '#FFFFFF',
+    ctaActive: '#D1D5DB',
+    ctaText: '#111111',
 
     // Neutral
     bg: '#111111',
@@ -61,6 +89,7 @@ export const Colors = {
     card: '#1E1E1E',
     border: '#333333',
     divider: '#2A2A2A',
+    storyBg: '#0A0A0A',
 
     // Semantic (base colors unchanged; only *Light variants differ)
     success: '#388E3C',
@@ -68,9 +97,22 @@ export const Colors = {
     warning: '#FBC02D',
     warningLight: '#78350F',
     danger: '#D32F2F',
+    dangerHover: '#E53935',
     dangerLight: '#7F1D1D',
     info: '#1976D2',
     infoLight: '#1E3A5F',
+
+    // Text on colored backgrounds
+    textOnPrimary: '#FFFFFF',
+    textOnSecondary: '#E5E7EB',
+
+    // Like / Heart (posts & comments)
+    heart: '#FF6B81',
+    heartLight: 'rgba(251, 107, 129, 0.16)',
+
+    // Story ring gradient stops (135deg)
+    storyRingStart: '#3FBFBA',
+    storyRingEnd: '#0D2A5A',
   },
 } as const;
 
