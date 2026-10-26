@@ -388,7 +388,7 @@ export default function PostCard({
                 { opacity: burstAnim, transform: [{ scale: burstAnim }] },
               ]}
               pointerEvents="none">
-              <Icon name="heartFilled" size={72} color="#E53935" />
+              <Icon name="heartFilled" size={72} color={theme.heart} />
             </Animated.View>
           )}
         </View>
@@ -399,7 +399,7 @@ export default function PostCard({
         <Pressable
           style={styles.actionBtn}
           onPress={() => onLike?.(post.id)}>
-          <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? '#E53935' : undefined} />
+          <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? theme.heart : undefined} />
           <ThemedText themeColor="textSecondary" style={styles.actionCount}>
             {formatCount(post.likes_count)}
           </ThemedText>

@@ -17,6 +17,7 @@ import { Icon } from '@/components/ui/icon';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   isCommunityPrivileged,
@@ -44,6 +45,7 @@ function DetailBody({
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
 
   const [detail, setDetail] = useState<CommunityDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -95,7 +97,7 @@ function DetailBody({
               {t('communities.title')}
             </ThemedText>
           </View>
-          <View style={styles.skeletonHeader}>
+          <View style={[styles.skeletonHeader, { opacity: shimmer }]}>
             <View style={[styles.skeletonCover, { backgroundColor: theme.bgSecondary }]} />
             <View style={styles.skeletonInfo}>
               <View

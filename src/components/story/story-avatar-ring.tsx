@@ -3,10 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
-
-/** Ring gradient thương hiệu (Instagram-like) — không phải theme token. */
-export const STORY_RING_COLORS = ['#F9CE34', '#EE2A7B', '#6228D7'] as const;
-export const STORY_RING_VIEWED_COLORS = ['#4A4A4A', '#6B6B6B'] as const;
+import { useTheme } from '@/hooks/use-theme';
 
 const RING_PADDING = 3;
 const RING_GAP = 2;
@@ -35,6 +32,7 @@ export function StoryAvatarRing({
   onPress,
   children,
 }: StoryAvatarRingProps) {
+  const theme = useTheme();
   const innerSize = hasStory ? size - (RING_PADDING + RING_GAP) * 2 : size;
 
   const avatar =
@@ -67,7 +65,11 @@ export function StoryAvatarRing({
   return (
     <Pressable onPress={onPress}>
       <LinearGradient
-        colors={hasViewed ? [...STORY_RING_VIEWED_COLORS] : [...STORY_RING_COLORS]}
+        colors={
+          hasViewed
+            ? [theme.border, theme.border]
+            : [theme.storyRingStart, theme.storyRingEnd]
+        }
         start={{ x: 0, y: 1 }}
         end={{ x: 1, y: 0 }}
         style={[
@@ -78,6 +80,7 @@ export function StoryAvatarRing({
           style={[
             styles.ringGap,
             {
+              backgroundColor: theme.bg,
               width: size - RING_PADDING * 2,
               height: size - RING_PADDING * 2,
               borderRadius: (size - RING_PADDING * 2) / 2,
@@ -99,7 +102,6 @@ const styles = StyleSheet.create({
   ringGap: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
   inner: {
     overflow: 'hidden',

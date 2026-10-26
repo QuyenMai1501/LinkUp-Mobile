@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommunityRule, RuleCategory } from '@/types/community';
 
@@ -34,6 +35,7 @@ interface RuleListProps {
 export default function RuleList({ communityId, isAdmin }: RuleListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
 
   const [rules, setRules] = useState<CommunityRule[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -144,7 +146,14 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
         Array.from({ length: SKELETON_ROWS }).map((_, i) => (
           <View
             key={i}
-            style={[styles.ruleCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            style={[
+              styles.ruleCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                opacity: shimmer,
+              },
+            ]}>
             <View style={[styles.ruleNum, { backgroundColor: theme.bgSecondary }]} />
             <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
           </View>

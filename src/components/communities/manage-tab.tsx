@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Clipboard,
   KeyboardAvoidingView,
   Modal,
@@ -32,6 +33,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type {
   CommunityDetail,
@@ -699,8 +701,9 @@ function SkeletonRows({
   theme: ReturnType<typeof useTheme>;
   rows: number;
 }) {
+  const shimmer = useShimmer();
   return (
-    <View style={styles.section}>
+    <Animated.View style={[styles.section, { opacity: shimmer }]}>
       {Array.from({ length: rows }).map((_, i) => (
         <View
           key={i}
@@ -709,7 +712,7 @@ function SkeletonRows({
           <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
         </View>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 

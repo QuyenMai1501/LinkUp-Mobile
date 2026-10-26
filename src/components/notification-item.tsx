@@ -72,33 +72,31 @@ function getNotificationIcon(type: NotificationType): IconName {
   }
 }
 
-function getIconColor(type: NotificationType): string {
+function getIconColor(type: NotificationType, theme: ReturnType<typeof useTheme>): string {
+  // Mirror web Notifications.module.css (.iconLike/.iconComment/…) — token palette.
   switch (type) {
     case 'like':
-      return '#E53935';
     case 'story_react':
-      return '#EE2A7B';
-    case 'comment':
-      return '#43A047';
     case 'share':
-      return '#E53935';
+      return theme.heart;
+    case 'comment':
+      return theme.info;
     case 'follow':
-      return '#1E88E5';
-    case 'message':
-      return '#FB8C00';
     case 'friend_request':
     case 'friend_accepted':
-      return '#8E24AA';
+      return theme.primary;
+    case 'message':
+      return theme.accent;
     case 'voice_call':
-      return '#00897B';
+      return theme.success;
     case 'media_approved':
-      return '#43A047';
+      return theme.success;
     case 'media_rejected':
-      return '#E53935';
+      return theme.danger;
     case 'media_flagged':
-      return '#FB8C00';
+      return theme.accent;
     default:
-      return '#757575';
+      return theme.textSecondary;
   }
 }
 
@@ -106,7 +104,7 @@ export default function NotificationItem({ item, onPress }: NotificationItemProp
   const theme = useTheme();
   const { t } = useTranslation();
   const iconEmoji = getNotificationIcon(item.type);
-  const iconColor = getIconColor(item.type);
+  const iconColor = getIconColor(item.type, theme);
 
   return (
     <Pressable

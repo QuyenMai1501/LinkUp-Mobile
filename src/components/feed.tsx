@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, Animated, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -59,8 +59,18 @@ async function ensureLikeEmojiId(): Promise<string | undefined> {
 }
 
 function SkeletonCard() {
+  const theme = useTheme();
+  const shimmer = useShimmer();
   return (
-    <ThemedView style={styles.skeleton}>
+    <Animated.View
+      style={[
+        styles.skeleton,
+        {
+          backgroundColor: theme.bgSecondary,
+          borderColor: theme.border,
+          opacity: shimmer,
+        },
+      ]}>
       <View style={styles.skelHeader}>
         <View style={styles.skelAvatar} />
         <View style={styles.skelLines}>
@@ -71,7 +81,7 @@ function SkeletonCard() {
       <View style={[styles.skelLine, { width: '60%', marginTop: 12 }]} />
       <View style={[styles.skelLine, { width: '80%' }]} />
       <View style={styles.skelMedia} />
-    </ThemedView>
+    </Animated.View>
   );
 }
 
@@ -664,10 +674,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   skeleton: {
-    backgroundColor: '#F5F5F5',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },

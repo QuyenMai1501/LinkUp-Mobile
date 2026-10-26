@@ -158,7 +158,7 @@ export default function CommentItem({
               style={styles.actionBtn}
               onPress={() => onLike(comment.id)}>
               {comment.is_liked ? (
-                <Icon name="heartFilled" size={14} color="#E53935" />
+                <Icon name="heartFilled" size={14} color={theme.heart} />
               ) : (
                 <Icon name="heart" size={14} />
               )}

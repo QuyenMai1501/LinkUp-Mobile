@@ -1,14 +1,16 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native';
 
-import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 
 export function ProfileSkeleton({ showCover = true }: { showCover?: boolean }) {
   const theme = useTheme();
+  const shimmer = useShimmer();
 
   return (
-    <ThemedView style={styles.container}>
+    <Animated.View
+      style={[styles.container, { backgroundColor: theme.background, opacity: shimmer }]}>
       {showCover && <View style={[styles.cover, { backgroundColor: theme.border }]} />}
       <View style={styles.body}>
         <View style={[styles.avatar, { backgroundColor: theme.border }]} />
@@ -25,7 +27,7 @@ export function ProfileSkeleton({ showCover = true }: { showCover?: boolean }) {
         </View>
       </View>
       <ActivityIndicator size="large" color={theme.primary} style={styles.spinner} />
-    </ThemedView>
+    </Animated.View>
   );
 }
 

@@ -25,6 +25,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type {
   CommunityMember,
@@ -68,6 +69,7 @@ function RoleBadge({ role, theme }: { role: CommunityRole; theme: ReturnType<typ
 export default function MemberList({ communityId, isAdmin }: MemberListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
   const router = useRouter();
 
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
@@ -178,7 +180,14 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
             <View
               key={i}
-              style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              style={[
+                styles.row,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  opacity: shimmer,
+                },
+              ]}>
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.bgSecondary }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
             </View>

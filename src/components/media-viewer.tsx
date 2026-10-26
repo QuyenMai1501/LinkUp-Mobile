@@ -28,6 +28,7 @@ import Animated, {
 import { ThemedText } from "@/components/themed-text";
 import { Icon } from "@/components/ui/icon";
 import { RichContent } from "@/components/rich-content";
+import { useTheme } from "@/hooks/use-theme";
 import { getEmojiTextMap } from "@/utils/emojis";
 
 import type { FeedMedia, FeedPost } from "../types/post";
@@ -111,6 +112,7 @@ export default function MediaViewer({
   onCommentPress,
   onSharePress,
 }: MediaViewerProps) {
+  const theme = useTheme();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const initialSafeIndex = Math.min(
@@ -376,7 +378,7 @@ export default function MediaViewer({
                   <View style={styles.actions}>
                     <Pressable style={styles.actionButton} onPress={onLike}>
                       {post.is_liked ? (
-                        <Icon name="heartFilled" size={19} color="#E53935" />
+                        <Icon name="heartFilled" size={19} color={theme.heart} />
                       ) : (
                         <Icon name="heart" size={19} color="#FFFFFF" />
                       )}

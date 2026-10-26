@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -25,6 +26,7 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommunityListItem, CommunityListResponse } from '@/types/community';
 
@@ -36,8 +38,18 @@ const MAX_PAGE = 50;
 const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6'];
 
 function SkeletonCard() {
+  const theme = useTheme();
+  const shimmer = useShimmer();
   return (
-    <View style={styles.skeleton}>
+    <Animated.View
+      style={[
+        styles.skeleton,
+        {
+          backgroundColor: theme.bgSecondary,
+          borderColor: theme.border,
+          opacity: shimmer,
+        },
+      ]}>
       <View style={styles.skelCover} />
       <View style={styles.skelBody}>
         <View style={styles.skelAvatar} />
@@ -46,7 +58,7 @@ function SkeletonCard() {
         <View style={[styles.skelLine, { width: '50%' }]} />
         <View style={styles.skelAction} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -483,8 +495,6 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#F5F5F5',
     overflow: 'hidden',
   },
   skelCover: {

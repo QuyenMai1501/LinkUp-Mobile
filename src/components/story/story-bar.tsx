@@ -1,13 +1,14 @@
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { StoryAvatarRing, STORY_RING_COLORS } from '@/components/story/story-avatar-ring';
+import { StoryAvatarRing } from '@/components/story/story-avatar-ring';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import { pickTextGradient } from '@/utils/story-gradient';
 import type { StoryFeedItem, StoryItem } from '@/types/story';
@@ -52,7 +53,10 @@ function StoryPreview({ story }: { story: StoryItem }) {
 }
 
 function SkeletonCard() {
-  return <View style={[styles.card, styles.skeletonCard]} />;
+  const shimmer = useShimmer();
+  return (
+    <Animated.View style={[styles.card, styles.skeletonCard, { opacity: shimmer }]} />
+  );
 }
 
 export default function StoryBar({
@@ -130,7 +134,16 @@ export default function StoryBar({
                 style={styles.cardGradient}
                 pointerEvents="none"
               />
-              <Pressable hitSlop={4} style={styles.plusBadge} onPress={onCreateStory}>
+              <Pressable
+                hitSlop={4}
+                style={[
+                  styles.plusBadge,
+                  {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.bgSecondary,
+                  },
+                ]}
+                onPress={onCreateStory}>
                 <ThemedText style={styles.plusBadgeText}>+</ThemedText>
               </Pressable>
               <View style={styles.cardOverlay}>
@@ -266,7 +279,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: STORY_RING_COLORS[1],
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,

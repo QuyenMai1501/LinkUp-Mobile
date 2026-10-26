@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Animated as RNAnimated,
   KeyboardAvoidingView,
   Modal,
   NativeScrollEvent,
@@ -32,6 +33,7 @@ import { createReport, getViolationRules } from '@/api/reports';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ReportTargetType, ViolationRule } from '../types/report';
 
@@ -65,6 +67,7 @@ interface Props {
  */
 export default function ReportSheet({ targetType, targetId, onClose, onSubmitted }: Props) {
   const theme = useTheme();
+  const shimmer = useShimmer();
   const { t } = useTranslation();
   const [rules, setRules] = useState<ViolationRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -317,9 +320,15 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
 
                   {loading ? (
                     [0, 1, 2, 3].map((i) => (
-                      <View
+                      <RNAnimated.View
                         key={i}
-                        style={[styles.skeletonRow, { backgroundColor: theme.bgSecondary }]}
+                        style={[
+                          styles.skeletonRow,
+                          {
+                            backgroundColor: theme.bgSecondary,
+                            opacity: shimmer,
+                          },
+                        ]}
                       />
                     ))
                   ) : loadError ? (
