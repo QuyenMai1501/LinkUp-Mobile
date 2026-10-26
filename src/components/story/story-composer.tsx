@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -19,11 +19,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import StoryEditor, { type StoryEditorHandle } from '@/components/story/story-editor';
 import {
   IDENTITY_TRANSFORM,
-  StoryEditFrame,
-  type StoryTransform,
-} from '@/components/story/story-edit-frame';
+  type StoryEditorDoc,
+} from '@/components/story/story-editor-constants';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -61,18 +61,21 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   const [step, setStep] = useState<Step>('pick');
   const [assets, setAssets] = useState<PickedAsset[]>([]);
   const [captions, setCaptions] = useState<string[]>([]);
-  const [transforms, setTransforms] = useState<StoryTransform[]>([]);
+  const [docs, setDocs] = useState<StoryEditorDoc[]>([]);
+  const [finalUris, setFinalUris] = useState<(string | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [textContent, setTextContent] = useState('');
   const [textGradientIndex, setTextGradientIndex] = useState(0);
   const [posting, setPosting] = useState(false);
+  const editorRef = useRef<StoryEditorHandle>(null);
 
   const reset = useCallback(() => {
     setMode('photos');
     setStep('pick');
     setAssets([]);
     setCaptions([]);
-    setTransforms([]);
+    setDocs([]);
+    setFinalUris([]);
     setActiveIndex(0);
     setTextContent('');
     setTextGradientIndex(0);
@@ -133,9 +136,16 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       while (arr.length < next.length) arr.push('');
       return arr.slice(0, next.length);
     });
-    setTransforms((prevTf) => {
-      const arr = [...prevTf];
-      while (arr.length < next.length) arr.push(IDENTITY_TRANSFORM);
+    setDocs((prevDocs) => {
+      const arr = [...prevDocs];
+      while (arr.length < next.length) {
+        arr.push({ bg: { ...IDENTITY_TRANSFORM }, layers: [] });
+      }
+      return arr.slice(0, next.length);
+    });
+    setFinalUris((prevUris) => {
+      const arr = [...prevUris];
+      while (arr.length < next.length) arr.push(null);
       return arr.slice(0, next.length);
     });
   }, [assets, t]);
@@ -144,7 +154,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     (index: number) => {
       setAssets((prev) => prev.filter((_, i) => i !== index));
       setCaptions((prev) => prev.filter((_, i) => i !== index));
-      setTransforms((prev) => prev.filter((_, i) => i !== index));
+      setDocs((prev) => prev.filter((_, i) => i !== index));
+      setFinalUris((prev) => prev.filter((_, i) => i !== index));
       setActiveIndex((prev) => Math.max(0, Math.min(prev, assets.length - 2)));
     },
     [assets.length],
@@ -158,13 +169,37 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     });
   }, []);
 
-  const setTransform = useCallback((index: number, value: StoryTransform) => {
-    setTransforms((prev) => {
+  const setDoc = useCallback((index: number, doc: StoryEditorDoc) => {
+    setDocs((prev) => {
       const arr = [...prev];
-      arr[index] = value;
+      arr[index] = doc;
       return arr;
     });
   }, []);
+
+  const flushCurrent = useCallback(async (): Promise<string | null> => {
+    const exported = (await editorRef.current?.flush()) ?? null;
+    if (exported) {
+      setFinalUris((prev) => {
+        const arr = [...prev];
+        arr[activeIndex] = exported;
+        return arr;
+      });
+    }
+    return exported;
+  }, [activeIndex]);
+
+  const onThumbPress = useCallback(
+    (i: number) => {
+      if (i === activeIndex) return;
+      if (step === 'edit') {
+        flushCurrent().then(() => setActiveIndex(i));
+        return;
+      }
+      setActiveIndex(i);
+    },
+    [activeIndex, flushCurrent, step],
+  );
 
   const switchMode = useCallback((nextMode: 'photos' | 'text') => {
     setMode(nextMode);
@@ -182,12 +217,15 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
           return;
         }
         await createStories(
-          assets.map((a, i) => ({
-            fileUri: a.uri,
-            fileName: a.fileName,
-            mimeType: a.mimeType,
-            caption: (captions[i] ?? '').trim(),
-          })),
+          assets.map((a, i) => {
+            const exported = finalUris[i];
+            return {
+              fileUri: exported ?? a.uri,
+              fileName: exported ? `story-${i + 1}.jpg` : a.fileName,
+              mimeType: exported ? 'image/jpeg' : a.mimeType,
+              caption: (captions[i] ?? '').trim(),
+            };
+          }),
         );
       } else {
         const text = textContent.trim();
@@ -207,7 +245,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     } finally {
       setPosting(false);
     }
-  }, [assets, captions, mode, onClose, onCreated, posting, reset, t, textContent]);
+  }, [assets, captions, finalUris, mode, onClose, onCreated, posting, reset, t, textContent]);
 
   const currentAsset = assets[activeIndex];
   const isText = mode === 'text';
@@ -249,7 +287,13 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     return (
       <Pressable
         disabled={!canAdvance}
-        onPress={() => setStep(step === 'pick' ? 'edit' : 'post')}
+        onPress={() => {
+          if (step === 'pick') {
+            setStep('edit');
+            return;
+          }
+          flushCurrent().then(() => setStep('post'));
+        }}
         style={[
           styles.postBtn,
           { backgroundColor: theme.primary },
@@ -265,9 +309,9 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   const renderThumbs = (withAdd: boolean) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
       {assets.map((a, i) => (
-        <Pressable key={`${a.uri}-${i}`} onPress={() => setActiveIndex(i)}>
+        <Pressable key={`${a.uri}-${i}`} onPress={() => onThumbPress(i)}>
           <Image
-            source={{ uri: a.uri }}
+            source={{ uri: finalUris[i] ?? a.uri }}
             style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
             contentFit="cover"
           />
@@ -320,11 +364,12 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       return (
         <View style={styles.editBody}>
           {currentAsset && (
-            <StoryEditFrame
+            <StoryEditor
+              ref={editorRef}
               key={`${activeIndex}:${currentAsset.uri}`}
               uri={currentAsset.uri}
-              transform={transforms[activeIndex] ?? IDENTITY_TRANSFORM}
-              onCommit={(value) => setTransform(activeIndex, value)}
+              doc={docs[activeIndex] ?? { bg: { ...IDENTITY_TRANSFORM }, layers: [] }}
+              onChange={(d) => setDoc(activeIndex, d)}
               index={activeIndex}
               total={assets.length}
               width={frameW}
@@ -343,7 +388,11 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
         showsVerticalScrollIndicator={false}>
         <View style={[styles.postPreview, { width: frameW, height: frameH }]}>
           {currentAsset && (
-            <Image source={{ uri: currentAsset.uri }} style={styles.previewImg} contentFit="cover" />
+            <Image
+              source={{ uri: finalUris[activeIndex] ?? currentAsset.uri }}
+              style={styles.previewImg}
+              contentFit="cover"
+            />
           )}
           <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
             <Icon name="close" size={18} color={theme.textOnPrimary} />
