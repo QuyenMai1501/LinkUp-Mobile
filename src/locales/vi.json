@@ -703,6 +703,11 @@
   },
   "settings": {
     "title": "Cài đặt",
+    "sections": {
+      "account": "Tài khoản",
+      "app": "Ứng dụng",
+      "more": "Khác"
+    },
     "items": {
       "changePassword": {
         "label": "Đổi mật khẩu",

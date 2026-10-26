@@ -703,6 +703,11 @@
   },
   "settings": {
     "title": "Settings",
+    "sections": {
+      "account": "Account",
+      "app": "App",
+      "more": "More"
+    },
     "items": {
       "changePassword": {
         "label": "Change Password",

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { TouchableOpacity, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useNavigation } from 'expo-router';
 
@@ -7,23 +7,40 @@ import { decodeToken } from '@/api/auth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import SettingsRow, { type SettingsTone } from '@/components/settings/settings-row';
 import { type IconName } from '@/constants/icon-map';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
 import { useTranslation } from '@/hooks/useTranslation';
 
-type SettingsItem = { key: string; icon: IconName; labelKey: string; descKey: string; path?: string };
+type GroupKey = 'account' | 'app' | 'more';
+
+type SettingsItem = {
+  key: string;
+  icon: IconName;
+  tone: SettingsTone;
+  group: GroupKey;
+  labelKey: string;
+  descKey: string;
+  path?: string;
+};
 
 const SETTINGS_ITEMS: SettingsItem[] = [
-  { key: 'change-password', icon: 'lock', labelKey: 'settings.items.changePassword.label', descKey: 'settings.items.changePassword.desc' },
-  { key: 'privacy', icon: 'shield', labelKey: 'settings.items.privacy.label', descKey: 'settings.items.privacy.desc' },
-  { key: 'security', icon: 'lock', labelKey: 'settings.items.security.label', descKey: 'settings.items.security.desc' },
-  { key: 'storage', icon: 'save', labelKey: 'settings.items.storage.label', descKey: 'settings.items.storage.desc' },
-  { key: 'appearance', icon: 'palette', labelKey: 'settings.items.appearance.label', descKey: 'settings.items.appearance.desc' },
-  { key: 'sessions', icon: 'laptop', labelKey: 'settings.items.sessions.label', descKey: 'settings.items.sessions.desc' },
-  { key: 'notifications', icon: 'bell', labelKey: 'settings.items.notifications.label', descKey: 'settings.items.notifications.desc' },
-  { key: 'deactivate', icon: 'warning', labelKey: 'settings.items.deactivate.label', descKey: 'settings.items.deactivate.desc' },
+  { key: 'change-password', icon: 'lock', tone: 'primary', group: 'account', labelKey: 'settings.items.changePassword.label', descKey: 'settings.items.changePassword.desc' },
+  { key: 'privacy', icon: 'shield', tone: 'info', group: 'account', labelKey: 'settings.items.privacy.label', descKey: 'settings.items.privacy.desc' },
+  { key: 'security', icon: 'key', tone: 'success', group: 'account', labelKey: 'settings.items.security.label', descKey: 'settings.items.security.desc' },
+  { key: 'sessions', icon: 'laptop', tone: 'accent', group: 'account', labelKey: 'settings.items.sessions.label', descKey: 'settings.items.sessions.desc' },
+  { key: 'appearance', icon: 'palette', tone: 'accent', group: 'app', labelKey: 'settings.items.appearance.label', descKey: 'settings.items.appearance.desc' },
+  { key: 'notifications', icon: 'bell', tone: 'primary', group: 'app', labelKey: 'settings.items.notifications.label', descKey: 'settings.items.notifications.desc' },
+  { key: 'storage', icon: 'save', tone: 'info', group: 'app', labelKey: 'settings.items.storage.label', descKey: 'settings.items.storage.desc' },
+  { key: 'deactivate', icon: 'warning', tone: 'danger', group: 'more', labelKey: 'settings.items.deactivate.label', descKey: 'settings.items.deactivate.desc' },
+];
+
+const GROUPS: { key: GroupKey; titleKey: string }[] = [
+  { key: 'account', titleKey: 'settings.sections.account' },
+  { key: 'app', titleKey: 'settings.sections.app' },
+  { key: 'more', titleKey: 'settings.sections.more' },
 ];
 
 export default function SettingsIndex() {
@@ -46,6 +63,8 @@ export default function SettingsIndex() {
         ? {
             key: 'partner-packages',
             icon: 'stats',
+            tone: 'primary',
+            group: 'more',
             labelKey: 'settings.items.partnerBecome.label',
             descKey: 'settings.items.partnerBecome.desc',
             path: '/partner/packages',
@@ -53,6 +72,8 @@ export default function SettingsIndex() {
         : {
             key: 'partner-hub',
             icon: 'stats',
+            tone: 'primary',
+            group: 'more',
             labelKey: 'settings.items.partnerHub.label',
             descKey: 'settings.items.partnerHub.desc',
             path: '/partner/dashboard',
@@ -71,32 +92,42 @@ export default function SettingsIndex() {
           <ThemedText style={styles.header}>{t('settings.title')}</ThemedText>
         </ThemedView>
         <ScrollView contentContainerStyle={styles.list}>
-          {items.map((item, index) => (
-            <TouchableOpacity
-              key={item.key}
-              onPress={() =>
-                router.push(
-                  (item.path ?? `/(drawer)/settings/${item.key}`) as never,
-                )
-              }
-              activeOpacity={0.7}>
-              <ThemedView
-                style={[
-                  styles.item,
-                  { backgroundColor: colors.card },
-                  index === items.length - 1 && styles.itemLast,
-                ]}>
-                <Icon name={item.icon} size={24} color={colors.text} />
-                <ThemedView style={styles.itemContent}>
-                  <ThemedText style={styles.label}>{t(item.labelKey)}</ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.desc}>
-                    {t(item.descKey)}
-                  </ThemedText>
+          {GROUPS.map((group) => {
+            const groupItems = items.filter((item) => item.group === group.key);
+            if (groupItems.length === 0) return null;
+            return (
+              <ThemedView key={group.key} style={styles.group}>
+                <ThemedText themeColor="textSecondary" style={styles.groupTitle}>
+                  {t(group.titleKey)}
+                </ThemedText>
+                <ThemedView
+                  style={[
+                    styles.card,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}>
+                  {groupItems.map((item, idx) => (
+                    <SettingsRow
+                      key={item.key}
+                      icon={item.icon}
+                      tone={item.tone}
+                      label={t(item.labelKey)}
+                      hint={t(item.descKey)}
+                      onPress={() =>
+                        router.push(
+                          (item.path ?? `/(drawer)/settings/${item.key}`) as never,
+                        )
+                      }
+                      style={
+                        idx < groupItems.length - 1
+                          ? { borderBottomWidth: 1, borderBottomColor: colors.border }
+                          : undefined
+                      }
+                    />
+                  ))}
                 </ThemedView>
-
               </ThemedView>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -119,16 +150,16 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
-  list: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: 12,
-    gap: Spacing.md,
+  list: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.lg,
   },
-  itemLast: {},
-  itemContent: { flex: 1, gap: 2 },
-  label: { fontSize: 15, fontWeight: '600' },
-  desc: { fontSize: 13 },
+  group: { gap: Spacing.sm },
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    paddingHorizontal: Spacing.xs,
+  },
+  card: { borderRadius: 12, borderWidth: 1 },
 });
