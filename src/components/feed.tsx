@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
@@ -20,12 +20,15 @@ import StoryBar from './story/story-bar';
 import StoryViewer from './story/story-viewer';
 import StoryComposer from './story/story-composer';
 import { getFeedPosts, reactPost, savePost, sharePost, getEmojis, trackPostView } from '../api/posts';
+import { getFeedAds, trackAdAction } from '../api/partner';
 import { getFeedStories, toggleMuteStoryUser } from '../api/story';
 import { getMyProfile } from '../api/profile';
 import { followUser } from '../api/follow';
 import { useAuth } from '@/contexts/auth-context';
 import type { FeedPost, EmojiItem } from '../types/post';
+import type { FeedAd } from '../types/partner';
 import type { StoryFeedItem, StoryItem } from '../types/story';
+import SponsoredAdCard from './sponsored-ad-card';
 
 const INITIAL_PAGE_SIZE = 2;
 const PAGE_SIZE = 10;
@@ -39,6 +42,10 @@ const VIEWABILITY_CONFIG = {
 
 // Module-level cache: feed posts keyed by ID, for passing to detail screen
 export const feedPostCache = new Map<string, FeedPost>();
+
+type FeedRow =
+  | { kind: 'post'; post: FeedPost }
+  | { kind: 'ad'; ad: FeedAd; slot: number };
 
 async function ensureLikeEmojiId(): Promise<string | undefined> {
   try {
@@ -84,6 +91,8 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   const { t } = useTranslation();
   const { user } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [feedAds, setFeedAds] = useState<FeedAd[]>([]);
+  const trackedAdsRef = useRef(new Set<string>());
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +121,19 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   const [storyViewer, setStoryViewer] = useState<StoryItem[] | null>(null);
   const [showStoryComposer, setShowStoryComposer] = useState(false);
   const [myAvatarUri, setMyAvatarUri] = useState<string | undefined>(undefined);
+
+  // Ads sponsored: 1 lần khi mount (server tự target theo gender/age/location).
+  useEffect(() => {
+    let active = true;
+    getFeedAds()
+      .then((ads) => {
+        if (active) setFeedAds(ads);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadStories = useCallback(async () => {
     // setState luôn sau await — tránh react-hooks/set-state-in-effect
@@ -278,12 +300,39 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
     }
   };
 
-  // Báo impression khi bài hiển thị đủ ngưỡng (khách vãng lai không tính —
-  // trackPostView tự bỏ qua khi không có token).
+  // Ghép ads vào danh sách: trên web cứ mỗi 6 post (idx 5, 11, ...) chèn 1
+  // card phía trên bài đó; ads xoay vòng theo slot — thuần tính toán, không
+  // setState trong render (web đang setAdIndex lúc render).
+  const rows = useMemo<FeedRow[]>(() => {
+    const out: FeedRow[] = [];
+    let adSlot = 0;
+    posts.forEach((post, idx) => {
+      if (feedAds.length > 0 && idx > 0 && (idx + 1) % 6 === 0) {
+        out.push({
+          kind: 'ad',
+          ad: feedAds[adSlot % feedAds.length],
+          slot: adSlot,
+        });
+        adSlot += 1;
+      }
+      out.push({ kind: 'post', post });
+    });
+    return out;
+  }, [posts, feedAds]);
+
+  // Impressions: bài + ads cùng chung ngưỡng viewability (≥50% trong 2s);
+  // ads dedupe theo session qua trackedAdsRef (trackAdAction không tự dedupe).
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: FeedPost }> }) => {
+    ({ viewableItems }: { viewableItems: Array<{ item: FeedRow }> }) => {
       for (const { item } of viewableItems) {
-        trackPostView(item.id, 'feed');
+        if (item.kind === 'ad') {
+          if (!trackedAdsRef.current.has(item.ad.id)) {
+            trackedAdsRef.current.add(item.ad.id);
+            trackAdAction(item.ad.id, 'impression').catch(() => {});
+          }
+        } else {
+          trackPostView(item.post.id, 'feed');
+        }
       }
     },
   );
@@ -394,20 +443,26 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   return (
     <View style={styles.flex}>
       <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PostCard
-            post={item}
-            onPress={onPostPress}
-            onLike={handleLike}
-            onSave={handleSave}
-            onFollow={handleFollow}
-            onMediaPress={(index, targetPost) => handleOpenMedia(targetPost ?? item, index)}
-            onCommentPress={() => handleOpenComments(item)}
-            onSharePress={() => handleShare(item)}
-          />
-        )}
+        data={rows}
+        keyExtractor={(row) => (row.kind === 'ad' ? `ad-${row.slot}` : row.post.id)}
+        renderItem={({ item: row }) =>
+          row.kind === 'ad' ? (
+            <SponsoredAdCard ad={row.ad} />
+          ) : (
+            <PostCard
+              post={row.post}
+              onPress={onPostPress}
+              onLike={handleLike}
+              onSave={handleSave}
+              onFollow={handleFollow}
+              onMediaPress={(index, targetPost) =>
+                handleOpenMedia(targetPost ?? row.post, index)
+              }
+              onCommentPress={() => handleOpenComments(row.post)}
+              onSharePress={() => handleShare(row.post)}
+            />
+          )
+        }
         ListHeaderComponent={
           <>
             <StoryBar
