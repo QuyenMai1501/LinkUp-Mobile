@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,13 +8,14 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   createCommunity,
@@ -50,7 +50,7 @@ export default function CreateCommunityScreen() {
     async (kind: 'avatar' | 'background') => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('story.permissionNeeded'));
+        showAlert(t('common.error'), t('story.permissionNeeded'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -82,10 +82,10 @@ export default function CreateCommunityScreen() {
         avatar,
         background,
       });
-      Alert.alert(t('common.success'), t('communities.createSuccess'));
+      showAlert(t('common.success'), t('communities.createSuccess'));
       (router as any).replace(`/(drawer)/communities/${res.community_id}`);
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.createError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.createError')));
     } finally {
       setLoading(false);
     }

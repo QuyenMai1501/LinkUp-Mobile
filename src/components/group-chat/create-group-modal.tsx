@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -11,10 +10,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { getFriends } from '@/api/friends';
 import { searchFriends } from '@/api/chat';
 import { createGroupChat } from '@/api/group-chat';
@@ -109,7 +109,7 @@ export function CreateGroupModal({ visible, onClose, onCreated }: Props) {
   const handlePickAvatar = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('common.error'), t('chat.groupAvatarPermission'));
+      showAlert(t('common.error'), t('chat.groupAvatarPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -148,7 +148,7 @@ export function CreateGroupModal({ visible, onClose, onCreated }: Props) {
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('common.error'));
+      showAlert(t('common.error'), msg || t('common.error'));
     } finally {
       setCreating(false);
     }

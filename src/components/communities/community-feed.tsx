@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { getCommunityPosts } from '@/api/communities';
 import { getEmojis, reactPost, savePost, sharePost } from '@/api/posts';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
@@ -201,7 +201,7 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, is_saved: !p.is_saved } : p)),
       );
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
+      showAlert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
     }
   }, [t]);
 
@@ -214,7 +214,7 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
       );
       try {
         await sharePost(post.id, content);
-        Alert.alert(t('postDetail.shared'));
+        showAlert(t('postDetail.shared'));
       } catch {
         setPosts((prev) =>
           prev.map((p) =>
@@ -223,7 +223,7 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
               : p,
           ),
         );
-        Alert.alert(t('common.error'), t('common.error'));
+        showAlert(t('common.error'), t('common.error'));
       }
     },
     [t],

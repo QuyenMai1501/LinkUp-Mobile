@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { communityErrorText, joinCommunity, leaveCommunity } from '@/api/communities';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -42,14 +43,14 @@ export default function CommunityHeader({
       const res = await joinCommunity(community.id);
       onStatusChange(res.request_id ? 'pending' : 'member');
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.joinError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.joinError')));
     } finally {
       setLoading(false);
     }
   }, [community.id, loading, onStatusChange, t]);
 
   const handleLeave = useCallback(() => {
-    Alert.alert(t('communities.leaveConfirmTitle'), t('communities.leaveConfirmBody'), [
+    showAlert(t('communities.leaveConfirmTitle'), t('communities.leaveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('communities.leave'),
@@ -62,7 +63,7 @@ export default function CommunityHeader({
               await leaveCommunity(community.id);
               onStatusChange('none');
             } catch (err) {
-              Alert.alert(
+              showAlert(
                 t('common.error'),
                 communityErrorText(err, t('communities.leaveError')),
               );

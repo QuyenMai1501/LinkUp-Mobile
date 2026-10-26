@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -113,7 +114,7 @@ export function ProfileHeader({
     setAvatarMenuVisible(false);
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi avatar.');
+      showAlert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi avatar.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -131,7 +132,7 @@ export function ProfileHeader({
   const handleChangeCover = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi ảnh bìa.');
+      showAlert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi ảnh bìa.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

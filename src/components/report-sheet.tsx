@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Animated as RNAnimated,
   KeyboardAvoidingView,
   Modal,
@@ -11,7 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import {
   Gesture,
@@ -27,6 +26,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ApiError } from '@/api/client';
 import { createReport, getViolationRules } from '@/api/reports';
@@ -260,12 +260,12 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
         violation_rule_id: rule ? rule.id : undefined,
         reason_detail: detail.trim(),
       });
-      Alert.alert(t('common.success'), t('report.success'));
+      showAlert(t('common.success'), t('report.success'));
       // Đóng có animation (không dùng handleClose — submitting vẫn đang true).
       animateClose();
       onSubmitted?.();
     } catch (e) {
-      Alert.alert(
+      showAlert(
         t('common.error'),
         e instanceof ApiError && e.serverMessage ? e.serverMessage : t('common.error'),
       );

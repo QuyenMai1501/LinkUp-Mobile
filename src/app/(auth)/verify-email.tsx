@@ -2,15 +2,15 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { verifyEmail, resendVerification, decodeToken } from '@/api/auth';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -111,21 +111,21 @@ export default function VerifyEmailScreen() {
   const handleResend = async () => {
     const target = email.trim();
     if (!target) {
-      Alert.alert(t('common.error'), t('auth.register.validation.emailRequired'));
+      showAlert(t('common.error'), t('auth.register.validation.emailRequired'));
       return;
     }
     if (!EMAIL_REGEX.test(target)) {
-      Alert.alert(t('common.error'), t('auth.register.validation.emailInvalid'));
+      showAlert(t('common.error'), t('auth.register.validation.emailInvalid'));
       return;
     }
     setResendLoading(true);
     try {
       const res = await resendVerification(target);
-      Alert.alert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
+      showAlert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
       setCooldown(60);
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('auth.verifyEmail.resendFailed');
-      Alert.alert(t('common.error'), msg);
+      showAlert(t('common.error'), msg);
     } finally {
       setResendLoading(false);
     }

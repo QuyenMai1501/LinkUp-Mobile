@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -8,10 +7,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import FriendCard from '@/components/friend-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -121,15 +121,15 @@ export function ShareToChatModal({ visible, onClose, postId }: Props) {
       const success = results.filter((r) => r.status === 'fulfilled').length;
       const failed = results.length - success;
       if (failed === 0) {
-        Alert.alert(t('chat.shareSent', { count: success }));
+        showAlert(t('chat.shareSent', { count: success }));
       } else if (success === 0) {
-        Alert.alert(t('common.error'), t('chat.shareSomeFailed', { count: failed }));
+        showAlert(t('common.error'), t('chat.shareSomeFailed', { count: failed }));
       } else {
-        Alert.alert(t('chat.shareSent', { count: success }), t('chat.shareSomeFailed', { count: failed }));
+        showAlert(t('chat.shareSent', { count: success }), t('chat.shareSomeFailed', { count: failed }));
       }
       handleClose();
     } catch {
-      Alert.alert(t('common.error'), t('chat.shareSomeFailed', { count: selected.size }));
+      showAlert(t('common.error'), t('chat.shareSomeFailed', { count: selected.size }));
     } finally {
       setSending(false);
     }

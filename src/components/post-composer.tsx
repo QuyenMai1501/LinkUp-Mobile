@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -10,7 +9,7 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -18,6 +17,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -324,7 +324,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
       return;
     }
 
-    Alert.alert(
+    showAlert(
       t('composer.confirmTitle'),
       t('composer.confirmMessage'),
       [
@@ -355,7 +355,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
       reset();
       onPosted(res.data);
       if (res.warnings && res.warnings.length > 0) {
-        Alert.alert(t('composer.mediaWarning'), res.warnings.join('\n'));
+        showAlert(t('composer.mediaWarning'), res.warnings.join('\n'));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));

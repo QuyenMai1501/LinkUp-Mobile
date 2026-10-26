@@ -3,10 +3,10 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -78,13 +78,13 @@ export default function ChangePasswordForm() {
     setLoading(true);
     try {
       const res = await changePassword(oldPassword, newPassword);
-      Alert.alert(t('common.success'), res.message || t('settings.changePassword.changeSuccess'));
+      showAlert(t('common.success'), res.message || t('settings.changePassword.changeSuccess'));
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setFieldErrors({});
     } catch (err) {
-      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('settings.changePassword.changeFailed'));
+      showAlert(t('common.error'), err instanceof Error ? err.message : t('settings.changePassword.changeFailed'));
     } finally {
       setLoading(false);
     }

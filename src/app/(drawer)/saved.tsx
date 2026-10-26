@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import CommentSheet from '@/components/comment-sheet';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { ShareOptionsSheet } from '@/components/share-options-sheet';
@@ -183,7 +183,7 @@ export default function SavedScreen() {
         }
       } catch (e) {
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: true } : p)));
-        Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
+        showAlert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
       }
     },
     [t],
@@ -229,7 +229,7 @@ export default function SavedScreen() {
       );
       try {
         await sharePost(post.id, content);
-        Alert.alert(t('postDetail.shared'));
+        showAlert(t('postDetail.shared'));
       } catch {
         setPosts((prev) =>
           prev.map((p) =>
@@ -238,7 +238,7 @@ export default function SavedScreen() {
               : p,
           ),
         );
-        Alert.alert(t('common.error'), t('common.error'));
+        showAlert(t('common.error'), t('common.error'));
       }
     },
     [t],

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Share,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -62,7 +62,7 @@ export default function E2ERecoveryForm() {
       setShowKey(true);
       setPin('');
       setPinConfirm('');
-      Alert.alert(t('settings.e2eEnabled'));
+      showAlert(t('settings.e2eEnabled'));
     } catch (err) {
       setError(translateErr(err));
     }
@@ -86,9 +86,9 @@ export default function E2ERecoveryForm() {
       setShowKey(false);
       setRevealedKey(null);
       setEnabled(false);
-      Alert.alert(t('settings.e2eDisabled'));
+      showAlert(t('settings.e2eDisabled'));
     } catch (err) {
-      Alert.alert(t('common.error'), translateErr(err));
+      showAlert(t('common.error'), translateErr(err));
     }
   };
 
@@ -96,12 +96,12 @@ export default function E2ERecoveryForm() {
     try {
       const ok = await recovery.forceRefreshBackup();
       if (ok) {
-        Alert.alert(t('settings.e2eRefreshed'));
+        showAlert(t('settings.e2eRefreshed'));
       } else {
-        Alert.alert(t('settings.e2eRefreshNoKeys'));
+        showAlert(t('settings.e2eRefreshNoKeys'));
       }
     } catch (err) {
-      Alert.alert(t('common.error'), translateErr(err));
+      showAlert(t('common.error'), translateErr(err));
     }
   };
 

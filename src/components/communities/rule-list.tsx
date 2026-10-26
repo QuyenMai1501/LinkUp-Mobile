@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   deleteCommunityRule,
@@ -61,7 +62,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
 
   const handleDelete = useCallback(
     (rule: CommunityRule) => {
-      Alert.alert(t('communities.ruleDeleteTitle'), `${t('communities.ruleDeleteConfirm')} — “${rule.title}”`, [
+      showAlert(t('communities.ruleDeleteTitle'), `${t('communities.ruleDeleteConfirm')} — “${rule.title}”`, [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
@@ -72,7 +73,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
                 await deleteCommunityRule(communityId, rule.id);
                 await load();
               } catch (err) {
-                Alert.alert(
+                showAlert(
                   t('common.error'),
                   communityErrorText(err, t('communities.ruleError')),
                 );

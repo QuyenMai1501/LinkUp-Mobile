@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -117,7 +118,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
 
           <Pressable
             onPress={() => {
-              Alert.alert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
+              showAlert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
                   text: t('sidebar.logout'),

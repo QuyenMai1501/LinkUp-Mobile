@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
@@ -139,7 +140,7 @@ export function ChatComposer({
     Keyboard.dismiss();
     void (async () => {
       const started = await voice.start();
-      if (!started) Alert.alert(t('common.error'), t('call.permissionDenied'));
+      if (!started) showAlert(t('common.error'), t('call.permissionDenied'));
     })();
   };
 

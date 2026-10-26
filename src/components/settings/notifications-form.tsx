@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { Switch, StyleSheet, ActivityIndicator } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import SettingsRow, { type SettingsTone } from '@/components/settings/settings-row';
@@ -77,9 +78,9 @@ export default function NotificationsForm() {
       }
       await apiUpdatePreferences(input);
       setInitial({ ...values });
-      Alert.alert(t('common.success'), t('settings.notificationsPrefs.saveSuccess'));
+      showAlert(t('common.success'), t('settings.notificationsPrefs.saveSuccess'));
     } catch {
-      Alert.alert(t('common.error'), t('settings.notificationsPrefs.saveFailed'));
+      showAlert(t('common.error'), t('settings.notificationsPrefs.saveFailed'));
     } finally {
       setSaving(false);
     }

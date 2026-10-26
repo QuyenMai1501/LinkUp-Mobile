@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { Switch, StyleSheet, ActivityIndicator } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import SettingsRow from '@/components/settings/settings-row';
@@ -30,7 +31,7 @@ export default function PrivacyForm() {
         setDiscoverable(res.discoverable_in_search);
         setAllowStrangers(res.allow_stranger_messages);
       } catch {
-        if (!cancelled) Alert.alert(t('common.error'), t('settings.privacy.loadFailed'));
+        if (!cancelled) showAlert(t('common.error'), t('settings.privacy.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -53,9 +54,9 @@ export default function PrivacyForm() {
       if (allowStrangers !== initial.allow_stranger_messages) input.allow_stranger_messages = allowStrangers;
       const res = await updatePrivacy(input);
       setInitial(res);
-      Alert.alert(t('common.success'), t('settings.privacy.saveSuccess'));
+      showAlert(t('common.success'), t('settings.privacy.saveSuccess'));
     } catch {
-      Alert.alert(t('common.error'), t('settings.privacy.saveFailed'));
+      showAlert(t('common.error'), t('settings.privacy.saveFailed'));
     } finally {
       setSaving(false);
     }

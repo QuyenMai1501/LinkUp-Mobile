@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -47,7 +48,7 @@ export function FriendButton({ userId, onStatusChange }: FriendButtonProps) {
         setStatus({ status: 'accepted' });
         onStatusChange?.('accepted');
       } else if (status.status === 'accepted') {
-        Alert.alert(
+        showAlert(
           t('friends.confirm.removeFriend', { name: '' }),
           '',
           [
@@ -64,7 +65,7 @@ export function FriendButton({ userId, onStatusChange }: FriendButtonProps) {
         );
       }
     } catch {
-      Alert.alert(t('common.error'), '');
+      showAlert(t('common.error'), '');
     } finally {
       setActionLoading(false);
     }

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Typography } from '@/constants/theme';
@@ -85,12 +86,12 @@ export default function UserProfileScreen() {
         if (msg.includes('chat.NOT_PARTICIPANT')) {
           try {
             await createChatInvite(userId);
-            Alert.alert(t('common.success'), t('profile.inviteSent'));
+            showAlert(t('common.success'), t('profile.inviteSent'));
           } catch {
-            Alert.alert(t('common.error'), t('profile.messageFailed'));
+            showAlert(t('common.error'), t('profile.messageFailed'));
           }
         } else {
-          Alert.alert(t('common.error'), t('profile.messageFailed'));
+          showAlert(t('common.error'), t('profile.messageFailed'));
         }
       } finally {
         setMessageBusy(false);

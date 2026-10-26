@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -10,10 +9,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { addGroupMember } from '@/api/group-chat';
 import { searchFriends } from '@/api/chat';
 import { getFriends } from '@/api/friends';
@@ -152,13 +152,13 @@ export function AddGroupMemberModal({
     }
     setAdding(false);
     if (addedCount > 0) {
-      Alert.alert(
+      showAlert(
         t('common.success'),
         t('chat.memberInviteSent', { count: addedCount }),
       );
       onMembersAdded?.();
     } else if (lastError) {
-      Alert.alert(t('common.error'), lastError);
+      showAlert(t('common.error'), lastError);
     }
     onClose();
   }, [selectedIds, adding, chatId, onMembersAdded, onClose, t]);

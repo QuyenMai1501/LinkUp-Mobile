@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Switch, StyleSheet, Alert } from 'react-native';
+import { Switch, StyleSheet } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import SettingsRow from '@/components/settings/settings-row';
@@ -24,7 +25,7 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ theme: mode });
     } catch {
-      Alert.alert(t('common.error'), t('settings.appearance.saveFailed'));
+      showAlert(t('common.error'), t('settings.appearance.saveFailed'));
     }
   };
 
@@ -33,7 +34,7 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ language: lang });
     } catch {
-      Alert.alert(t('common.error'), t('settings.appearance.languageSaveFailed'));
+      showAlert(t('common.error'), t('settings.appearance.languageSaveFailed'));
     }
   };
 

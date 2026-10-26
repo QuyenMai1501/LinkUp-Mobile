@@ -2,15 +2,15 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { forgotPassword } from '@/api/auth';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
@@ -52,7 +52,7 @@ export default function ForgotPasswordScreen() {
       setSentEmail(target);
     } catch (err) {
       const message = err instanceof Error ? err.message : t('auth.forgotPassword.sendFailed');
-      Alert.alert(t('auth.forgotPassword.title'), message);
+      showAlert(t('auth.forgotPassword.title'), message);
     } finally {
       setLoading(false);
     }

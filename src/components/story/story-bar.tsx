@@ -1,7 +1,8 @@
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { StoryAvatarRing } from '@/components/story/story-avatar-ring';
@@ -82,7 +83,7 @@ export default function StoryBar({
   const otherGroups = stories.filter((s) => s.user.id !== currentUserId);
 
   const confirmMute = (userId: string, displayName: string) => {
-    Alert.alert(displayName, undefined, [
+    showAlert(displayName, undefined, [
       {
         text: t('story.muteUser'),
         style: 'destructive',

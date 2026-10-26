@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import FriendCard from '@/components/friend-card';
 import FriendRequestCard from '@/components/friend-request-card';
 import { ThemedText } from '@/components/themed-text';
@@ -216,9 +216,9 @@ export default function FriendsScreen() {
       try {
         await fn;
         onSuccess();
-        Alert.alert(t('common.success'), successMsg);
+        showAlert(t('common.success'), successMsg);
       } catch (err) {
-        Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+        showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
       }
     },
     [t],
@@ -289,10 +289,10 @@ export default function FriendsScreen() {
     try {
       await unfriend(unfriendTarget.user_id);
       setFriends((prev) => prev.filter((f) => f.user_id !== unfriendTarget.user_id));
-      Alert.alert(t('common.success'), t('friends.actions.unfriendSuccess'));
+      showAlert(t('common.success'), t('friends.actions.unfriendSuccess'));
       setUnfriendTarget(null);
     } catch (err) {
-      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+      showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setUnfriending(false);
     }

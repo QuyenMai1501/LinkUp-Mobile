@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Alert, Animated, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Animated, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/spacing';
@@ -382,7 +383,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
     );
     try {
       await sharePost(post.id, content);
-      Alert.alert(t('postDetail.shared'));
+      showAlert(t('postDetail.shared'));
     } catch {
       setPosts((prev) =>
         prev.map((p) =>
@@ -391,7 +392,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
             : p,
         ),
       );
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     }
   }, [t]);
 

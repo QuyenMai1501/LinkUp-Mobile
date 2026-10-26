@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -9,11 +8,12 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   getCommunityMembers,
@@ -102,10 +102,10 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
       setBusy(true);
       try {
         await updateMemberRole(communityId, member.user_id, role);
-        Alert.alert(t('common.success'), t('communities.roleChanged'));
+        showAlert(t('common.success'), t('communities.roleChanged'));
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.roleError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.roleError')));
       } finally {
         setBusy(false);
       }
@@ -118,12 +118,12 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
     setBusy(true);
     try {
       await kickMember(communityId, kickTarget.user_id, kickReason.trim());
-      Alert.alert(t('common.success'), t('communities.kicked'));
+      showAlert(t('common.success'), t('communities.kicked'));
       setKickTarget(null);
       setKickReason('');
       await load();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.kickError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.kickError')));
     } finally {
       setBusy(false);
     }

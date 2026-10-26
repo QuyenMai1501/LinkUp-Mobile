@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 
+import { showAlert } from '@/utils/alert';
 import { apiErrorMessage } from '@/api/client';
 import { deleteAd, getMyAds, updateAdStatus } from '@/api/partner';
 import { ThemedText } from '@/components/themed-text';
@@ -133,15 +133,15 @@ export default function PartnerAdsScreen() {
     const newStatus = ad.status === 'active' ? 'paused' : 'active';
     try {
       await updateAdStatus(ad.id, newStatus);
-      Alert.alert(t('common.success'), t('partner.form.updateSuccess'));
+      showAlert(t('common.success'), t('partner.form.updateSuccess'));
       void fetchPage(true);
     } catch (e) {
-      Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
+      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
     }
   };
 
   const handleDelete = (ad: PartnerAdListItem) => {
-    Alert.alert(t('partner.ads.delete'), t('partner.ads.deleteConfirm'), [
+    showAlert(t('partner.ads.delete'), t('partner.ads.deleteConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -150,10 +150,10 @@ export default function PartnerAdsScreen() {
           void (async () => {
             try {
               await deleteAd(ad.id);
-              Alert.alert(t('common.success'), t('partner.form.deleteSuccess'));
+              showAlert(t('common.success'), t('partner.form.deleteSuccess'));
               void fetchPage(true);
             } catch (e) {
-              Alert.alert(
+              showAlert(
                 t('common.error'),
                 apiErrorMessage(e, t('common.error')),
               );

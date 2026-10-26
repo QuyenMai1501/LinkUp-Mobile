@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Clipboard,
   KeyboardAvoidingView,
@@ -12,11 +11,12 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   approveJoinRequest,
   communityErrorText,
@@ -141,10 +141,10 @@ function SettingsSection({
         privacy,
         auto_approve: autoApprove,
       });
-      Alert.alert(t('common.success'), t('communities.settingsSaved'));
+      showAlert(t('common.success'), t('communities.settingsSaved'));
       onUpdate();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.settingsError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.settingsError')));
     } finally {
       setLoading(false);
     }
@@ -291,7 +291,7 @@ function RequestsSection({ communityId }: { communityId: string }) {
         else await rejectJoinRequest(communityId, requestId);
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.requestError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.requestError')));
       } finally {
         setBusyId(null);
       }
@@ -420,12 +420,12 @@ function CodesSection({ communityId }: { communityId: string }) {
     try {
       const parsed = Math.max(0, Number.parseInt(maxUses, 10) || 0);
       await createInviteCode(communityId, parsed);
-      Alert.alert(t('common.success'), t('communities.codeCreated'));
+      showAlert(t('common.success'), t('communities.codeCreated'));
       setShowCreate(false);
       setMaxUses('0');
       await load();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.codeError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.codeError')));
     } finally {
       setCreating(false);
     }
@@ -436,10 +436,10 @@ function CodesSection({ communityId }: { communityId: string }) {
       setBusyId(codeId);
       try {
         await deactivateInviteCode(communityId, codeId);
-        Alert.alert(t('common.success'), t('communities.codeDeactivated'));
+        showAlert(t('common.success'), t('communities.codeDeactivated'));
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.codeError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.codeError')));
       } finally {
         setBusyId(null);
       }
@@ -450,7 +450,7 @@ function CodesSection({ communityId }: { communityId: string }) {
   const handleCopy = useCallback(
     (code: string) => {
       Clipboard.setString(code);
-      Alert.alert(t('common.success'), t('communities.codeCopied'));
+      showAlert(t('common.success'), t('communities.codeCopied'));
     },
     [t],
   );
@@ -603,7 +603,7 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
 
   const handleTransfer = useCallback(() => {
     if (!trimmed || loading) return;
-    Alert.alert(t('communities.transferOwnership'), t('communities.transferWarning'), [
+    showAlert(t('communities.transferOwnership'), t('communities.transferWarning'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('communities.transferOwnership'),
@@ -613,11 +613,11 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
             setLoading(true);
             try {
               await transferOwnership(communityId, trimmed, keepAdmin);
-              Alert.alert(t('common.success'), t('communities.transferSuccess'));
+              showAlert(t('common.success'), t('communities.transferSuccess'));
               setTargetUserId('');
               onUpdate();
             } catch (err) {
-              Alert.alert(
+              showAlert(
                 t('common.error'),
                 communityErrorText(err, t('communities.transferError')),
               );

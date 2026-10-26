@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -26,10 +27,10 @@ export function ProfileMenu({ userId, isSelf }: ProfileMenuProps) {
     setBlocking(true);
     try {
       await blockUser(userId);
-      Alert.alert(t('common.success'), '');
+      showAlert(t('common.success'), '');
       setIsOpen(false);
     } catch {
-      Alert.alert(t('common.error'), '');
+      showAlert(t('common.error'), '');
     } finally {
       setBlocking(false);
     }

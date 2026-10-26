@@ -7,13 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import {
   RTCPeerConnection,
   mediaDevices,
   type MediaStream,
 } from 'react-native-webrtc';
 
+import { showAlert } from '@/utils/alert';
 import { getIceServers, type IceServer } from '@/api/calls';
 import { getProfileByUserID } from '@/api/profile';
 import { useAuth } from '@/contexts/auth-context';
@@ -586,7 +587,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     (payload: GroupCallJoinRejectedPayload) => {
       if (callIdRef.current !== payload.call_id) return;
       if (payload.user_id !== myUserIdRef.current) return;
-      Alert.alert(t('groupCall.joinRejected'));
+      showAlert(t('groupCall.joinRejected'));
       showEnded();
     },
     [showEnded, t],
@@ -747,12 +748,12 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     async (chatId: string, participantIds?: string[]) => {
       if (phaseRef.current !== 'idle') return;
       if (socket.status !== 'open') {
-        Alert.alert(t('groupCall.noConnection'));
+        showAlert(t('groupCall.noConnection'));
         return;
       }
       const okPerms = await ensureGroupCallPermissions();
       if (!okPerms) {
-        Alert.alert(t('groupCall.permissionDenied'));
+        showAlert(t('groupCall.permissionDenied'));
         return;
       }
 
@@ -760,7 +761,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       try {
         stream = await mediaDevices.getUserMedia({ audio: true, video: true });
       } catch {
-        Alert.alert(t('groupCall.permissionDenied'));
+        showAlert(t('groupCall.permissionDenied'));
         return;
       }
 
@@ -797,7 +798,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         call_type: 'video',
       });
       if (!ok) {
-        Alert.alert(t('groupCall.noConnection'));
+        showAlert(t('groupCall.noConnection'));
         resetToIdle();
       }
     },
@@ -808,12 +809,12 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     async (callId: string) => {
       if (phaseRef.current !== 'idle' && phaseRef.current !== 'ringing') return;
       if (socket.status !== 'open') {
-        Alert.alert(t('groupCall.noConnection'));
+        showAlert(t('groupCall.noConnection'));
         return;
       }
       const okPerms = await ensureGroupCallPermissions();
       if (!okPerms) {
-        Alert.alert(t('groupCall.permissionDenied'));
+        showAlert(t('groupCall.permissionDenied'));
         return;
       }
 
@@ -821,7 +822,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       try {
         stream = await mediaDevices.getUserMedia({ audio: true, video: true });
       } catch {
-        Alert.alert(t('groupCall.permissionDenied'));
+        showAlert(t('groupCall.permissionDenied'));
         return;
       }
 

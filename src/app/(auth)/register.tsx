@@ -2,15 +2,15 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { register } from '@/api/auth';
 import GoogleAuthButton from '@/components/google-auth-button';
 import { Button } from '@/components/ui/button';
@@ -108,7 +108,7 @@ export default function RegisterScreen() {
       router.replace('/login');
     } catch (err) {
       const message = err instanceof Error ? err.message : t('auth.register.registerFailed');
-      Alert.alert(t('auth.register.registerFailed'), message);
+      showAlert(t('auth.register.registerFailed'), message);
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 
+import { showAlert } from '@/utils/alert';
 import { communityErrorText, joinCommunity } from '@/api/communities';
 import { JoinCodeModal } from '@/components/communities/join-code-modal';
 import { ThemedText } from '@/components/themed-text';
@@ -36,7 +37,7 @@ export default function CommunityCard({ community, onPress, style }: CommunityCa
       const res = await joinCommunity(community.id);
       setJoinedStatus(res.request_id ? 'pending' : 'member');
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.joinError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.joinError')));
     } finally {
       setJoining(false);
     }

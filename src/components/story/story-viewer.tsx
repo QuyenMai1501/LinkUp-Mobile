@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Modal,
@@ -9,7 +8,7 @@ import {
   Share,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -17,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import StoryStatsModal from '@/components/story/story-stats-modal';
@@ -331,7 +331,7 @@ export default function StoryViewer({
 
   const confirmDelete = useCallback(() => {
     if (!story) return;
-    Alert.alert(t('story.delete'), t('story.confirmDelete'), [
+    showAlert(t('story.delete'), t('story.confirmDelete'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('story.delete'),
@@ -343,7 +343,7 @@ export default function StoryViewer({
               onClose();
             })
             .catch((err) => {
-              Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+              showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
             });
         },
       },

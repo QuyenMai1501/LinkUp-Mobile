@@ -1,14 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import {
   Stack,
@@ -19,6 +18,7 @@ import {
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import { apiErrorMessage } from '@/api/client';
 import { getMyAds, createAd, updateAd } from '@/api/partner';
 import { getMySubscription, getPackages } from '@/api/package';
@@ -125,7 +125,7 @@ export default function AdFormScreen() {
           media_uri: found.media_uri,
         });
       } catch (e) {
-        Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
+        showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
         router.back();
         return;
       } finally {
@@ -159,7 +159,7 @@ export default function AdFormScreen() {
   const pickMedia = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(t('common.error'), t('story.permissionNeeded'));
+      showAlert(t('common.error'), t('story.permissionNeeded'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -218,17 +218,17 @@ export default function AdFormScreen() {
       };
       if (isEdit && id) {
         await updateAd(id, base);
-        Alert.alert(t('common.success'), t('partner.form.updateSuccess'), [
+        showAlert(t('common.success'), t('partner.form.updateSuccess'), [
           { text: t('common.ok'), onPress: () => router.back() },
         ]);
       } else {
         await createAd({ ...base, format }, media ?? undefined);
-        Alert.alert(t('common.success'), t('partner.form.createSuccess'), [
+        showAlert(t('common.success'), t('partner.form.createSuccess'), [
           { text: t('common.ok'), onPress: () => router.back() },
         ]);
       }
     } catch (e) {
-      Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
+      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
     } finally {
       setSubmitting(false);
     }

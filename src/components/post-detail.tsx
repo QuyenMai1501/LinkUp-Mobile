@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Alert,
   Clipboard,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -298,7 +298,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       setReplyingTo(null);
       setPost((prev) => (prev ? { ...prev, comments_count: res.data.length } : prev));
     } catch {
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     } finally {
       setSubmittingComment(false);
     }
@@ -313,9 +313,9 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           ? { ...prev, shares_count: prev.shares_count + 1, is_shared: true }
           : prev,
       );
-      Alert.alert(t('postDetail.shared'));
+      showAlert(t('postDetail.shared'));
     } catch {
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     }
   };
 
@@ -327,7 +327,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
   const handleDelete = () => {
     if (!post) return;
-    Alert.alert(
+    showAlert(
       t('postDetail.delete'),
       t('postDetail.deleteConfirm'),
       [
@@ -338,11 +338,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           onPress: async () => {
             try {
               await deletePost(post.id);
-              Alert.alert(t('postDetail.deleted'));
+              showAlert(t('postDetail.deleted'));
               onDeleted?.();
               onBack?.();
             } catch {
-              Alert.alert(t('common.error'), t('common.error'));
+              showAlert(t('common.error'), t('common.error'));
             }
           },
         },
@@ -363,7 +363,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       await followUser(post.user_id);
     } catch {
       setPost((prev) => (prev ? { ...prev, is_following: !next } : prev));
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     }
   };
 
@@ -397,7 +397,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
   const handleCopyLink = () => {
     Clipboard.setString(postLink(post.id));
-    Alert.alert(t('postDetail.copied'), postLink(post.id));
+    showAlert(t('postDetail.copied'), postLink(post.id));
   };
 
   const handleToggleComments = async () => {
@@ -409,14 +409,14 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     try {
       const res = await setCommentsEnabled(post.id, next);
       setPost((p) => (p ? { ...p, comments_enabled: res.data.comments_enabled } : p));
-      Alert.alert(
+      showAlert(
         res.data.comments_enabled
           ? t('postDetail.commentsEnabledToast')
           : t('postDetail.commentsDisabledToast'),
       );
     } catch (e) {
       setPost((p) => (p ? { ...p, comments_enabled: prev } : p));
-      Alert.alert(e instanceof Error ? e.message : t('common.error'));
+      showAlert(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setTogglingComments(false);
     }

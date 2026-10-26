@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   NativeScrollEvent,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAlert } from "@/utils/alert";
 import { batchGetPresence } from "@/api/presence";
 import { deleteChat, getChatBackground, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
@@ -418,7 +418,7 @@ export default function ChatScreen() {
         if (!uploadJobsRef.current.has(tempId)) return; // đã bị bỏ — khỏi báo lỗi
         room.failUpload(tempId);
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
+        showAlert(t("common.error"), msg || t("chat.uploadFailed"));
       }
     },
     [chatId, room, t],
@@ -437,11 +437,11 @@ export default function ChatScreen() {
         encryption.status === "unavailable" ||
         encryption.status === "loading"
       ) {
-        Alert.alert(t("chat.e2eInitializing"));
+        showAlert(t("chat.e2eInitializing"));
         return;
       }
       if (encryption.status === "partner_changed") {
-        Alert.alert(t("chat.e2ePartnerChanged"));
+        showAlert(t("chat.e2ePartnerChanged"));
         return;
       }
 
@@ -532,7 +532,7 @@ export default function ChatScreen() {
           }
         }
         if (failedCount > 0) {
-          Alert.alert(
+          showAlert(
             t("common.error"),
             t("chat.uploadFailedCount", {
               count: failedCount,
@@ -584,11 +584,11 @@ export default function ChatScreen() {
         encryption.status === "unavailable" ||
         encryption.status === "loading"
       ) {
-        Alert.alert(t("chat.e2eInitializing"));
+        showAlert(t("chat.e2eInitializing"));
         return;
       }
       if (encryption.status === "partner_changed") {
-        Alert.alert(t("chat.e2ePartnerChanged"));
+        showAlert(t("chat.e2ePartnerChanged"));
         return;
       }
       setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft

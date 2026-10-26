@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
+import { StyleSheet, ActivityIndicator, TouchableOpacity, Modal } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getSessions, revokeSession, revokeOtherSessions } from '@/api/settings';
@@ -35,7 +36,7 @@ export default function SessionsManager() {
       const res = await getSessions();
       setSessions(res.data);
     } catch {
-      Alert.alert(t('common.error'), t('settings.sessions.loadFailed'));
+      showAlert(t('common.error'), t('settings.sessions.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +49,7 @@ export default function SessionsManager() {
         const res = await getSessions();
         if (!cancelled) setSessions(res.data);
       } catch {
-        if (!cancelled) Alert.alert(t('common.error'), t('settings.sessions.loadFailed'));
+        if (!cancelled) showAlert(t('common.error'), t('settings.sessions.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,10 +62,10 @@ export default function SessionsManager() {
     setRevokingId(id);
     try {
       await revokeSession(id);
-      Alert.alert(t('common.success'), t('settings.sessions.revokeSuccess'));
+      showAlert(t('common.success'), t('settings.sessions.revokeSuccess'));
       await load();
     } catch {
-      Alert.alert(t('common.error'), t('settings.sessions.revokeFailed'));
+      showAlert(t('common.error'), t('settings.sessions.revokeFailed'));
     } finally {
       setRevokingId(null);
     }
@@ -74,11 +75,11 @@ export default function SessionsManager() {
     setRevokingAll(true);
     try {
       await revokeOtherSessions();
-      Alert.alert(t('common.success'), t('settings.sessions.revokeAllSuccess'));
+      showAlert(t('common.success'), t('settings.sessions.revokeAllSuccess'));
       setConfirmAll(false);
       await load();
     } catch {
-      Alert.alert(t('common.error'), t('settings.sessions.revokeFailed'));
+      showAlert(t('common.error'), t('settings.sessions.revokeFailed'));
     } finally {
       setRevokingAll(false);
     }

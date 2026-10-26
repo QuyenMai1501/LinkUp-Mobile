@@ -6,13 +6,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import {
   RTCPeerConnection,
   mediaDevices,
   type MediaStream,
 } from 'react-native-webrtc';
 
+import { showAlert } from '@/utils/alert';
 import { getIceServers, type IceServer } from '@/api/calls';
 import { getProfileByUserID } from '@/api/profile';
 import { useAuth } from '@/contexts/auth-context';
@@ -117,7 +118,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   };
 
   const showError = (message: string) => {
-    Alert.alert(message);
+    showAlert(message);
   };
 
   useEffect(() => {

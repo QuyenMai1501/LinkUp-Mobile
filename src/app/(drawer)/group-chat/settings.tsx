@@ -4,16 +4,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import {
   banGroupMember,
   getGroupChatBackground,
@@ -125,7 +125,7 @@ export default function GroupChatSettingsScreen() {
         setNameValue(res.data.name);
       })
       .catch(() => {
-        Alert.alert(t('common.error'));
+        showAlert(t('common.error'));
       })
       .finally(() => {
         setLoading(false);
@@ -153,7 +153,7 @@ export default function GroupChatSettingsScreen() {
   const handleSaveName = useCallback(async () => {
     const trimmed = nameValue.trim();
     if (trimmed.length < 3 || trimmed.length > 50) {
-      Alert.alert(t('common.error'), t('chat.groupNameInvalid'));
+      showAlert(t('common.error'), t('chat.groupNameInvalid'));
       return;
     }
     if (!chatId) return;
@@ -165,7 +165,7 @@ export default function GroupChatSettingsScreen() {
       setEditingName(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('common.error'));
+      showAlert(t('common.error'), msg || t('common.error'));
     } finally {
       setSavingName(false);
     }
@@ -175,7 +175,7 @@ export default function GroupChatSettingsScreen() {
     if (!chatId) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('common.error'), t('chat.groupAvatarPermission'));
+      showAlert(t('common.error'), t('chat.groupAvatarPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -198,7 +198,7 @@ export default function GroupChatSettingsScreen() {
       setSettings(res.data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('common.error'));
+      showAlert(t('common.error'), msg || t('common.error'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -212,7 +212,7 @@ export default function GroupChatSettingsScreen() {
       // Refresh danh sách hội thoại + thoát cả phòng lẫn settings.
       notifyChatListDirty();
       setLeaveOpen(false);
-      Alert.alert(t('common.success'), t('chat.leftGroupSuccess'), [
+      showAlert(t('common.success'), t('chat.leftGroupSuccess'), [
         {
           text: t('common.ok'),
           onPress: () => router.replace('/(drawer)/messages'),
@@ -220,7 +220,7 @@ export default function GroupChatSettingsScreen() {
       ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('common.error'));
+      showAlert(t('common.error'), msg || t('common.error'));
     } finally {
       setLeaving(false);
     }
@@ -247,12 +247,12 @@ export default function GroupChatSettingsScreen() {
       setActionBusy(true);
       try {
         await action();
-        Alert.alert(t('common.success'), successMsg);
+        showAlert(t('common.success'), successMsg);
         loadSettings();
         return true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('common.error'));
+        showAlert(t('common.error'), msg || t('common.error'));
         return false;
       } finally {
         setActionBusy(false);

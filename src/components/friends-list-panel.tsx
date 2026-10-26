@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import FriendCard from '@/components/friend-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -92,10 +92,10 @@ export default function FriendsListPanel() {
     try {
       await unfriend(unfriendTarget.user_id);
       setFriends((prev) => prev.filter((f) => f.user_id !== unfriendTarget.user_id));
-      Alert.alert(t('common.success'), t('friends.actions.unfriendSuccess'));
+      showAlert(t('common.success'), t('friends.actions.unfriendSuccess'));
       setUnfriendTarget(null);
     } catch (err) {
-      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+      showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setUnfriending(false);
     }

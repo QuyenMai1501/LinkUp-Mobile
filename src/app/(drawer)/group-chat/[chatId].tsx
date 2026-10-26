@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   NativeScrollEvent,
@@ -10,10 +9,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import {
   getGroupChatBackground,
   getGroupSettings,
@@ -342,7 +342,7 @@ export default function GroupChatScreen() {
         if (!uploadJobsRef.current.has(tempId)) return;
         room.failUpload(tempId);
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('chat.uploadFailed'));
+        showAlert(t('common.error'), msg || t('chat.uploadFailed'));
       }
     },
     [chatId, room, t],
@@ -440,7 +440,7 @@ export default function GroupChatScreen() {
           }
         }
         if (failedCount > 0) {
-          Alert.alert(
+          showAlert(
             t('common.error'),
             t('chat.uploadFailedCount', {
               count: failedCount,
@@ -1135,7 +1135,7 @@ export default function GroupChatScreen() {
                       showAvatar={prev?.senderId !== gc.caller_id}
                       activeCallId={activeGroupCallId}
                       onRequestJoin={(callId) => {
-                        Alert.alert(
+                        showAlert(
                           t('groupCall.requestJoin'),
                           t('groupCall.pendingRequestBody', {
                             name:
