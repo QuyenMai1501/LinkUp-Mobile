@@ -107,7 +107,9 @@ export default function SessionsManager() {
   return (
     <ThemedView style={styles.container}>
       {sessions.map((session) => (
-        <ThemedView key={session.id} style={[styles.sessionRow, { backgroundColor: colors.card }]}>
+        <ThemedView
+          key={session.id}
+          style={[styles.sessionRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <ThemedView style={styles.sessionInfo}>
             <ThemedText style={styles.sessionIcon}>💻</ThemedText>
             <ThemedView style={styles.sessionDetails}>
@@ -199,6 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.md,
     borderRadius: 12,
+    borderWidth: 1,
   },
   sessionInfo: { flexDirection: 'row', flex: 1, gap: Spacing.md },
   sessionIcon: { fontSize: 28 },

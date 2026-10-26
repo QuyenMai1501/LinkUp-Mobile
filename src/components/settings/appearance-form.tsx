@@ -3,6 +3,7 @@ import { Switch, StyleSheet, Alert } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import SettingsRow from '@/components/settings/settings-row';
 import { updateAppearance } from '@/api/settings';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -38,28 +39,26 @@ export default function AppearanceForm() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.appearance.darkMode')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.appearance.darkModeDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="moon"
+        tone="primary"
+        label={t('settings.appearance.darkMode')}
+        hint={t('settings.appearance.darkModeDesc')}>
         <Switch
           value={theme === 'dark'}
           onValueChange={(v) => handleThemeChange(v ? 'dark' : 'light')}
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor={colors.textOnPrimary}
         />
-      </ThemedView>
+      </SettingsRow>
 
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.appearance.language')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.appearance.languageDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="globe"
+        tone="info"
+        label={t('settings.appearance.language')}
+        hint={t('settings.appearance.languageDesc')}>
         <ThemedView style={styles.langGroup}>
           <ThemedView
             style={[
@@ -92,23 +91,13 @@ export default function AppearanceForm() {
             </ThemedText>
           </ThemedView>
         </ThemedView>
-      </ThemedView>
+      </SettingsRow>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.md },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderRadius: 12,
-  },
-  info: { flex: 1, marginRight: Spacing.md },
-  label: { fontSize: 15, fontWeight: '500' },
-  hint: { fontSize: 13, marginTop: 2 },
   langGroup: { flexDirection: 'row', gap: Spacing.xs },
   langBtn: {
     paddingHorizontal: Spacing.md,

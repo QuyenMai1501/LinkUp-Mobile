@@ -103,6 +103,7 @@ export const icons = {
   key: 'key-outline' as const,
   calendar: 'calendar-outline' as const,
   pencil: 'create-outline' as const,
+  moon: 'moon-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;

@@ -3,7 +3,9 @@ import { Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import SettingsRow, { type SettingsTone } from '@/components/settings/settings-row';
 import { getPreferences, updatePreferences as apiUpdatePreferences } from '@/api/notifications';
+import { type IconName } from '@/constants/icon-map';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -11,14 +13,14 @@ import type { NotificationPreferences } from '@/types/notification';
 
 type PrefKey = keyof NotificationPreferences;
 
-const PREF_ROWS: { key: PrefKey; labelKey: string }[] = [
-  { key: 'like_enabled', labelKey: 'settings.notificationsPrefs.likePost' },
-  { key: 'comment_enabled', labelKey: 'settings.notificationsPrefs.comment' },
-  { key: 'follow_enabled', labelKey: 'settings.notificationsPrefs.follow' },
-  { key: 'message_enabled', labelKey: 'settings.notificationsPrefs.message' },
-  { key: 'friend_request_enabled', labelKey: 'settings.notificationsPrefs.friendRequest' },
-  { key: 'community_enabled', labelKey: 'settings.notificationsPrefs.community' },
-  { key: 'voice_call_enabled', labelKey: 'settings.notificationsPrefs.voiceCall' },
+const PREF_ROWS: { key: PrefKey; labelKey: string; icon: IconName; tone: SettingsTone }[] = [
+  { key: 'like_enabled', labelKey: 'settings.notificationsPrefs.likePost', icon: 'heart', tone: 'danger' },
+  { key: 'comment_enabled', labelKey: 'settings.notificationsPrefs.comment', icon: 'chat', tone: 'primary' },
+  { key: 'follow_enabled', labelKey: 'settings.notificationsPrefs.follow', icon: 'people', tone: 'info' },
+  { key: 'message_enabled', labelKey: 'settings.notificationsPrefs.message', icon: 'send', tone: 'success' },
+  { key: 'friend_request_enabled', labelKey: 'settings.notificationsPrefs.friendRequest', icon: 'personAdd', tone: 'accent' },
+  { key: 'community_enabled', labelKey: 'settings.notificationsPrefs.community', icon: 'globe', tone: 'primary' },
+  { key: 'voice_call_enabled', labelKey: 'settings.notificationsPrefs.voiceCall', icon: 'call', tone: 'success' },
 ];
 
 const DEFAULT_PREFS: NotificationPreferences = {
@@ -94,8 +96,12 @@ export default function NotificationsForm() {
   return (
     <ThemedView style={styles.container}>
       {PREF_ROWS.map((row) => (
-        <ThemedView key={row.key} style={[styles.row, { backgroundColor: colors.card }]}>
-          <ThemedText style={styles.label}>{t(row.labelKey)}</ThemedText>
+        <SettingsRow
+          key={row.key}
+          card
+          icon={row.icon}
+          tone={row.tone}
+          label={t(row.labelKey)}>
           <Switch
             value={values[row.key]}
             onValueChange={(v) =>
@@ -104,7 +110,7 @@ export default function NotificationsForm() {
             trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor={colors.textOnPrimary}
           />
-        </ThemedView>
+        </SettingsRow>
       ))}
 
       {dirty && (
@@ -127,14 +133,6 @@ export default function NotificationsForm() {
 const styles = StyleSheet.create({
   container: { gap: Spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderRadius: 12,
-  },
-  label: { fontSize: 15, fontWeight: '500' },
   saveRow: { alignItems: 'center', paddingVertical: Spacing.sm },
   saveBtn: { fontSize: 16, fontWeight: '600' },
 });

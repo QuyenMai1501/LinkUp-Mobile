@@ -97,8 +97,8 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Component: `components/notification-item.tsx`
 
 ### Cài đặt (settings)
-- Screens: `app/(drawer)/settings/` — `index`, `appearance`, `change-password`, `deactivate`, `notifications`, `privacy`, `security`, `sessions`, `storage`, `_layout`
-- Components: `components/settings/` — `appearance-form`, `change-password-form`, `deactivate-account`, `e2e-recovery-form`, `notifications-form`, `privacy-form`, `sessions-manager`, `storage-info`
+- Screens: `app/(drawer)/settings/` — `index` (3 nhóm Tài khoản/Ứng dụng/Khác, icon tile + chevron), `appearance`, `change-password`, `deactivate`, `notifications`, `privacy`, `security`, `sessions`, `storage` (wrap qua `settings-screen`), `_layout` (header ẩn, header tự dựng)
+- Components: `components/settings/` — `settings-row` (hàng dùng chung: icon tile tone + label/hint + chevron hoặc control), `settings-screen` (header back + ScrollView wrapper), `appearance-form`, `change-password-form`, `deactivate-account`, `e2e-recovery-form`, `notifications-form`, `privacy-form`, `sessions-manager`, `storage-info`
 - API: `api/settings.ts` · Types: `types/settings.ts`
 
 ### Hồ sơ (profile)
