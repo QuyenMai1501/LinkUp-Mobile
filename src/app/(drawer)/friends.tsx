@@ -22,6 +22,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { refreshFriendRequestCount } from '@/hooks/use-friend-request-count';
 import { navigateToProfile } from '@/utils/profile-nav';
 import {
   acceptFriendRequest,
@@ -229,6 +230,7 @@ export default function FriendsScreen() {
       () => {
         setReceived((prev) => prev.filter((r) => r.id !== item.id));
         setSuggestions((prev) => prev.filter((s) => s.user_id !== item.user_id));
+        void refreshFriendRequestCount(); // đồng bộ badge sidebar
       },
       t('friends.actions.acceptSuccess'),
     );
@@ -237,7 +239,10 @@ export default function FriendsScreen() {
   const handleReject = (item: FriendRequestItem) => {
     runAction(
       rejectFriendRequest(item.id),
-      () => setReceived((prev) => prev.filter((r) => r.id !== item.id)),
+      () => {
+        setReceived((prev) => prev.filter((r) => r.id !== item.id));
+        void refreshFriendRequestCount(); // đồng bộ badge sidebar
+      },
       t('friends.actions.rejectSuccess'),
     );
   };

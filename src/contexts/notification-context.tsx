@@ -19,6 +19,7 @@ import {
 } from '@/api/notifications';
 import { tokenStorage } from '@/api/token-storage';
 import { notifyChatListDirty } from '@/utils/chat-list-dirty';
+import { refreshFriendRequestCount } from '@/hooks/use-friend-request-count';
 import {
   groupNotifications,
   mergeNotification,
@@ -241,6 +242,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               // refresh (chat socket không broadcast message:new cho client
               // chưa join phòng — xem ws/hub.go).
               if (newNotif.type === 'message') notifyChatListDirty();
+              // Badge sidebar "Bạn bè" — đồng bộ khi có lời mời kết bạn mới.
+              if (newNotif.type === 'friend_request') void refreshFriendRequestCount();
             }
           } catch (err) {
             console.error('Error parsing WS message:', err);
