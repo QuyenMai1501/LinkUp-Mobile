@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert } from '@/utils/alert';
 import { forgotPassword } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
 import { ThemedText } from '@/components/themed-text';
@@ -51,8 +52,7 @@ export default function ForgotPasswordScreen() {
       await forgotPassword(target);
       setSentEmail(target);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('auth.forgotPassword.sendFailed');
-      showAlert(t('auth.forgotPassword.title'), message);
+      showAlert(t('auth.forgotPassword.title'), apiErrorMessage(err, t('auth.forgotPassword.sendFailed')));
     } finally {
       setLoading(false);
     }

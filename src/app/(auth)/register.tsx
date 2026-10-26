@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert } from '@/utils/alert';
 import { register } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import GoogleAuthButton from '@/components/google-auth-button';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
@@ -107,8 +108,7 @@ export default function RegisterScreen() {
 
       router.replace('/login');
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('auth.register.registerFailed');
-      showAlert(t('auth.register.registerFailed'), message);
+      showAlert(t('auth.register.registerFailed'), apiErrorMessage(err, t('auth.register.registerFailed')));
     } finally {
       setLoading(false);
     }

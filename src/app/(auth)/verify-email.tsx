@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { showAlert } from '@/utils/alert';
 import { verifyEmail, resendVerification, decodeToken } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { FormTextInput } from '@/components/ui/form-text-input';
@@ -99,8 +100,7 @@ export default function VerifyEmailScreen() {
         }, 3000);
       } catch (err) {
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : '';
-        setMessage(msg);
+        setMessage(apiErrorMessage(err, ''));
         setStatus('error');
       }
     };
@@ -124,8 +124,7 @@ export default function VerifyEmailScreen() {
       showAlert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
       setCooldown(60);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('auth.verifyEmail.resendFailed');
-      showAlert(t('common.error'), msg);
+      showAlert(t('common.error'), apiErrorMessage(err, t('auth.verifyEmail.resendFailed')));
     } finally {
       setResendLoading(false);
     }
