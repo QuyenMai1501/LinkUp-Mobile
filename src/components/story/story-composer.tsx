@@ -19,6 +19,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import {
+  IDENTITY_TRANSFORM,
+  StoryEditFrame,
+  type StoryTransform,
+} from '@/components/story/story-edit-frame';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,6 +32,8 @@ import { createStories } from '@/api/story';
 import { TEXT_GRADIENTS } from '@/utils/story-gradient';
 
 const MAX_PHOTOS = 10;
+
+type Step = 'pick' | 'edit' | 'post';
 
 interface PickedAsset {
   uri: string;
@@ -43,13 +50,18 @@ interface StoryComposerProps {
 export default function StoryComposer({ visible, onClose, onCreated }: StoryComposerProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const { height: winH } = useWindowDimensions();
+  const { height: winH, width: winW } = useWindowDimensions();
   // Giữ preview trong tầm nhìn: không cao hơn ~45% chiều cao màn hình
   const previewMaxH = Math.round(winH * 0.45);
+  const contentW = winW - Spacing.md * 2;
+  const frameW = Math.min(contentW, Math.floor((previewMaxH * 9) / 16));
+  const frameH = Math.round((frameW * 16) / 9);
 
   const [mode, setMode] = useState<'photos' | 'text'>('photos');
+  const [step, setStep] = useState<Step>('pick');
   const [assets, setAssets] = useState<PickedAsset[]>([]);
   const [captions, setCaptions] = useState<string[]>([]);
+  const [transforms, setTransforms] = useState<StoryTransform[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [textContent, setTextContent] = useState('');
   const [textGradientIndex, setTextGradientIndex] = useState(0);
@@ -57,8 +69,10 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
   const reset = useCallback(() => {
     setMode('photos');
+    setStep('pick');
     setAssets([]);
     setCaptions([]);
+    setTransforms([]);
     setActiveIndex(0);
     setTextContent('');
     setTextGradientIndex(0);
@@ -112,22 +126,29 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       return;
     }
 
-    setAssets((prev) => {
-      const next = [...prev, ...picked].slice(0, MAX_PHOTOS);
-      setCaptions((prevCaps) => {
-        const arr = [...prevCaps];
-        while (arr.length < next.length) arr.push('');
-        return arr.slice(0, next.length);
-      });
-      return next;
+    const next = [...assets, ...picked].slice(0, MAX_PHOTOS);
+    setAssets(next);
+    setCaptions((prevCaps) => {
+      const arr = [...prevCaps];
+      while (arr.length < next.length) arr.push('');
+      return arr.slice(0, next.length);
     });
-  }, [t]);
+    setTransforms((prevTf) => {
+      const arr = [...prevTf];
+      while (arr.length < next.length) arr.push(IDENTITY_TRANSFORM);
+      return arr.slice(0, next.length);
+    });
+  }, [assets, t]);
 
-  const removeAsset = useCallback((index: number) => {
-    setAssets((prev) => prev.filter((_, i) => i !== index));
-    setCaptions((prev) => prev.filter((_, i) => i !== index));
-    setActiveIndex((prev) => Math.max(0, Math.min(prev, assets.length - 2)));
-  }, [assets.length]);
+  const removeAsset = useCallback(
+    (index: number) => {
+      setAssets((prev) => prev.filter((_, i) => i !== index));
+      setCaptions((prev) => prev.filter((_, i) => i !== index));
+      setTransforms((prev) => prev.filter((_, i) => i !== index));
+      setActiveIndex((prev) => Math.max(0, Math.min(prev, assets.length - 2)));
+    },
+    [assets.length],
+  );
 
   const setCaption = useCallback((index: number, value: string) => {
     setCaptions((prev) => {
@@ -135,6 +156,19 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       arr[index] = value;
       return arr;
     });
+  }, []);
+
+  const setTransform = useCallback((index: number, value: StoryTransform) => {
+    setTransforms((prev) => {
+      const arr = [...prev];
+      arr[index] = value;
+      return arr;
+    });
+  }, []);
+
+  const switchMode = useCallback((nextMode: 'photos' | 'text') => {
+    setMode(nextMode);
+    setStep('pick');
   }, []);
 
   const handlePost = useCallback(async () => {
@@ -176,6 +210,163 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   }, [assets, captions, mode, onClose, onCreated, posting, reset, t, textContent]);
 
   const currentAsset = assets[activeIndex];
+  const isText = mode === 'text';
+  const showTabs = isText || step === 'pick';
+  const canAdvance = assets.length > 0;
+
+  const renderHeaderLeft = () => {
+    if (!isText && step !== 'pick') {
+      return (
+        <Pressable
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('story.editor.back')}
+          onPress={() => setStep(step === 'post' ? 'edit' : 'pick')}>
+          <Icon name="chevronLeft" size={26} />
+        </Pressable>
+      );
+    }
+    return (
+      <Pressable hitSlop={8} accessibilityRole="button" onPress={handleClose}>
+        <Icon name="close" size={26} />
+      </Pressable>
+    );
+  };
+
+  const renderHeaderRight = () => {
+    if (isText || step === 'post') {
+      return (
+        <Pressable
+          disabled={posting}
+          onPress={handlePost}
+          style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
+          <ThemedText style={[styles.postBtnText, { color: theme.textOnPrimary }]}>
+            {posting ? t('story.posting') : t('story.submit')}
+          </ThemedText>
+        </Pressable>
+      );
+    }
+    return (
+      <Pressable
+        disabled={!canAdvance}
+        onPress={() => setStep(step === 'pick' ? 'edit' : 'post')}
+        style={[
+          styles.postBtn,
+          { backgroundColor: theme.primary },
+          !canAdvance && styles.postBtnDisabled,
+        ]}>
+        <ThemedText style={[styles.postBtnText, { color: theme.textOnPrimary }]}>
+          {t('story.next')}
+        </ThemedText>
+      </Pressable>
+    );
+  };
+
+  const renderThumbs = (withAdd: boolean) => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
+      {assets.map((a, i) => (
+        <Pressable key={`${a.uri}-${i}`} onPress={() => setActiveIndex(i)}>
+          <Image
+            source={{ uri: a.uri }}
+            style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
+            contentFit="cover"
+          />
+        </Pressable>
+      ))}
+      {withAdd && assets.length < MAX_PHOTOS && (
+        <Pressable style={styles.addThumb} onPress={pickPhotos} accessibilityLabel={t('story.editor.addMore')}>
+          <Icon name="add" size={22} />
+        </Pressable>
+      )}
+    </ScrollView>
+  );
+
+  const renderPhotosBody = () => {
+    if (step === 'pick') {
+      if (assets.length === 0) {
+        return (
+          <ScrollView contentContainerStyle={[styles.body, styles.bodyGrow]} showsVerticalScrollIndicator={false}>
+            <Pressable style={styles.pickArea} onPress={pickPhotos}>
+              <Icon name="images" size={48} />
+              <ThemedText style={styles.pickTitle}>{t('story.mediaPlaceholder')}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.pickHint}>
+                {t('story.selectPhotosHint')}
+              </ThemedText>
+            </Pressable>
+          </ScrollView>
+        );
+      }
+      return (
+        <ScrollView contentContainerStyle={[styles.body, styles.bodyGrow]} showsVerticalScrollIndicator={false}>
+          <View style={[styles.previewWrap, { maxHeight: previewMaxH }]}>
+            {currentAsset && (
+              <Image source={{ uri: currentAsset.uri }} style={styles.previewImg} contentFit="cover" />
+            )}
+            <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
+              <Icon name="close" size={18} color={theme.textOnPrimary} />
+            </Pressable>
+            <View style={styles.counter}>
+              <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
+                {activeIndex + 1}/{assets.length}
+              </ThemedText>
+            </View>
+          </View>
+          {renderThumbs(true)}
+        </ScrollView>
+      );
+    }
+
+    if (step === 'edit') {
+      return (
+        <View style={styles.editBody}>
+          {currentAsset && (
+            <StoryEditFrame
+              key={`${activeIndex}:${currentAsset.uri}`}
+              uri={currentAsset.uri}
+              transform={transforms[activeIndex] ?? IDENTITY_TRANSFORM}
+              onCommit={(value) => setTransform(activeIndex, value)}
+              index={activeIndex}
+              total={assets.length}
+              width={frameW}
+              height={frameH}
+            />
+          )}
+          {renderThumbs(true)}
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView
+        contentContainerStyle={[styles.body, styles.bodyGrow]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <View style={[styles.postPreview, { width: frameW, height: frameH }]}>
+          {currentAsset && (
+            <Image source={{ uri: currentAsset.uri }} style={styles.previewImg} contentFit="cover" />
+          )}
+          <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
+            <Icon name="close" size={18} color={theme.textOnPrimary} />
+          </Pressable>
+          <View style={styles.counter}>
+            <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
+              {activeIndex + 1}/{assets.length}
+            </ThemedText>
+          </View>
+        </View>
+        {renderThumbs(false)}
+        <TextInput
+          style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
+          placeholder={t('story.captionPlaceholder')}
+          placeholderTextColor={theme.textSecondary}
+          value={captions[activeIndex] ?? ''}
+          onChangeText={(v) => setCaption(activeIndex, v)}
+          maxLength={300}
+          multiline
+        />
+      </ScrollView>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
@@ -183,116 +374,48 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
         <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <Pressable hitSlop={8} onPress={handleClose}>
-              <Icon name="close" size={26} />
-            </Pressable>
-            <ThemedText style={styles.headerTitle}>{t('story.createTitle')}</ThemedText>
-            <Pressable
-              disabled={posting}
-              onPress={handlePost}
-              style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
-              <ThemedText style={[styles.postBtnText, { color: theme.textOnPrimary }]}>
-                {posting ? t('story.posting') : t('story.submit')}
-              </ThemedText>
-            </Pressable>
+            {renderHeaderLeft()}
+            <ThemedText style={styles.headerTitle}>
+              {!isText && step === 'edit' ? t('story.editor.title') : t('story.createTitle')}
+            </ThemedText>
+            {renderHeaderRight()}
           </View>
 
           {/* Mode tabs — mọi tab luôn có border 2px (trong suốt), active chỉ đổi màu
               để 2 nhãn không bị lệch cao khi chuyển tab */}
-          <View style={[styles.tabs, { borderBottomColor: theme.border }]}>
-            <Pressable
-              style={[styles.tab, mode === 'photos' && { borderBottomColor: theme.primary }]}
-              onPress={() => setMode('photos')}>
-              <ThemedText
-                style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}>
-                {t('story.photoMode')}
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, mode === 'text' && { borderBottomColor: theme.primary }]}
-              onPress={() => setMode('text')}>
-              {/* numberOfLines + adjustsFontSizeToFit: fontScale lớn (cỡ chữ hệ thống to) vẫn 1 dòng */}
-              <ThemedText
-                style={[styles.tabText, mode === 'text' && { color: theme.primary }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}>
-                {t('story.textStory')}
-              </ThemedText>
-            </Pressable>
-          </View>
+          {showTabs && (
+            <View style={[styles.tabs, { borderBottomColor: theme.border }]}>
+              <Pressable
+                style={[styles.tab, mode === 'photos' && { borderBottomColor: theme.primary }]}
+                onPress={() => switchMode('photos')}>
+                <ThemedText
+                  style={[styles.tabText, mode === 'photos' && { color: theme.primary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}>
+                  {t('story.photoMode')}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, mode === 'text' && { borderBottomColor: theme.primary }]}
+                onPress={() => switchMode('text')}>
+                {/* numberOfLines + adjustsFontSizeToFit: fontScale lớn (cỡ chữ hệ thống to) vẫn 1 dòng */}
+                <ThemedText
+                  style={[styles.tabText, mode === 'text' && { color: theme.primary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}>
+                  {t('story.textStory')}
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
 
           {/* Body — KAV chỉ bọc phần dưới header/tabs để bàn phím không đẩy header */}
           <KeyboardAvoidingView
             style={styles.flex}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            {mode === 'photos' ? (
-              <ScrollView
-                contentContainerStyle={[styles.body, styles.bodyGrow]}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}>
-                {assets.length === 0 ? (
-                  <Pressable style={styles.pickArea} onPress={pickPhotos}>
-                    <Icon name="images" size={48} />
-                    <ThemedText style={styles.pickTitle}>{t('story.mediaPlaceholder')}</ThemedText>
-                    <ThemedText themeColor="textSecondary" style={styles.pickHint}>
-                      {t('story.selectPhotosHint')}
-                    </ThemedText>
-                  </Pressable>
-                ) : (
-                  <>
-                    <View style={[styles.previewWrap, { maxHeight: previewMaxH }]}>
-                      {currentAsset && (
-                        <Image
-                          source={{ uri: currentAsset.uri }}
-                          style={styles.previewImg}
-                          contentFit="cover"
-                        />
-                      )}
-                      <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
-                        <Icon name="close" size={18} color={theme.textOnPrimary} />
-                      </Pressable>
-                      <View style={styles.counter}>
-                        <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
-                          {activeIndex + 1}/{assets.length}
-                        </ThemedText>
-                      </View>
-                    </View>
-
-                    {/* Chọn ảnh đang active */}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
-                      {assets.map((a, i) => (
-                        <Pressable key={`${a.uri}-${i}`} onPress={() => setActiveIndex(i)}>
-                          <Image
-                            source={{ uri: a.uri }}
-                            style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
-                            contentFit="cover"
-                          />
-                        </Pressable>
-                      ))}
-                      {assets.length < MAX_PHOTOS && (
-                        <Pressable style={styles.addThumb} onPress={pickPhotos}>
-                          <Icon name="add" size={22} />
-                        </Pressable>
-                      )}
-                    </ScrollView>
-
-                <TextInput
-                  style={[styles.captionInput, { borderColor: theme.border, color: theme.text }]}
-                  placeholder={t('story.captionPlaceholder')}
-                  placeholderTextColor={theme.textSecondary}
-                  value={captions[activeIndex] ?? ''}
-                  onChangeText={(v) => setCaption(activeIndex, v)}
-                  maxLength={300}
-                  multiline
-                />
-                  </>
-                )}
-              </ScrollView>
-            ) : (
+            {isText ? (
               <ScrollView
                 contentContainerStyle={[styles.body, styles.bodyGrow]}
                 keyboardShouldPersistTaps="handled"
@@ -326,6 +449,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                 </View>
                 <Text style={styles.charCount}>{textContent.length}/300</Text>
               </ScrollView>
+            ) : (
+              renderPhotosBody()
             )}
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -384,6 +509,13 @@ const styles = StyleSheet.create({
   bodyGrow: {
     flexGrow: 1,
   },
+  editBody: {
+    flex: 1,
+    padding: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
   pickArea: {
     flex: 1,
     alignItems: 'center',
@@ -402,6 +534,12 @@ const styles = StyleSheet.create({
     aspectRatio: 3 / 4,
     borderRadius: 16,
     overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  postPreview: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignSelf: 'center',
     marginBottom: Spacing.sm,
   },
   previewImg: {

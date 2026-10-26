@@ -1130,7 +1130,14 @@
     "permissionNeeded": "Cần cấp quyền truy cập ảnh để chọn ảnh.",
     "discardTitle": "Bỏ nội dung?",
     "discardConfirm": "Nội dung chưa đăng sẽ bị mất.",
-    "discardBtn": "Bỏ"
+    "discardBtn": "Bỏ",
+    "next": "Tiếp tục",
+    "editor": {
+      "title": "Chỉnh sửa tin",
+      "back": "Quay lại",
+      "resetPosition": "Căn giữa lại",
+      "addMore": "Thêm ảnh/video"
+    }
   },
   "errors": {
     "common.INTERNAL_ERROR": "Lỗi hệ thống",

@@ -42,10 +42,11 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Chú ý: ẩn report bài/bình luận của chính mình; lỗi hiển thị `ApiError.serverMessage`
 
 ### Stories (tin)
-- Components: `components/story/` — `story-bar` (thanh story trên feed), `story-viewer` (xem full-screen: auto-advance 5s, react 6 emoji, share, reply→chat, xóa, phát video story từ Web, tin chữ), `story-composer` (tạo tin: nhiều ảnh + caption/tin chữ), `story-stats-modal` (thống kê chủ tin), `story-avatar-ring` (avatar bọc ring gradient — dùng chung bar + ProfileHeader)
+- Components: `components/story/` — `story-bar` (thanh story trên feed), `story-viewer` (xem full-screen: auto-advance 5s, react 6 emoji, share, reply→chat, xóa, phát video story từ Web, tin chữ), `story-composer` (tạo tin — **flow 3 bước pick → edit → post** như Web: đa ảnh cap 10, caption từng ảnh ở bước post, tin chữ gradient), `story-edit-frame` (khung 9:16 bước edit: blur-fill + pan/pinch ảnh qua gesture-handler/reanimated, nút căn giữa lại, counter, transform lưu theo từng ảnh qua key remount), `story-stats-modal` (thống kê chủ tin), `story-avatar-ring` (avatar bọc ring gradient — dùng chung bar + ProfileHeader)
 - API: `api/story.ts` · Types: `types/story.ts` · Utils: `utils/story-reply-draft.ts` (draft trả lời → prefill composer chat, cùng pattern `forward-draft.ts`)
 - Tích hợp: `components/feed.tsx` (mount bar + viewer + composer, reload sau tạo/xóa/ẩn), `components/profile/ProfileHeader.tsx` (ring + menu "Xem tin"), `app/(drawer)/chat/[chatId].tsx` (rút story-reply-draft), `components/chat/chat-composer.tsx` (prop `initialText`)
-- Chú ý: server tự lọc muted/blocked ở feed; feed **bao gồm cả story của mình** (bar tự lọc group mình); tạo mới chỉ ảnh + tin chữ (không video, không canvas editor); video story tạo trên Web vẫn phát được bằng `expo-video`
+- Chú ý: server tự lọc muted/blocked ở feed; feed **bao gồm cả story của mình** (bar tự lọc group mình); video story tạo trên Web vẫn phát được bằng `expo-video`
+- **Editor đang port từ Web theo phase**: P1 = flow 3 bước + pan/zoom 9:16 (xong) · P2 = text/sticker/undo/export 1080×1920 (Skia — cài `@shopify/react-native-skia@2.14.0` tường minh, KHÔNG dùng `expo install` vì pin 2.6.2 của SDK 57 dính bug với RN 0.86, expo#50733) · P3 = vẽ tay + filter · P4 = video upload · P5 = nhạc (native module AVFoundation + Media3)
 
 ### Tin nhắn 1-1 (chat)
 - Screens: `app/(drawer)/chat/[chatId].tsx` (**file lớn nhất ~56KB**), `app/(drawer)/messages.tsx` (danh sách hội thoại)

@@ -1130,7 +1130,14 @@
     "permissionNeeded": "Photo library permission is needed to pick photos.",
     "discardTitle": "Discard draft?",
     "discardConfirm": "Your unpublished content will be lost.",
-    "discardBtn": "Discard"
+    "discardBtn": "Discard",
+    "next": "Next",
+    "editor": {
+      "title": "Edit story",
+      "back": "Back",
+      "resetPosition": "Re-center",
+      "addMore": "Add photo/video"
+    }
   },
   "errors": {
     "common.INTERNAL_ERROR": "Internal server error",
