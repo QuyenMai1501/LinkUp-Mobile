@@ -28,7 +28,7 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Guard: `AuthRedirect` trong `app/_layout.tsx` (chưa đăng nhập → `/login`)
 - API: `api/auth.ts`, `api/token-storage.ts`
 - Context: `contexts/auth-context.tsx` (`useAuth`)
-- Component: `components/google-auth-button.tsx`
+- Components: `components/google-auth-button.tsx` (icon Google 4 màu `assets/images/google-g.png`; lỗi → `apiErrorMessage`), `components/auth/auth-quick-toggles.tsx` (2 nút góc trên phải màn chưa đăng nhập: dark/light + ngôn ngữ — mount absolute trong `app/(auth)/_layout.tsx`, chỉ toggle local không gọi API)
 
 ### Feed / Posts / Bình luận
 - Screens: `app/(drawer)/index.tsx` (home — gồm segmented tabs **Khám phá / Đang theo dõi** ngay dưới tab `home|friends|notifications`, chỉ render khi đang ở tab home), `app/(drawer)/post/[postId].tsx`, `app/(drawer)/saved.tsx`
@@ -97,8 +97,8 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Component: `components/notification-item.tsx`
 
 ### Cài đặt (settings)
-- Screens: `app/(drawer)/settings/` — `index`, `appearance`, `change-password`, `deactivate`, `notifications`, `privacy`, `security`, `sessions`, `storage`, `_layout`
-- Components: `components/settings/` — `appearance-form`, `change-password-form`, `deactivate-account`, `e2e-recovery-form`, `notifications-form`, `privacy-form`, `sessions-manager`, `storage-info`
+- Screens: `app/(drawer)/settings/` — `index` (3 nhóm Tài khoản/Ứng dụng/Khác, icon tile + chevron), `appearance`, `change-password`, `deactivate`, `notifications`, `privacy`, `security`, `sessions`, `storage` (wrap qua `settings-screen`), `_layout` (header ẩn, header tự dựng)
+- Components: `components/settings/` — `settings-row` (hàng dùng chung: icon tile tone + label/hint + chevron hoặc control), `settings-screen` (header back + ScrollView wrapper), `appearance-form`, `change-password-form`, `deactivate-account`, `e2e-recovery-form`, `notifications-form`, `privacy-form`, `sessions-manager`, `storage-info`
 - API: `api/settings.ts` · Types: `types/settings.ts`
 
 ### Hồ sơ (profile)
@@ -129,12 +129,13 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Hooks: `use-theme`, `useTranslation`, `use-color-scheme` (+ `.web.tsx`)
 - Components gốc của template/themed: `themed-text`, `themed-view`, `ui/` (`button`, `collapsible`, `form-text-input`, `icon`), `animated-icon` (+ `.web`), `app-tabs` (+ `.web`), `drawer-content`, `external-link`, `web-badge`, `hint-row`
 - Strings: `locales/vi.json`, `locales/en.json` (dot-path key, `{param}` interpolation) — chuỗi người dùng thấy **phải thêm đủ 2 file**
+- Lỗi backend: mục `errors` trong 2 file locales (mã `auth.XXX` → thông báo vi/en, `{{param}}` interpolation) + `utils/resolve-error.ts` (`resolveErrorCode(code, params)` — `setErrorLanguage` do `language-context` gọi lúc load/đổi ngôn ngữ)
 
 ### Presence (đang hoạt động)
 - API: `api/presence.ts` (`batchGetPresence`) — hiển thị online trong danh sách hội thoại (`messages.tsx`)
 
 ### Networking / API base
-- `api/client.ts` — `request<T>()` với refresh-token mutex; `API_BASE` lấy từ `EXPO_PUBLIC_API_URL` (**phải gồm hậu tố `/api`**), fallback từ Metro hostUri
+- `api/client.ts` — `request<T>()` với refresh-token mutex; `API_BASE` lấy từ `EXPO_PUBLIC_API_URL` (**phải gồm hậu tố `/api`**), fallback từ Metro hostUri; `ApiError` kèm `code`/`serverMessage`/`params`, `apiErrorMessage(e, fallback)` trả thông báo đã dịch (qua `utils/resolve-error.ts`) — UI không hiện `err.message` (mã thô) nữa
 - WS đều derive từ `API_BASE` (`http→ws`) trong các hook socket + `notification-context`
 
 ---

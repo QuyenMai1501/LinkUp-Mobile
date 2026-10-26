@@ -24,6 +24,16 @@ Tokens are grouped per mode. Use them through `useTheme()` or `ThemedText`/`Them
 | `accent` | `#FF6F00` (Orange) | `#FF6F00` | Highlights, notifications, badges |
 | `accentHover` | `#E66300` | `#E66300` | Accent button hover |
 | `accentActive` | `#CC5800` | `#CC5800` | Accent button active |
+| `accentLight` | `rgba(255,111,0,0.12)` | `rgba(255,140,60,0.18)` | Accent washes/badges |
+
+### CTA Fill (auth primary buttons on web — tokens available, mobile auth keeps `primary`)
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `cta` | `#0A1F44` (Navy) | `#E5E7EB` | Primary CTA fill (web auth/admin) |
+| `ctaHover` | `#0D2A5A` | `#FFFFFF` | CTA hover |
+| `ctaActive` | `#0F3570` | `#D1D5DB` | CTA active |
+| `ctaText` | `#FFFFFF` | `#111111` | Text on CTA fill |
 
 ### Neutral Colors
 
@@ -33,11 +43,23 @@ Tokens are grouped per mode. Use them through `useTheme()` or `ThemedText`/`Them
 | `bgPrimary` | `#FFFFFF` | `#111111` | Primary background (alias of `bg`) |
 | `bgSecondary` | `#F5F5F5` | `#1A1A1A` | Secondary background, cards |
 | `bgHover` | `#ECECEC` | `#242424` | Hover backgrounds |
-| `text` | `#000000` | `#E5E7EB` | Primary text |
+| `text` | `#1A1A1A` | `#E5E7EB` | Primary text |
 | `textSecondary` | `#666666` | `#9CA3AF` | Secondary/muted text |
 | `card` | `#FFFFFF` | `#1E1E1E` | Card surfaces |
 | `border` | `#E0E0E0` | `#333333` | Borders, outlines |
 | `divider` | `#EEEEEE` | `#2A2A2A` | Section dividers |
+| `storyBg` | `#000000` | `#0A0A0A` | Story viewer backdrop |
+
+### Text on colored backgrounds / Heart / Story ring
+
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `textOnPrimary` | `#FFFFFF` | `#FFFFFF` | Text/icons on `primary` fill |
+| `textOnSecondary` | `#FFFFFF` | `#E5E7EB` | Text/icons on `secondary` fill |
+| `heart` | `#D32F2F` | `#FF6B81` | Like/heart (posts, comments, notifications) |
+| `heartLight` | `rgba(211,47,47,0.1)` | `rgba(251,107,129,0.16)` | Heart washes |
+| `storyRingStart` | `#12A5A1` | `#3FBFBA` | Story ring gradient start (135deg) |
+| `storyRingEnd` | `#0A1F44` | `#0D2A5A` | Story ring gradient end — viewed ring uses `border` |
 
 ### Semantic Colors
 
@@ -48,7 +70,26 @@ Base colors are identical in both modes; only the `*Light` variants change.
 | `success` | `#388E3C` | `#E8F5E9` | `#064E3B` | Success states, active badges |
 | `warning` | `#FBC02D` | `#FFF8E1` | `#78350F` | Warning states, suspended badges |
 | `danger` | `#D32F2F` | `#FFEBEE` | `#7F1D1D` | Error/danger states, banned badges |
+| `dangerHover` | — | `#B71616` | `#E53935` | Danger hover (dark = brighter) |
 | `info` | `#1976D2` | `#E3F2FD` | `#1E3A5F` | Informational, reviewed badges |
+
+### Allowed Literal Colors (exceptions)
+
+Components should use tokens everywhere. These literals are intentionally exempt after the hex → token sweep — do not "fix" them:
+
+| Category | Values | Where |
+|----------|--------|-------|
+| Over-media whites/blacks | `#FFFFFF`, `#fff`, `rgba(255,255,255,·)`, `rgba(0,0,0,·)` | `chat/media-lightbox`, `profile/MediaLightbox`, `story/story-viewer`, `video-player`, chat/video overlays |
+| Call dark chrome | `#0C0F14`, `#161B22` | `calls/*` |
+| Status colors (web parity) | `#22C55E` (online), `#EF4444` (missed/failed) | `calls/*`, chat status — web hardcodes these in OnlineIndicator/NotificationBanner |
+| Shadow/silhouette blacks | `#000`, `#000000`, `#00000040` | shadows over media, skeleton silhouettes |
+| Domain accents | `#FBBC04` (gold), `#A5F3FC` (seen cyan), `#8E8E93` (muted gray), `#3A3A3C` (dark media), `#FF3B5C` (burst), `#4CAF50` (online dot) | media like counts, story, conversation list |
+| Data/palettes | gradient + preset hexes | `utils/story-gradient.ts`, `chat-background-picker`, `animated-icon` |
+| Push channel light color | `#12A5A1` | `utils/register-push.ts` (Android channel, set at registration) |
+| `rgba(...)` overlays | all | scrims, glows, washes — not swept |
+| Token definitions | all | `constants/colors.ts`, `constants/theme.ts`, `constants/ad-status.ts` |
+
+Note: `textOnPrimary` is `#FFFFFF` in **both** modes, so `#FFFFFF` → `theme.textOnPrimary` conversions are zero-delta visually.
 
 ---
 

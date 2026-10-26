@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Alert, ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   createCommunityRule,
@@ -60,7 +61,7 @@ export default function RuleForm({ communityId, rule, onSuccess, onCancel }: Rul
       onSuccess();
     } catch (err) {
       // onSuccess đóng form — lỗi Alert để không mất thông báo.
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.ruleError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.ruleError')));
     } finally {
       setLoading(false);
     }
@@ -163,9 +164,9 @@ export default function RuleForm({ communityId, rule, onSuccess, onCancel }: Rul
             pressed && styles.pressed,
           ]}>
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={theme.textOnPrimary} />
           ) : (
-            <ThemedText style={styles.submitText}>
+            <ThemedText style={[styles.submitText, { color: theme.textOnPrimary }]}>
               {isEdit ? t('common.save') : t('communities.addRule')}
             </ThemedText>
           )}
@@ -247,7 +248,6 @@ const styles = StyleSheet.create({
   submitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

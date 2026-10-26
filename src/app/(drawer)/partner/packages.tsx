@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { decodeToken } from '@/api/auth';
 import { ApiError, apiErrorMessage } from '@/api/client';
 import { getMySubscription, getPackages, subscribePackage } from '@/api/package';
@@ -92,7 +92,7 @@ export default function PartnerPackagesScreen() {
   const doSubscribe = async () => {
     if (!selectedId || submitting) return;
     if (!isAuthenticated || !user) {
-      Alert.alert(t('common.error'), t('packages.loginRequired'));
+      showAlert(t('common.error'), t('packages.loginRequired'));
       return;
     }
     setSubmitting(true);
@@ -109,10 +109,10 @@ export default function PartnerPackagesScreen() {
       if (newRole === 'USER') {
         // Đăng ký thành công nhưng không nhận được token nâng cấp — không gọi
         // được ads-management với token cũ → báo lỗi phiên.
-        Alert.alert(t('common.error'), t('packages.sessionError'));
+        showAlert(t('common.error'), t('packages.sessionError'));
         return;
       }
-      Alert.alert(
+      showAlert(
         t('common.success'),
         sub ? t('packages.upgradeSuccess') : t('packages.success'),
         [
@@ -123,7 +123,7 @@ export default function PartnerPackagesScreen() {
         ],
       );
     } catch (e) {
-      Alert.alert(t('common.error'), apiErrorMessage(e, t('common.error')));
+      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
     } finally {
       setSubmitting(false);
     }
@@ -133,7 +133,7 @@ export default function PartnerPackagesScreen() {
   const onSubscribe = () => {
     if (!selectedId || submitting) return;
     if (activePkgId && selectedId !== activePkgId) {
-      Alert.alert(
+      showAlert(
         t('packages.upgradeConfirm'),
         t('packages.upgradeConfirmMessage'),
         [
@@ -419,9 +419,9 @@ export default function PartnerPackagesScreen() {
               ]}
               onPress={() => onSubscribe()}>
               {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
-                <ThemedText style={styles.subscribeText}>
+                <ThemedText style={[styles.subscribeText, { color: colors.textOnPrimary }]}>
                   {selectedId && selectedId === activePkgId
                     ? t('partner.packages.subscribed')
                     : t('partner.packages.subscribe')}
@@ -544,5 +544,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   subscribeBtnDisabled: { opacity: 0.5 },
-  subscribeText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  subscribeText: { fontSize: 16, fontWeight: '600' },
 });

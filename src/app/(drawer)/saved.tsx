@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import CommentSheet from '@/components/comment-sheet';
 import { ShareToChatModal } from '@/components/chat/share-to-chat-modal';
 import { ShareOptionsSheet } from '@/components/share-options-sheet';
@@ -25,6 +26,7 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { EmojiItem, FeedPost } from '@/types/post';
 
@@ -42,19 +44,29 @@ async function ensureLikeEmojiId(): Promise<string | undefined> {
 }
 
 function SkeletonCard() {
+  const theme = useTheme();
+  const shimmer = useShimmer();
   return (
-    <View style={styles.skeleton}>
+    <Animated.View
+      style={[
+        styles.skeleton,
+        {
+          backgroundColor: theme.bgSecondary,
+          borderColor: theme.border,
+          opacity: shimmer,
+        },
+      ]}>
       <View style={styles.skelHeader}>
-        <View style={styles.skelAvatar} />
+        <View style={[styles.skelAvatar, { backgroundColor: theme.border }]} />
         <View style={styles.skelLines}>
-          <View style={[styles.skelLine, { width: '40%' }]} />
-          <View style={[styles.skelLine, { width: '25%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '40%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '25%' }]} />
         </View>
       </View>
-      <View style={[styles.skelLine, { width: '60%', marginTop: 12 }]} />
-      <View style={[styles.skelLine, { width: '80%' }]} />
-      <View style={styles.skelMedia} />
-    </View>
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '60%', marginTop: 12 }]} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '80%' }]} />
+      <View style={[styles.skelMedia, { backgroundColor: theme.border }]} />
+    </Animated.View>
   );
 }
 
@@ -171,7 +183,7 @@ export default function SavedScreen() {
         }
       } catch (e) {
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_saved: true } : p)));
-        Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
+        showAlert(t('common.error'), e instanceof Error ? e.message : t('common.error'));
       }
     },
     [t],
@@ -217,7 +229,7 @@ export default function SavedScreen() {
       );
       try {
         await sharePost(post.id, content);
-        Alert.alert(t('postDetail.shared'));
+        showAlert(t('postDetail.shared'));
       } catch {
         setPosts((prev) =>
           prev.map((p) =>
@@ -226,7 +238,7 @@ export default function SavedScreen() {
               : p,
           ),
         );
-        Alert.alert(t('common.error'), t('common.error'));
+        showAlert(t('common.error'), t('common.error'));
       }
     },
     [t],
@@ -298,7 +310,7 @@ export default function SavedScreen() {
             <ThemedText style={styles.headerTitle}>{t('saved.title')}</ThemedText>
           </View>
           <View style={styles.centerContent}>
-            <Icon name="warning" size={48} color="#FB8C00" />
+            <Icon name="warning" size={48} color={theme.accent} />
             <ThemedText style={styles.emptyTitle}>{error}</ThemedText>
             <Pressable
               onPress={() => {
@@ -306,7 +318,7 @@ export default function SavedScreen() {
                 fetchNext();
               }}
               style={({ pressed }) => [styles.retryBtn, { backgroundColor: theme.primary }, pressed && { opacity: 0.7 }]}>
-              <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+              <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -366,7 +378,7 @@ export default function SavedScreen() {
                   { backgroundColor: theme.primary },
                   pressed && { opacity: 0.7 },
                 ]}>
-                <ThemedText style={styles.exploreText}>{t('saved.explore')}</ThemedText>
+                <ThemedText style={[styles.exploreText, { color: theme.textOnPrimary }]}>{t('saved.explore')}</ThemedText>
               </Pressable>
             </View>
           }
@@ -483,7 +495,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   exploreBtn: {
     marginTop: Spacing.sm,
@@ -494,7 +505,6 @@ const styles = StyleSheet.create({
   exploreText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   loadingMore: {
     flexDirection: 'row',
@@ -512,10 +522,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   skeleton: {
-    backgroundColor: '#F5F5F5',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
@@ -528,7 +536,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0',
   },
   skelLines: {
     flex: 1,
@@ -537,13 +544,11 @@ const styles = StyleSheet.create({
   skelLine: {
     height: 14,
     borderRadius: 8,
-    backgroundColor: '#E0E0E0',
   },
   skelMedia: {
     width: '100%',
     height: 200,
     borderRadius: 12,
-    backgroundColor: '#E0E0E0',
     marginTop: 12,
   },
 });

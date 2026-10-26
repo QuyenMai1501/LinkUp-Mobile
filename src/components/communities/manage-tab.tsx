@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  Animated,
   Clipboard,
   KeyboardAvoidingView,
   Modal,
@@ -11,11 +11,12 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   approveJoinRequest,
   communityErrorText,
@@ -32,6 +33,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type {
   CommunityDetail,
@@ -81,12 +83,12 @@ export default function ManageTab({ communityId, community, onUpdate }: ManageTa
               <Icon
                 name={item.icon}
                 size={14}
-                color={active ? '#FFFFFF' : theme.textSecondary}
+                color={active ? theme.textOnPrimary : theme.textSecondary}
               />
               <ThemedText
                 style={[
                   styles.navChipText,
-                  { color: active ? '#FFFFFF' : theme.text },
+                  { color: active ? theme.textOnPrimary : theme.text },
                 ]}>
                 {t(item.labelKey)}
               </ThemedText>
@@ -139,10 +141,10 @@ function SettingsSection({
         privacy,
         auto_approve: autoApprove,
       });
-      Alert.alert(t('common.success'), t('communities.settingsSaved'));
+      showAlert(t('common.success'), t('communities.settingsSaved'));
       onUpdate();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.settingsError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.settingsError')));
     } finally {
       setLoading(false);
     }
@@ -225,7 +227,7 @@ function SettingsSection({
           onValueChange={setAutoApprove}
           disabled={loading}
           trackColor={{ true: theme.primary, false: theme.border }}
-          thumbColor="#FFFFFF"
+          thumbColor={theme.textOnPrimary}
         />
         <ThemedText style={styles.toggleLabel}>
           {autoApprove ? t('communities.autoApproveOn') : t('communities.autoApproveOff')}
@@ -244,9 +246,9 @@ function SettingsSection({
           pressed && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.primaryBtnText}>{t('communities.settingsSave')}</ThemedText>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.settingsSave')}</ThemedText>
         )}
       </Pressable>
     </View>
@@ -289,7 +291,7 @@ function RequestsSection({ communityId }: { communityId: string }) {
         else await rejectJoinRequest(communityId, requestId);
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.requestError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.requestError')));
       } finally {
         setBusyId(null);
       }
@@ -357,10 +359,10 @@ function RequestsSection({ communityId }: { communityId: string }) {
               hitSlop={6}
               style={({ pressed }) => [
                 styles.decideBtn,
-                { backgroundColor: theme.success ?? '#2E7D32' },
+                { backgroundColor: theme.success },
                 (busy || pressed) && styles.pressed,
               ]}>
-              <Icon name="check" size={16} color="#FFFFFF" />
+              <Icon name="check" size={16} color={theme.textOnPrimary} />
             </Pressable>
             <Pressable
               disabled={busy}
@@ -372,7 +374,7 @@ function RequestsSection({ communityId }: { communityId: string }) {
                 { backgroundColor: theme.danger },
                 (busy || pressed) && styles.pressed,
               ]}>
-              <Icon name="close" size={16} color="#FFFFFF" />
+              <Icon name="close" size={16} color={theme.textOnPrimary} />
             </Pressable>
           </View>
         );
@@ -418,12 +420,12 @@ function CodesSection({ communityId }: { communityId: string }) {
     try {
       const parsed = Math.max(0, Number.parseInt(maxUses, 10) || 0);
       await createInviteCode(communityId, parsed);
-      Alert.alert(t('common.success'), t('communities.codeCreated'));
+      showAlert(t('common.success'), t('communities.codeCreated'));
       setShowCreate(false);
       setMaxUses('0');
       await load();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.codeError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.codeError')));
     } finally {
       setCreating(false);
     }
@@ -434,10 +436,10 @@ function CodesSection({ communityId }: { communityId: string }) {
       setBusyId(codeId);
       try {
         await deactivateInviteCode(communityId, codeId);
-        Alert.alert(t('common.success'), t('communities.codeDeactivated'));
+        showAlert(t('common.success'), t('communities.codeDeactivated'));
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.codeError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.codeError')));
       } finally {
         setBusyId(null);
       }
@@ -448,7 +450,7 @@ function CodesSection({ communityId }: { communityId: string }) {
   const handleCopy = useCallback(
     (code: string) => {
       Clipboard.setString(code);
-      Alert.alert(t('common.success'), t('communities.codeCopied'));
+      showAlert(t('common.success'), t('communities.codeCopied'));
     },
     [t],
   );
@@ -468,8 +470,8 @@ function CodesSection({ communityId }: { communityId: string }) {
           styles.primaryBtn,
           { backgroundColor: theme.primary, opacity: pressed ? 0.8 : 1 },
         ]}>
-        <Icon name="add" size={16} color="#FFFFFF" />
-        <ThemedText style={styles.primaryBtnText}>{t('communities.createCode')}</ThemedText>
+        <Icon name="add" size={16} color={theme.textOnPrimary} />
+        <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.createCode')}</ThemedText>
       </Pressable>
 
       {codes === null && !loadError ? (
@@ -573,9 +575,9 @@ function CodesSection({ communityId }: { communityId: string }) {
                     pressed && styles.pressed,
                   ]}>
                   {creating ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <ThemedText style={styles.primaryBtnText}>{t('communities.createCode')}</ThemedText>
+                    <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.createCode')}</ThemedText>
                   )}
                 </Pressable>
               </View>
@@ -601,7 +603,7 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
 
   const handleTransfer = useCallback(() => {
     if (!trimmed || loading) return;
-    Alert.alert(t('communities.transferOwnership'), t('communities.transferWarning'), [
+    showAlert(t('communities.transferOwnership'), t('communities.transferWarning'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('communities.transferOwnership'),
@@ -611,11 +613,11 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
             setLoading(true);
             try {
               await transferOwnership(communityId, trimmed, keepAdmin);
-              Alert.alert(t('common.success'), t('communities.transferSuccess'));
+              showAlert(t('common.success'), t('communities.transferSuccess'));
               setTargetUserId('');
               onUpdate();
             } catch (err) {
-              Alert.alert(
+              showAlert(
                 t('common.error'),
                 communityErrorText(err, t('communities.transferError')),
               );
@@ -660,7 +662,7 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
           onValueChange={setKeepAdmin}
           disabled={loading}
           trackColor={{ true: theme.primary, false: theme.border }}
-          thumbColor="#FFFFFF"
+          thumbColor={theme.textOnPrimary}
         />
         <ThemedText style={styles.toggleLabel}>
           {keepAdmin ? t('communities.yes') : t('communities.no')}
@@ -679,9 +681,9 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
           pressed && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.primaryBtnText}>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>
             {t('communities.transferOwnership')}
           </ThemedText>
         )}
@@ -699,8 +701,9 @@ function SkeletonRows({
   theme: ReturnType<typeof useTheme>;
   rows: number;
 }) {
+  const shimmer = useShimmer();
   return (
-    <View style={styles.section}>
+    <Animated.View style={[styles.section, { opacity: shimmer }]}>
       {Array.from({ length: rows }).map((_, i) => (
         <View
           key={i}
@@ -709,7 +712,7 @@ function SkeletonRows({
           <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
         </View>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -842,7 +845,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   ghostBtn: {
     flex: 1,

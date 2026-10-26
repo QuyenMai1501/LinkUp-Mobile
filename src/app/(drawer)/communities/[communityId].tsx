@@ -17,6 +17,7 @@ import { Icon } from '@/components/ui/icon';
 import { Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   isCommunityPrivileged,
@@ -44,6 +45,7 @@ function DetailBody({
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
 
   const [detail, setDetail] = useState<CommunityDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -95,7 +97,7 @@ function DetailBody({
               {t('communities.title')}
             </ThemedText>
           </View>
-          <View style={styles.skeletonHeader}>
+          <View style={[styles.skeletonHeader, { opacity: shimmer }]}>
             <View style={[styles.skeletonCover, { backgroundColor: theme.bgSecondary }]} />
             <View style={styles.skeletonInfo}>
               <View
@@ -126,7 +128,7 @@ function DetailBody({
             </ThemedText>
           </View>
           <View style={styles.centerContent}>
-            <Icon name="warning" size={48} color="#FB8C00" />
+            <Icon name="warning" size={48} color={theme.accent} />
             <ThemedText style={styles.errorTitle}>
               {error ?? t('communities.detailNotFound')}
             </ThemedText>
@@ -140,7 +142,7 @@ function DetailBody({
                 { backgroundColor: theme.primary },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText style={styles.primaryBtnText}>{t('common.retry')}</ThemedText>
+              <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
             </Pressable>
             <Pressable onPress={goBackToList} hitSlop={6}>
               <ThemedText style={[styles.linkBtn, { color: theme.primary }]}>
@@ -361,7 +363,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   linkBtn: {
     ...Typography.body,

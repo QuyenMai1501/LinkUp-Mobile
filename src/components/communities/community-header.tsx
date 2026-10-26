@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { communityErrorText, joinCommunity, leaveCommunity } from '@/api/communities';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -42,14 +43,14 @@ export default function CommunityHeader({
       const res = await joinCommunity(community.id);
       onStatusChange(res.request_id ? 'pending' : 'member');
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.joinError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.joinError')));
     } finally {
       setLoading(false);
     }
   }, [community.id, loading, onStatusChange, t]);
 
   const handleLeave = useCallback(() => {
-    Alert.alert(t('communities.leaveConfirmTitle'), t('communities.leaveConfirmBody'), [
+    showAlert(t('communities.leaveConfirmTitle'), t('communities.leaveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('communities.leave'),
@@ -62,7 +63,7 @@ export default function CommunityHeader({
               await leaveCommunity(community.id);
               onStatusChange('none');
             } catch (err) {
-              Alert.alert(
+              showAlert(
                 t('common.error'),
                 communityErrorText(err, t('communities.leaveError')),
               );
@@ -142,9 +143,9 @@ export default function CommunityHeader({
           (pressed || loading) && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.actionTextPrimary}>{t('communities.join')}</ThemedText>
+          <ThemedText style={[styles.actionTextPrimary, { color: theme.textOnPrimary }]}>{t('communities.join')}</ThemedText>
         )}
       </Pressable>
     );
@@ -170,8 +171,8 @@ export default function CommunityHeader({
           </View>
         )}
         <View style={[styles.privacyBadge, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
-          <Icon name={isPublic ? 'globe' : 'lock'} size={12} color="#FFFFFF" />
-          <ThemedText style={styles.privacyBadgeText}>
+          <Icon name={isPublic ? 'globe' : 'lock'} size={12} color={theme.textOnPrimary} />
+          <ThemedText style={[styles.privacyBadgeText, { color: theme.textOnPrimary }]}>
             {isPublic ? t('communities.privacyPublic') : t('communities.inviteOnlyShort')}
           </ThemedText>
         </View>
@@ -180,7 +181,7 @@ export default function CommunityHeader({
       {/* Info */}
       <View style={styles.info}>
         <View style={styles.nameActionsRow}>
-          <View style={[styles.avatarWrap, { borderColor: theme.card }]}>
+          <View style={[styles.avatarWrap, { backgroundColor: theme.textOnPrimary }, { borderColor: theme.card }]}>
             {avatarError || !community.avatar_uri ? (
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primaryLight }]}>
                 <Icon name="people" size={28} color={theme.primary} />
@@ -267,7 +268,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   privacyBadgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -288,7 +288,6 @@ const styles = StyleSheet.create({
     borderRadius: 42,
     borderWidth: 3,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
   },
   avatar: {
     width: '100%',
@@ -328,7 +327,6 @@ const styles = StyleSheet.create({
   actionTextPrimary: {
     ...Typography.caption,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pill: {
     flexDirection: 'row',

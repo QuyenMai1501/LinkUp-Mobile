@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -11,6 +12,7 @@ import { Typography } from '@/constants/typography';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/contexts/auth-context';
 import { useThemeMode } from '@/contexts/theme-context';
+import { useFriendRequestCount } from '@/hooks/use-friend-request-count';
 import { useTranslation } from '@/hooks/useTranslation';
 
 type NavItem = {
@@ -40,6 +42,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const { t } = useTranslation();
+  const pendingRequestCount = useFriendRequestCount();
 
   const handleNavigate = (href: string) => {
     navigation.closeDrawer();
@@ -80,6 +83,13 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
                     style={[styles.navLabel, active && { color: colors.primary, fontWeight: '700' }]}>
                     {t(`sidebar.${item.label}`)}
                   </ThemedText>
+                  {item.key === 'friends' && pendingRequestCount > 0 && (
+                    <View style={[styles.navBadge, { backgroundColor: colors.accent }]}>
+                      <ThemedText style={[styles.navBadgeText, { color: colors.textOnPrimary }]}>
+                        {pendingRequestCount > 99 ? '99+' : pendingRequestCount}
+                      </ThemedText>
+                    </View>
+                  )}
                 </Pressable>
               );
             })}
@@ -108,7 +118,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
 
           <Pressable
             onPress={() => {
-              Alert.alert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
+              showAlert(t('sidebar.logout'), t('sidebar.logoutConfirm'), [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
                   text: t('sidebar.logout'),
@@ -125,8 +135,8 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
               { backgroundColor: colors.danger },
               pressed && { opacity: 0.7 },
             ]}>
-            <Icon name="logout" size={20} color="#FFFFFF" />
-            <ThemedText style={styles.logoutLabel}>{t('sidebar.logout')}</ThemedText>
+            <Icon name="logout" size={20} color={colors.textOnPrimary} />
+            <ThemedText style={[styles.logoutLabel, { color: colors.textOnPrimary }]}>{t('sidebar.logout')}</ThemedText>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -179,6 +189,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
+  navBadge: {
+    marginLeft: 'auto',
+    minWidth: 20,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+  },
+  navBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
   userSection: {
     borderTopWidth: 1,
     paddingHorizontal: Spacing.lg,
@@ -226,6 +249,5 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

@@ -97,8 +97,8 @@ export function GroupCallHistoryBubble({
             <Pressable
               onPress={() => onRequestJoin(call.call_id)}
               style={styles.joinBtn}>
-              <Icon name="call" size={12} color="#FFF" />
-              <ThemedText style={styles.joinText}>
+              <Icon name="call" size={12} color={theme.textOnPrimary} />
+              <ThemedText style={[styles.joinText, { color: theme.textOnPrimary }]}>
                 {t('groupCall.requestJoin')}
               </ThemedText>
             </Pressable>
@@ -167,7 +167,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   joinText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
   },

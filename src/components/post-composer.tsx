@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -10,7 +9,7 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -18,6 +17,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -324,7 +324,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
       return;
     }
 
-    Alert.alert(
+    showAlert(
       t('composer.confirmTitle'),
       t('composer.confirmMessage'),
       [
@@ -355,7 +355,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
       reset();
       onPosted(res.data);
       if (res.warnings && res.warnings.length > 0) {
-        Alert.alert(t('composer.mediaWarning'), res.warnings.join('\n'));
+        showAlert(t('composer.mediaWarning'), res.warnings.join('\n'));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));
@@ -387,7 +387,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
               {submitting ? (
                 <ThemedText style={styles.submitBtnText}>{t('common.processing')}</ThemedText>
               ) : (
-                <ThemedText style={[styles.submitBtnText, { color: '#FFF' }]}>{t('composer.post')}</ThemedText>
+                <ThemedText style={[styles.submitBtnText, { color: theme.textOnPrimary }]}>{t('composer.post')}</ThemedText>
               )}
             </Pressable>
           </ThemedView>
@@ -420,7 +420,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                   <Image source={{ uri: profile.avatar_uri }} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: theme.bgSecondary }]}>
-                    <ThemedText style={styles.avatarInitial}>
+                    <ThemedText style={[styles.avatarInitial, { color: theme.textSecondary }]}>
                       {profile?.display_name?.charAt(0)?.toUpperCase() || '?'}
                     </ThemedText>
                   </View>
@@ -496,7 +496,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                   value={!commentsDisabled}
                   onValueChange={(v) => setCommentsDisabled(!v)}
                   trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor="#FFFFFF"
+                  thumbColor={theme.textOnPrimary}
                 />
               </View>
 
@@ -513,7 +513,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                     <Pressable
                       onPress={() => setGif(null)}
                       style={[styles.removeBtn, { backgroundColor: theme.danger }]}>
-                      <ThemedText style={styles.removeBtnText}>✕</ThemedText>
+                      <ThemedText style={[styles.removeBtnText, { color: theme.textOnPrimary }]}>✕</ThemedText>
                     </Pressable>
                   </View>
                 </View>
@@ -534,7 +534,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                       <Pressable
                         onPress={() => removeMedia(i)}
                         style={[styles.removeBtn, { backgroundColor: theme.danger }]}>
-                        <ThemedText style={styles.removeBtnText}>✕</ThemedText>
+                        <ThemedText style={[styles.removeBtnText, { color: theme.textOnPrimary }]}>✕</ThemedText>
                       </Pressable>
                     </View>
                   ))}
@@ -685,7 +685,6 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#666',
   },
   authorName: {
     ...Typography.body,
@@ -794,7 +793,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   removeBtnText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '700',
   },

@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -9,11 +8,12 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   getCommunityMembers,
@@ -25,6 +25,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type {
   CommunityMember,
@@ -68,6 +69,7 @@ function RoleBadge({ role, theme }: { role: CommunityRole; theme: ReturnType<typ
 export default function MemberList({ communityId, isAdmin }: MemberListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
   const router = useRouter();
 
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
@@ -100,10 +102,10 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
       setBusy(true);
       try {
         await updateMemberRole(communityId, member.user_id, role);
-        Alert.alert(t('common.success'), t('communities.roleChanged'));
+        showAlert(t('common.success'), t('communities.roleChanged'));
         await load();
       } catch (err) {
-        Alert.alert(t('common.error'), communityErrorText(err, t('communities.roleError')));
+        showAlert(t('common.error'), communityErrorText(err, t('communities.roleError')));
       } finally {
         setBusy(false);
       }
@@ -116,12 +118,12 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
     setBusy(true);
     try {
       await kickMember(communityId, kickTarget.user_id, kickReason.trim());
-      Alert.alert(t('common.success'), t('communities.kicked'));
+      showAlert(t('common.success'), t('communities.kicked'));
       setKickTarget(null);
       setKickReason('');
       await load();
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.kickError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.kickError')));
     } finally {
       setBusy(false);
     }
@@ -178,7 +180,14 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
             <View
               key={i}
-              style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              style={[
+                styles.row,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  opacity: shimmer,
+                },
+              ]}>
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.bgSecondary }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
             </View>
@@ -203,7 +212,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+            <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -396,9 +405,9 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
                     pressed && styles.pressed,
                   ]}>
                   {busy ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <ThemedText style={styles.kickSubmitText}>{t('communities.kick')}</ThemedText>
+                    <ThemedText style={[styles.kickSubmitText, { color: theme.textOnPrimary }]}>{t('communities.kick')}</ThemedText>
                   )}
                 </Pressable>
               </View>
@@ -482,7 +491,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   backdrop: {
     flex: 1,
@@ -587,7 +595,6 @@ const styles = StyleSheet.create({
   kickSubmitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

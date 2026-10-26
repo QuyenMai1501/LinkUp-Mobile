@@ -78,26 +78,26 @@ export default function StorageInfo() {
         </ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.progressBg}>
+      <ThemedView style={[styles.progressBg, { backgroundColor: colors.border }]}>
         <ThemedView
           style={[styles.progressFill, { width: `${percent}%`, backgroundColor: colors.primary }]}
         />
       </ThemedView>
 
       <ThemedView style={styles.stats}>
-        <ThemedView style={[styles.stat, { backgroundColor: colors.card }]}>
+        <ThemedView style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {used.value} {used.unit}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.statLabel}>{t('settings.storage.used')}</ThemedText>
         </ThemedView>
-        <ThemedView style={[styles.stat, { backgroundColor: colors.card }]}>
+        <ThemedView style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {avail.value} {avail.unit}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.statLabel}>{t('settings.storage.free')}</ThemedText>
         </ThemedView>
-        <ThemedView style={[styles.stat, { backgroundColor: colors.card }]}>
+        <ThemedView style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <ThemedText style={[styles.statValue, { color: colors.primary }]}>
             {Math.round(percent)}%
           </ThemedText>
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
   progressBg: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E0E0E0',
     overflow: 'hidden',
   },
   progressFill: { height: '100%', borderRadius: 4 },
@@ -128,6 +127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderRadius: 12,
+    borderWidth: 1,
     gap: Spacing.xs,
   },
   statValue: { fontSize: 18, fontWeight: '700' },

@@ -86,7 +86,7 @@ export function MediaCluster({
           )}
           {isMine && last.failed ? (
             <ThemedText
-              style={[styles.time, { color: '#F87171' }]}>
+              style={[styles.time, { color: theme.danger }]}>
               {t('chat.sendFailed')}
             </ThemedText>
           ) : isMine && last.uploading ? (

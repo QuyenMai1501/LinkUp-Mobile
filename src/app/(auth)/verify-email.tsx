@@ -2,16 +2,17 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { verifyEmail, resendVerification, decodeToken } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { FormTextInput } from '@/components/ui/form-text-input';
@@ -99,8 +100,7 @@ export default function VerifyEmailScreen() {
         }, 3000);
       } catch (err) {
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : '';
-        setMessage(msg);
+        setMessage(apiErrorMessage(err, ''));
         setStatus('error');
       }
     };
@@ -111,21 +111,20 @@ export default function VerifyEmailScreen() {
   const handleResend = async () => {
     const target = email.trim();
     if (!target) {
-      Alert.alert(t('common.error'), t('auth.register.validation.emailRequired'));
+      showAlert(t('common.error'), t('auth.register.validation.emailRequired'));
       return;
     }
     if (!EMAIL_REGEX.test(target)) {
-      Alert.alert(t('common.error'), t('auth.register.validation.emailInvalid'));
+      showAlert(t('common.error'), t('auth.register.validation.emailInvalid'));
       return;
     }
     setResendLoading(true);
     try {
       const res = await resendVerification(target);
-      Alert.alert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
+      showAlert(t('common.success'), res.message || t('auth.verifyEmail.resendSuccess'));
       setCooldown(60);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('auth.verifyEmail.resendFailed');
-      Alert.alert(t('common.error'), msg);
+      showAlert(t('common.error'), apiErrorMessage(err, t('auth.verifyEmail.resendFailed')));
     } finally {
       setResendLoading(false);
     }
@@ -201,7 +200,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'success' && (
                 <>
-                  <View style={styles.iconWrap}><Icon name="checkCircle" size={48} color="#43A047" /></View>
+                  <View style={styles.iconWrap}><Icon name="checkCircle" size={48} color={theme.success} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifySuccess')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.verifySuccess')}
@@ -211,7 +210,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'error' && (
                 <>
-                  <View style={styles.iconWrap}><Icon name="xCircle" size={48} color="#E53935" /></View>
+                  <View style={styles.iconWrap}><Icon name="xCircle" size={48} color={theme.danger} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifyFailed')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.invalidCode')}

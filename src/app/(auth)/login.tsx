@@ -2,16 +2,17 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { login } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import GoogleAuthButton from '@/components/google-auth-button';
 import { Button } from '@/components/ui/button';
 import { FormTextInput } from '@/components/ui/form-text-input';
@@ -40,8 +41,7 @@ export default function LoginScreen() {
       await signIn(res);
       router.replace('/(drawer)' as any);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('auth.login.loginFailed');
-      Alert.alert(t('auth.login.loginFailed'), message);
+      showAlert(t('auth.login.loginFailed'), apiErrorMessage(err, t('auth.login.loginFailed')));
     } finally {
       setLoading(false);
     }

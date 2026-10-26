@@ -1,24 +1,13 @@
-import { ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedView } from '@/components/themed-view';
+import SettingsScreen from '@/components/settings/settings-screen';
 import DeactivateAccount from '@/components/settings/deactivate-account';
-import { Spacing } from '@/constants/spacing';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function DeactivateScreen() {
+  const { t } = useTranslation();
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <DeactivateAccount />
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    <SettingsScreen title={t('settings.items.deactivate.label')}>
+      <DeactivateAccount />
+    </SettingsScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
-  content: { padding: Spacing.lg },
-});

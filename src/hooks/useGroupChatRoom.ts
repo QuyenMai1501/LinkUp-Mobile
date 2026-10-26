@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import type {
   ChatMessage,
   MessageReaction,
@@ -355,7 +355,7 @@ export function useGroupChatRoom({
     (payload: unknown) => {
       const data = payload as { message?: string };
       if (!data || !data.message) return;
-      Alert.alert(t('common.error'), data.message);
+      showAlert(t('common.error'), data.message);
       // Lỗi thường do tin mới nhất gửi đi — rollback bubble tạm cuối.
       const pending = pendingIdsRef.current;
       if (pending.length > 0) {

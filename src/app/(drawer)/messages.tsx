@@ -447,7 +447,7 @@ export default function MessagesScreen() {
             <Icon name="people" size={20} color={colors.textSecondary} />
           </Pressable>
           <Pressable onPress={() => setPickerOpen(true)} style={[styles.newChatBtn, { backgroundColor: colors.primary }]}>
-            <Icon name="add" size={20} color="#FFF" />
+            <Icon name="add" size={20} color={theme.textOnPrimary} />
           </Pressable>
         </View>
 
@@ -492,7 +492,7 @@ export default function MessagesScreen() {
           <Pressable
             onPress={() => void handleInviteResponse(inv.invite_id, true)}
             style={[styles.inviteBtn, { backgroundColor: colors.primary }]}>
-            <ThemedText style={styles.inviteBtnAccept}>{t('chat.accept')}</ThemedText>
+            <ThemedText style={[styles.inviteBtnAccept, { color: theme.textOnPrimary }]}>{t('chat.accept')}</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => void handleInviteResponse(inv.invite_id, false)}
@@ -713,7 +713,6 @@ const styles = StyleSheet.create({
   inviteBtnAccept: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   inviteBtnGhost: {
     paddingHorizontal: Spacing.sm,

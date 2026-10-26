@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import { uploadMedia } from '@/api/profile';
 import { deleteChatBackground, updateChatBackground } from '@/api/chat';
 import {
@@ -139,12 +139,12 @@ export function ChatBackgroundPicker({
       .then(() => {
         setSelected(null);
         onApplied(null);
-        Alert.alert(t('chat.backgroundApplied'));
+        showAlert(t('chat.backgroundApplied'));
         onClose();
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('common.error'));
+        showAlert(t('common.error'), msg || t('common.error'));
       })
       .finally(() => setSaving(false));
   }, [saving, mode, chatId, onApplied, onClose, t]);
@@ -163,12 +163,12 @@ export function ChatBackgroundPicker({
     req
       .then(() => {
         onApplied({ ...selected, overlay_strength: clamped });
-        Alert.alert(t('chat.backgroundApplied'));
+        showAlert(t('chat.backgroundApplied'));
         onClose();
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('common.error'));
+        showAlert(t('common.error'), msg || t('common.error'));
       })
       .finally(() => setSaving(false));
   }, [selected, strength, saving, mode, chatId, onApplied, onClose, t]);
@@ -195,7 +195,7 @@ export function ChatBackgroundPicker({
         if (url) setSelected({ type: 'custom', value: url });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('common.error'));
+        showAlert(t('common.error'), msg || t('common.error'));
       } finally {
         setSaving(false);
       }
@@ -386,11 +386,11 @@ export function ChatBackgroundPicker({
                 disabled={saving}
                 style={[styles.uploadBtn, { backgroundColor: theme.primary }]}>
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
                   <>
-                    <Icon name="images" size={16} color="#FFF" />
-                    <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>
+                    <Icon name="images" size={16} color={theme.textOnPrimary} />
+                    <ThemedText style={{ color: theme.textOnPrimary, fontWeight: '600' }}>
                       {t('chat.backgroundUpload')}
                     </ThemedText>
                   </>
@@ -503,9 +503,9 @@ export function ChatBackgroundPicker({
               (!selected || saving) && styles.disabled,
             ]}>
             {saving ? (
-              <ActivityIndicator size="small" color="#FFF" />
+              <ActivityIndicator size="small" color={theme.textOnPrimary} />
             ) : (
-              <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>
+              <ThemedText style={{ color: theme.textOnPrimary, fontWeight: '600' }}>
                 {t('chat.backgroundApply')}
               </ThemedText>
             )}

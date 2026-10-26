@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { Switch, StyleSheet, ActivityIndicator } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import SettingsRow from '@/components/settings/settings-row';
 import { getPrivacy, updatePrivacy } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
@@ -29,7 +31,7 @@ export default function PrivacyForm() {
         setDiscoverable(res.discoverable_in_search);
         setAllowStrangers(res.allow_stranger_messages);
       } catch {
-        if (!cancelled) Alert.alert(t('common.error'), t('settings.privacy.loadFailed'));
+        if (!cancelled) showAlert(t('common.error'), t('settings.privacy.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -52,9 +54,9 @@ export default function PrivacyForm() {
       if (allowStrangers !== initial.allow_stranger_messages) input.allow_stranger_messages = allowStrangers;
       const res = await updatePrivacy(input);
       setInitial(res);
-      Alert.alert(t('common.success'), t('settings.privacy.saveSuccess'));
+      showAlert(t('common.success'), t('settings.privacy.saveSuccess'));
     } catch {
-      Alert.alert(t('common.error'), t('settings.privacy.saveFailed'));
+      showAlert(t('common.error'), t('settings.privacy.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -70,35 +72,33 @@ export default function PrivacyForm() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.privacy.searchable')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.privacy.searchableDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="search"
+        tone="info"
+        label={t('settings.privacy.searchable')}
+        hint={t('settings.privacy.searchableDesc')}>
         <Switch
           value={discoverable}
           onValueChange={setDiscoverable}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
-      </ThemedView>
+      </SettingsRow>
 
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.privacy.strangers')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.privacy.strangersDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="chat"
+        tone="accent"
+        label={t('settings.privacy.strangers')}
+        hint={t('settings.privacy.strangersDesc')}>
         <Switch
           value={allowStrangers}
           onValueChange={setAllowStrangers}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
-      </ThemedView>
+      </SettingsRow>
 
       {dirty && (
         <ThemedView style={styles.saveRow}>
@@ -120,16 +120,6 @@ export default function PrivacyForm() {
 const styles = StyleSheet.create({
   container: { gap: Spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderRadius: 12,
-  },
-  info: { flex: 1, marginRight: Spacing.md },
-  label: { fontSize: 15, fontWeight: '500' },
-  hint: { fontSize: 13, marginTop: 2 },
   saveRow: { alignItems: 'center', paddingVertical: Spacing.sm },
   saveBtn: { fontSize: 16, fontWeight: '600' },
 });

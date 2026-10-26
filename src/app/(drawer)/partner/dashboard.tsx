@@ -83,7 +83,7 @@ export default function PartnerDashboardScreen() {
             activeOpacity={0.8}
             style={[styles.errBtn, { backgroundColor: colors.primary }]}
             onPress={retry}>
-            <ThemedText style={styles.errBtnPrimaryText}>
+            <ThemedText style={[styles.errBtnPrimaryText, { color: colors.textOnPrimary }]}>
               {t('common.retry')}
             </ThemedText>
           </TouchableOpacity>
@@ -194,7 +194,7 @@ export default function PartnerDashboardScreen() {
           activeOpacity={0.8}
           style={[styles.ctaBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/partner/ads' as never)}>
-          <ThemedText style={styles.ctaBtnText}>{t('partner.ads.title')}</ThemedText>
+          <ThemedText style={[styles.ctaBtnText, { color: colors.textOnPrimary }]}>{t('partner.ads.title')}</ThemedText>
         </TouchableOpacity>
 
         {o.subscription_name ? (
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   errBtnOutline: { borderWidth: 1 },
-  errBtnPrimaryText: { color: '#fff', fontWeight: '600' },
+  errBtnPrimaryText: { fontWeight: '600' },
   content: {
     padding: Spacing.md,
     gap: Spacing.sm,
@@ -307,5 +307,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  ctaBtnText: { fontSize: 15, fontWeight: '600' },
 });

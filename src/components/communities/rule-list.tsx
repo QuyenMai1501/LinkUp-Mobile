@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   deleteCommunityRule,
@@ -13,6 +14,7 @@ import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommunityRule, RuleCategory } from '@/types/community';
 
@@ -34,6 +36,7 @@ interface RuleListProps {
 export default function RuleList({ communityId, isAdmin }: RuleListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const shimmer = useShimmer();
 
   const [rules, setRules] = useState<CommunityRule[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -59,7 +62,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
 
   const handleDelete = useCallback(
     (rule: CommunityRule) => {
-      Alert.alert(t('communities.ruleDeleteTitle'), `${t('communities.ruleDeleteConfirm')} — “${rule.title}”`, [
+      showAlert(t('communities.ruleDeleteTitle'), `${t('communities.ruleDeleteConfirm')} — “${rule.title}”`, [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('common.delete'),
@@ -70,7 +73,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
                 await deleteCommunityRule(communityId, rule.id);
                 await load();
               } catch (err) {
-                Alert.alert(
+                showAlert(
                   t('common.error'),
                   communityErrorText(err, t('communities.ruleError')),
                 );
@@ -144,7 +147,14 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
         Array.from({ length: SKELETON_ROWS }).map((_, i) => (
           <View
             key={i}
-            style={[styles.ruleCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            style={[
+              styles.ruleCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                opacity: shimmer,
+              },
+            ]}>
             <View style={[styles.ruleNum, { backgroundColor: theme.bgSecondary }]} />
             <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
           </View>
@@ -165,7 +175,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+            <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       ) : list.length === 0 && !showForm ? (
@@ -327,7 +337,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

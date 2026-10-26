@@ -76,7 +76,7 @@ export function ProfileFriendsTab({ userId }: ProfileFriendsTabProps) {
               <Image source={{ uri: friend.avatar_uri }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primary }]}>
-                <ThemedText style={styles.avatarFallbackText}>
+                <ThemedText style={[styles.avatarFallbackText, { color: theme.textOnPrimary }]}>
                   {friend.display_name?.charAt(0)?.toUpperCase() || '?'}
                 </ThemedText>
               </View>
@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
   avatarFallbackText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   friendName: { ...Typography.caption, textAlign: 'center', fontWeight: 500 },
   loadMore: {

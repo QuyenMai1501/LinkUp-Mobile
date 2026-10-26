@@ -123,7 +123,7 @@ export default function GroupSharedContentScreen() {
             />
             {!item.file_type?.startsWith('image/') && (
               <View style={styles.mediaBadge}>
-                <Icon name="play" size={14} color="#FFF" />
+                <Icon name="play" size={14} color={theme.textOnPrimary} />
               </View>
             )}
           </Pressable>

@@ -30,7 +30,7 @@ export function Button({
 
   const backgroundColor = isSolid ? theme.primary : theme.primaryLight;
   const borderColor = isSolid ? theme.primary : theme.primary;
-  const textColor = isSolid ? '#FFFFFF' : theme.primary;
+  const textColor = isSolid ? theme.textOnPrimary : theme.primary;
 
   return (
     <Pressable

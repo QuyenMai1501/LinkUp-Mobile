@@ -70,7 +70,7 @@ export function VideoLinkPreview({ url }: Props) {
           </View>
         )}
         <View style={styles.playBadge}>
-          <Icon name="play" size={16} color="#FFF" />
+          <Icon name="play" size={16} color={theme.textOnPrimary} />
         </View>
       </View>
       <View style={styles.info}>

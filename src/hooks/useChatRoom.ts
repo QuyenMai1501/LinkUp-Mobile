@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+
+import { showAlert } from '@/utils/alert';
 import type {
   ChatMessage,
   HistoryCursor,
@@ -603,12 +604,12 @@ export function useChatRoom({
         // Chưa phân loại E2E (ids chưa load) hoặc E2E chưa sẵn sàng → chặn gửi
         // thay vì lặng lẽ lộ plaintext ra server. (Legacy → status='legacy' →
         // vẫn gửi plaintext như cũ.)
-        Alert.alert(t('chat.e2eInitializing'));
+        showAlert(t('chat.e2eInitializing'));
         return;
       }
       if (e2eStatus === 'partner_changed') {
         // Đối phương đổi thiết bị, không còn khôi phục được → chặn gửi.
-        Alert.alert(t('chat.e2ePartnerChanged'));
+        showAlert(t('chat.e2ePartnerChanged'));
         return;
       }
       tempSeqRef.current += 1;
@@ -646,7 +647,7 @@ export function useChatRoom({
             // Encrypt fail → gỡ bubble tạm, KHÔNG gửi plaintext âm thầm.
             pendingIdsRef.current = pendingIdsRef.current.filter((id) => id !== tempId);
             setMessages((prev) => prev.filter((m) => m.id !== tempId));
-            Alert.alert(t('chat.e2eEncryptFailed'));
+            showAlert(t('chat.e2eEncryptFailed'));
             return;
           }
         }
@@ -769,7 +770,7 @@ export function useChatRoom({
         } catch {
           // Encrypt fail → gỡ bubble tạm, KHÔNG gửi plaintext âm thầm.
           setMessages((prev) => prev.filter((m) => m.id !== tempId));
-          Alert.alert(t('chat.e2eEncryptFailed'));
+          showAlert(t('chat.e2eEncryptFailed'));
           return;
         }
       }

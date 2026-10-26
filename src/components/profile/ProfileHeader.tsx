@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -113,7 +114,7 @@ export function ProfileHeader({
     setAvatarMenuVisible(false);
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi avatar.');
+      showAlert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi avatar.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -131,7 +132,7 @@ export function ProfileHeader({
   const handleChangeCover = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi ảnh bìa.');
+      showAlert(t('profile.editProfile'), 'Cần cấp quyền truy cập ảnh để thay đổi ảnh bìa.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -156,7 +157,7 @@ export function ProfileHeader({
           <Image source={{ uri: profile.cover_uri }} style={styles.coverImg} contentFit="cover" />
         ) : (
           <LinearGradient
-            colors={['#12A5A1', '#0A1F44']}
+            colors={[theme.primary, theme.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.coverGradient}
@@ -164,7 +165,7 @@ export function ProfileHeader({
         )}
         {isSelf && (
           <View style={styles.coverCameraBadge}>
-            <Icon name="camera" size={14} color="#FFFFFF" />
+            <Icon name="camera" size={14} color={theme.textOnPrimary} />
           </View>
         )}
       </Pressable>
@@ -182,7 +183,7 @@ export function ProfileHeader({
             onPress={handleAvatarPress}>
             {profile.avatar_uri?.trim() ? undefined : (
               <View style={[styles.avatarFallback, { backgroundColor: theme.primary }]}>
-                <ThemedText style={styles.avatarFallbackText}>
+                <ThemedText style={[styles.avatarFallbackText, { color: theme.textOnPrimary }]}>
                   {profile.display_name?.charAt(0)?.toUpperCase() || '?'}
                 </ThemedText>
               </View>
@@ -190,7 +191,7 @@ export function ProfileHeader({
           </StoryAvatarRing>
           {isSelf && (
             <View style={styles.avatarCameraBadge}>
-              <Icon name="camera" size={12} color="#FFFFFF" />
+              <Icon name="camera" size={12} color={theme.textOnPrimary} />
             </View>
           )}
         </View>
@@ -342,7 +343,6 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 48,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
   },
   avatarFallback: {
     alignItems: 'center',
@@ -351,7 +351,6 @@ const styles = StyleSheet.create({
   avatarFallbackText: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   avatarCameraBadge: {
     position: 'absolute',

@@ -1,13 +1,15 @@
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { StoryAvatarRing, STORY_RING_COLORS } from '@/components/story/story-avatar-ring';
+import { StoryAvatarRing } from '@/components/story/story-avatar-ring';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import { pickTextGradient } from '@/utils/story-gradient';
 import type { StoryFeedItem, StoryItem } from '@/types/story';
@@ -52,7 +54,10 @@ function StoryPreview({ story }: { story: StoryItem }) {
 }
 
 function SkeletonCard() {
-  return <View style={[styles.card, styles.skeletonCard]} />;
+  const shimmer = useShimmer();
+  return (
+    <Animated.View style={[styles.card, styles.skeletonCard, { opacity: shimmer }]} />
+  );
 }
 
 export default function StoryBar({
@@ -78,7 +83,7 @@ export default function StoryBar({
   const otherGroups = stories.filter((s) => s.user.id !== currentUserId);
 
   const confirmMute = (userId: string, displayName: string) => {
-    Alert.alert(displayName, undefined, [
+    showAlert(displayName, undefined, [
       {
         text: t('story.muteUser'),
         style: 'destructive',
@@ -120,7 +125,7 @@ export default function StoryBar({
                 <Image source={{ uri: avatarUri }} style={styles.previewMedia} contentFit="cover" />
               ) : (
                 <View style={[styles.previewMedia, styles.previewFallback, { backgroundColor: theme.primary }]}>
-                  <ThemedText style={styles.ownInitial}>
+                  <ThemedText style={[styles.ownInitial, { color: theme.textOnPrimary }]}>
                     {t('story.yourStory').charAt(0)}
                   </ThemedText>
                 </View>
@@ -130,8 +135,17 @@ export default function StoryBar({
                 style={styles.cardGradient}
                 pointerEvents="none"
               />
-              <Pressable hitSlop={4} style={styles.plusBadge} onPress={onCreateStory}>
-                <ThemedText style={styles.plusBadgeText}>+</ThemedText>
+              <Pressable
+                hitSlop={4}
+                style={[
+                  styles.plusBadge,
+                  {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.bgSecondary,
+                  },
+                ]}
+                onPress={onCreateStory}>
+                <ThemedText style={[styles.plusBadgeText, { color: theme.textOnPrimary }]}>+</ThemedText>
               </Pressable>
               <View style={styles.cardOverlay}>
                 <StoryAvatarRing
@@ -141,7 +155,7 @@ export default function StoryBar({
                   hasViewed={ownViewed}
                   size={40}
                 />
-                <ThemedText style={styles.cardName} numberOfLines={1}>
+                <ThemedText style={[styles.cardName, { color: theme.textOnPrimary }]} numberOfLines={1}>
                   {t('story.yourStory')}
                 </ThemedText>
               </View>
@@ -178,7 +192,7 @@ export default function StoryBar({
                     hitSlop={6}
                     style={styles.moreBtn}
                     onPress={() => confirmMute(item.user.id, item.user.display_name)}>
-                    <ThemedText style={styles.moreBtnText}>⋯</ThemedText>
+                    <ThemedText style={[styles.moreBtnText, { color: theme.textOnPrimary }]}>⋯</ThemedText>
                   </Pressable>
                 )}
                 <View style={styles.cardOverlay}>
@@ -189,7 +203,7 @@ export default function StoryBar({
                     hasViewed={hasViewed}
                     size={40}
                   />
-                  <ThemedText style={styles.cardName} numberOfLines={1}>
+                  <ThemedText style={[styles.cardName, { color: theme.textOnPrimary }]} numberOfLines={1}>
                     {item.user.display_name}
                   </ThemedText>
                 </View>
@@ -255,7 +269,6 @@ const styles = StyleSheet.create({
   cardName: {
     ...Typography.caption,
     fontSize: 11,
-    color: '#FFFFFF',
     maxWidth: CARD_W - 8,
     textAlign: 'center',
   },
@@ -266,13 +279,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: STORY_RING_COLORS[1],
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
   },
   plusBadgeText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,
@@ -288,12 +300,10 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   moreBtnText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
   ownInitial: {
-    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
   },

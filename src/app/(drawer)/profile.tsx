@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { ThemedView } from '@/components/themed-view';
@@ -66,7 +67,7 @@ export default function SelfProfileScreen() {
       setProfile((prev) => prev ? { ...prev, avatar_uri: fileUri } : prev);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('profile.notFound'));
+      showAlert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
@@ -80,7 +81,7 @@ export default function SelfProfileScreen() {
       setProfile((prev) => prev ? { ...prev, cover_uri: fileUri } : prev);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t('common.error'), msg || t('profile.notFound'));
+      showAlert(t('common.error'), msg || t('profile.notFound'));
     }
   };
 
@@ -104,7 +105,7 @@ export default function SelfProfileScreen() {
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <Icon name="warning" size={32} color="#FB8C00" />
+            <Icon name="warning" size={32} color={theme.accent} />
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}
             </ThemedText>

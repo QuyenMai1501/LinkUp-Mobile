@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -20,11 +21,11 @@ export default function DeactivateAccount() {
 
   const handleDeactivate = async () => {
     if (!password) {
-      Alert.alert(t('common.error'), t('settings.deactivate.passwordRequired'));
+      showAlert(t('common.error'), t('settings.deactivate.passwordRequired'));
       return;
     }
 
-    Alert.alert(
+    showAlert(
       t('settings.deactivate.confirmTitle'),
       t('settings.deactivate.confirmMessage'),
       [
@@ -36,10 +37,10 @@ export default function DeactivateAccount() {
             setLoading(true);
             try {
               await deactivateAccount(password);
-              Alert.alert(t('common.success'), t('settings.deactivate.deactivateSuccess'));
+              showAlert(t('common.success'), t('settings.deactivate.deactivateSuccess'));
               signOut();
             } catch (err) {
-              Alert.alert(t('common.error'), err instanceof Error ? err.message : t('settings.deactivate.deactivateFailed'));
+              showAlert(t('common.error'), err instanceof Error ? err.message : t('settings.deactivate.deactivateFailed'));
             } finally {
               setLoading(false);
             }
@@ -52,7 +53,7 @@ export default function DeactivateAccount() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.warningBox, { backgroundColor: colors.dangerLight }]}>
-        <Icon name="warning" size={20} color="#FB8C00" />
+        <Icon name="warning" size={20} color={colors.accent} />
         <ThemedText style={styles.warningText}>
           {t('settings.deactivate.warning')}
         </ThemedText>
@@ -79,9 +80,9 @@ export default function DeactivateAccount() {
         disabled={loading}
         activeOpacity={0.8}>
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.buttonText}>{t('settings.deactivate.deactivateButton')}</ThemedText>
+          <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.deactivate.deactivateButton')}</ThemedText>
         )}
       </TouchableOpacity>
     </ThemedView>
@@ -113,5 +114,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { fontSize: 16, fontWeight: '600' },
 });

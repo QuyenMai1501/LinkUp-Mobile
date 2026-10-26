@@ -2,13 +2,13 @@ import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { approveGroupInvite, rejectGroupInvite } from '@/api/group-chat';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -75,10 +75,10 @@ export function GroupInviteBubble({ message, myUserId, onAccepted }: Props) {
       await approveGroupInvite(invite.chat_id, invite.request_id);
       setStatusOverride('accepted');
       setModalOpen(false);
-      Alert.alert(t('common.success'), t('chat.inviteAccepted'));
+      showAlert(t('common.success'), t('chat.inviteAccepted'));
       onAccepted?.(invite.chat_id);
     } catch {
-      Alert.alert(t('common.error'), t('chat.inviteAcceptFailed'));
+      showAlert(t('common.error'), t('chat.inviteAcceptFailed'));
     } finally {
       setLoading(false);
     }
@@ -91,9 +91,9 @@ export function GroupInviteBubble({ message, myUserId, onAccepted }: Props) {
       await rejectGroupInvite(invite.chat_id, invite.request_id);
       setStatusOverride('rejected');
       setModalOpen(false);
-      Alert.alert(t('common.success'), t('chat.inviteDeclined'));
+      showAlert(t('common.success'), t('chat.inviteDeclined'));
     } catch {
-      Alert.alert(t('common.error'), t('chat.inviteDeclineFailed'));
+      showAlert(t('common.error'), t('chat.inviteDeclineFailed'));
     } finally {
       setLoading(false);
     }
@@ -243,7 +243,7 @@ export function GroupInviteBubble({ message, myUserId, onAccepted }: Props) {
                 {loading ? (
                   <ActivityIndicator size="small" color={theme.textSecondary} />
                 ) : (
-                  <ThemedText style={styles.modalBtnAcceptText}>
+                  <ThemedText style={[styles.modalBtnAcceptText, { color: theme.textOnPrimary }]}>
                     {t('chat.groupInviteJoin')}
                   </ThemedText>
                 )}
@@ -370,7 +370,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modalBtnAcceptText: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

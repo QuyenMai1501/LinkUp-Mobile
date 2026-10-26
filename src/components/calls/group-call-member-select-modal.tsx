@@ -251,8 +251,8 @@ export function GroupCallMemberSelectModal({
                       selectedCount === 0 ? theme.bgSecondary : theme.primary,
                   },
                 ]}>
-                <Icon name="video" size={16} color="#FFF" />
-                <ThemedText style={styles.startBtnText}>
+                <Icon name="video" size={16} color={theme.textOnPrimary} />
+                <ThemedText style={[styles.startBtnText, { color: theme.textOnPrimary }]}>
                   {t('groupCall.startCall')} ({selectedCount})
                 </ThemedText>
               </Pressable>
@@ -343,5 +343,5 @@ const styles = StyleSheet.create({
     minWidth: 150,
     gap: Spacing.xs,
   },
-  startBtnText: { ...Typography.body, color: '#FFF', fontWeight: '600', fontSize: 14 },
+  startBtnText: { ...Typography.body, fontWeight: '600', fontSize: 14 },
 });

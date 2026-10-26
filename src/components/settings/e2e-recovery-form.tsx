@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Share,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -62,7 +62,7 @@ export default function E2ERecoveryForm() {
       setShowKey(true);
       setPin('');
       setPinConfirm('');
-      Alert.alert(t('settings.e2eEnabled'));
+      showAlert(t('settings.e2eEnabled'));
     } catch (err) {
       setError(translateErr(err));
     }
@@ -86,9 +86,9 @@ export default function E2ERecoveryForm() {
       setShowKey(false);
       setRevealedKey(null);
       setEnabled(false);
-      Alert.alert(t('settings.e2eDisabled'));
+      showAlert(t('settings.e2eDisabled'));
     } catch (err) {
-      Alert.alert(t('common.error'), translateErr(err));
+      showAlert(t('common.error'), translateErr(err));
     }
   };
 
@@ -96,12 +96,12 @@ export default function E2ERecoveryForm() {
     try {
       const ok = await recovery.forceRefreshBackup();
       if (ok) {
-        Alert.alert(t('settings.e2eRefreshed'));
+        showAlert(t('settings.e2eRefreshed'));
       } else {
-        Alert.alert(t('settings.e2eRefreshNoKeys'));
+        showAlert(t('settings.e2eRefreshNoKeys'));
       }
     } catch (err) {
-      Alert.alert(t('common.error'), translateErr(err));
+      showAlert(t('common.error'), translateErr(err));
     }
   };
 
@@ -159,12 +159,12 @@ export default function E2ERecoveryForm() {
             />
           </ThemedView>
           {pinInvalid && (
-            <ThemedText style={styles.error}>{t('settings.e2ePinInvalid')}</ThemedText>
+            <ThemedText style={[styles.error, { color: colors.danger }]}>{t('settings.e2ePinInvalid')}</ThemedText>
           )}
           {mismatch && (
-            <ThemedText style={styles.error}>{t('settings.e2ePinMismatch')}</ThemedText>
+            <ThemedText style={[styles.error, { color: colors.danger }]}>{t('settings.e2ePinMismatch')}</ThemedText>
           )}
-          {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+          {error && <ThemedText style={[styles.error, { color: colors.danger }]}>{error}</ThemedText>}
           <View style={styles.footerRow}>
             <TouchableOpacity
               style={[styles.button, styles.buttonPrimary, { backgroundColor: colors.primary }]}
@@ -172,9 +172,9 @@ export default function E2ERecoveryForm() {
               disabled={!canSave}
               activeOpacity={0.8}>
               {recovery.busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
-                <ThemedText style={styles.buttonText}>{t('settings.e2eSavePin')}</ThemedText>
+                <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.e2eSavePin')}</ThemedText>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -201,7 +201,7 @@ export default function E2ERecoveryForm() {
               style={[styles.button, styles.buttonDanger, { backgroundColor: colors.danger }]}
               onPress={() => setConfirmDisable(true)}
               activeOpacity={0.8}>
-              <ThemedText style={styles.buttonText}>{t('settings.e2eDisable')}</ThemedText>
+              <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.e2eDisable')}</ThemedText>
             </TouchableOpacity>
           ) : (
             <ThemedView style={[styles.confirmBox, { backgroundColor: colors.bgSecondary }]}>
@@ -223,9 +223,9 @@ export default function E2ERecoveryForm() {
                   disabled={recovery.busy}
                   activeOpacity={0.8}>
                   {recovery.busy ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.textOnPrimary} />
                   ) : (
-                    <ThemedText style={styles.buttonText}>{t('settings.e2eDisable')}</ThemedText>
+                    <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.e2eDisable')}</ThemedText>
                   )}
                 </TouchableOpacity>
               </View>
@@ -296,12 +296,12 @@ export default function E2ERecoveryForm() {
           />
         </ThemedView>
         {pinInvalid && (
-          <ThemedText style={styles.error}>{t('settings.e2ePinInvalid')}</ThemedText>
+          <ThemedText style={[styles.error, { color: colors.danger }]}>{t('settings.e2ePinInvalid')}</ThemedText>
         )}
         {mismatch && (
-          <ThemedText style={styles.error}>{t('settings.e2ePinMismatch')}</ThemedText>
+          <ThemedText style={[styles.error, { color: colors.danger }]}>{t('settings.e2ePinMismatch')}</ThemedText>
         )}
-        {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+        {error && <ThemedText style={[styles.error, { color: colors.danger }]}>{error}</ThemedText>}
 
         <TouchableOpacity
           style={[styles.button, styles.buttonPrimary, { backgroundColor: colors.primary }]}
@@ -309,9 +309,9 @@ export default function E2ERecoveryForm() {
           disabled={!canSave}
           activeOpacity={0.8}>
           {recovery.busy ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.textOnPrimary} />
           ) : (
-            <ThemedText style={styles.buttonText}>{t('settings.e2eEnable')}</ThemedText>
+            <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.e2eEnable')}</ThemedText>
           )}
         </TouchableOpacity>
       </ThemedView>
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   input: { flex: 1, fontSize: 16 },
-  error: { fontSize: 12, color: '#D32F2F' },
+  error: { fontSize: 12 },
   footerRow: { flexDirection: 'row', gap: Spacing.sm },
   button: {
     flex: 1,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   buttonPrimary: {},
   buttonGhost: { borderWidth: 1 },
   buttonDanger: {},
-  buttonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  buttonText: { fontSize: 15, fontWeight: '600' },
   dangerZone: {
     gap: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,

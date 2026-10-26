@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Switch, StyleSheet, Alert } from 'react-native';
+import { Switch, StyleSheet } from 'react-native';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import SettingsRow from '@/components/settings/settings-row';
 import { updateAppearance } from '@/api/settings';
 import { useThemeMode } from '@/contexts/theme-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,7 +25,7 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ theme: mode });
     } catch {
-      Alert.alert(t('common.error'), t('settings.appearance.saveFailed'));
+      showAlert(t('common.error'), t('settings.appearance.saveFailed'));
     }
   };
 
@@ -32,44 +34,43 @@ export default function AppearanceForm() {
     try {
       await updateAppearance({ language: lang });
     } catch {
-      Alert.alert(t('common.error'), t('settings.appearance.languageSaveFailed'));
+      showAlert(t('common.error'), t('settings.appearance.languageSaveFailed'));
     }
   };
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.appearance.darkMode')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.appearance.darkModeDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="moon"
+        tone="primary"
+        label={t('settings.appearance.darkMode')}
+        hint={t('settings.appearance.darkModeDesc')}>
         <Switch
           value={theme === 'dark'}
           onValueChange={(v) => handleThemeChange(v ? 'dark' : 'light')}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
-      </ThemedView>
+      </SettingsRow>
 
-      <ThemedView style={[styles.row, { backgroundColor: colors.card }]}>
-        <ThemedView style={styles.info}>
-          <ThemedText style={styles.label}>{t('settings.appearance.language')}</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.hint}>
-            {t('settings.appearance.languageDesc')}
-          </ThemedText>
-        </ThemedView>
+      <SettingsRow
+        card
+        icon="globe"
+        tone="info"
+        label={t('settings.appearance.language')}
+        hint={t('settings.appearance.languageDesc')}>
         <ThemedView style={styles.langGroup}>
           <ThemedView
             style={[
               styles.langBtn,
+              { borderColor: colors.border },
               language === 'vi' && { backgroundColor: colors.primary },
             ]}>
             <ThemedText
               style={[
                 styles.langText,
-                language === 'vi' && { color: '#fff' },
+                language === 'vi' && { color: colors.textOnPrimary },
               ]}
               onPress={() => handleLanguageChange('vi')}>
               VI
@@ -78,42 +79,32 @@ export default function AppearanceForm() {
           <ThemedView
             style={[
               styles.langBtn,
+              { borderColor: colors.border },
               language === 'en' && { backgroundColor: colors.primary },
             ]}>
             <ThemedText
               style={[
                 styles.langText,
-                language === 'en' && { color: '#fff' },
+                language === 'en' && { color: colors.textOnPrimary },
               ]}
               onPress={() => handleLanguageChange('en')}>
               EN
             </ThemedText>
           </ThemedView>
         </ThemedView>
-      </ThemedView>
+      </SettingsRow>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.md },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderRadius: 12,
-  },
-  info: { flex: 1, marginRight: Spacing.md },
-  label: { fontSize: 15, fontWeight: '500' },
-  hint: { fontSize: 13, marginTop: 2 },
   langGroup: { flexDirection: 'row', gap: Spacing.xs },
   langBtn: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     alignItems: 'center',
     justifyContent: 'center',
   },

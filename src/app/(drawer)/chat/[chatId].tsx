@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   NativeScrollEvent,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { showAlert } from "@/utils/alert";
 import { batchGetPresence } from "@/api/presence";
 import { deleteChat, getChatBackground, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
@@ -418,7 +418,7 @@ export default function ChatScreen() {
         if (!uploadJobsRef.current.has(tempId)) return; // đã bị bỏ — khỏi báo lỗi
         room.failUpload(tempId);
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t("common.error"), msg || t("chat.uploadFailed"));
+        showAlert(t("common.error"), msg || t("chat.uploadFailed"));
       }
     },
     [chatId, room, t],
@@ -437,11 +437,11 @@ export default function ChatScreen() {
         encryption.status === "unavailable" ||
         encryption.status === "loading"
       ) {
-        Alert.alert(t("chat.e2eInitializing"));
+        showAlert(t("chat.e2eInitializing"));
         return;
       }
       if (encryption.status === "partner_changed") {
-        Alert.alert(t("chat.e2ePartnerChanged"));
+        showAlert(t("chat.e2ePartnerChanged"));
         return;
       }
 
@@ -532,7 +532,7 @@ export default function ChatScreen() {
           }
         }
         if (failedCount > 0) {
-          Alert.alert(
+          showAlert(
             t("common.error"),
             t("chat.uploadFailedCount", {
               count: failedCount,
@@ -584,11 +584,11 @@ export default function ChatScreen() {
         encryption.status === "unavailable" ||
         encryption.status === "loading"
       ) {
-        Alert.alert(t("chat.e2eInitializing"));
+        showAlert(t("chat.e2eInitializing"));
         return;
       }
       if (encryption.status === "partner_changed") {
-        Alert.alert(t("chat.e2ePartnerChanged"));
+        showAlert(t("chat.e2ePartnerChanged"));
         return;
       }
       setForwardDraft(null); // thoại + forward không gửi cùng — bỏ draft
@@ -929,7 +929,7 @@ export default function ChatScreen() {
                   },
                 ]}>
                 <ThemedText
-                  style={{ color: headerChrome ? "#FFFFFF" : theme.primary }}>
+                  style={{ color: headerChrome ? theme.textOnPrimary : theme.primary }}>
                   {(partner?.display_name || "?")[0]?.toUpperCase()}
                 </ThemedText>
               </View>
@@ -939,7 +939,7 @@ export default function ChatScreen() {
               <ThemedText
                 style={[
                   styles.headerName,
-                  headerChrome && { color: "#FFFFFF" },
+                  headerChrome && { color: theme.textOnPrimary },
                 ]}
                 numberOfLines={1}>
                 {partner?.display_name || t("chat.unknown")}
@@ -1016,47 +1016,10 @@ export default function ChatScreen() {
           )}
 
           <Pressable
-            onPress={() => {
-              setSearchActive((prev) => !prev);
-              if (searchActive) {
-                setSearchInput("");
-                room.clearSearch();
-              }
-            }}
-            hitSlop={8}
-            style={[
-              styles.headerAction,
-              searchActive && {
-                backgroundColor: headerChrome
-                  ? "rgba(255,255,255,0.2)"
-                  : theme.bgSecondary,
-              },
-            ]}>
-            <Icon
-              name="search"
-              size={18}
-              color={
-                searchActive
-                  ? headerChrome
-                    ? "#FFFFFF"
-                    : theme.primary
-                  : chromeIcon
-              }
-            />
-          </Pressable>
-
-          <Pressable
             onPress={() => setMenuVisible(true)}
             hitSlop={8}
             style={styles.headerAction}>
             <Icon name="more" size={18} color={chromeIcon} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => setShowDeleteChat(true)}
-            hitSlop={8}
-            style={styles.headerAction}>
-            <Icon name="trash" size={18} color={chromeIcon} />
           </Pressable>
         </View>
 
@@ -1487,7 +1450,7 @@ export default function ChatScreen() {
               },
             ]}
             onPress={scrollToBottom}>
-            <ThemedText style={styles.newMessagesText}>
+            <ThemedText style={[styles.newMessagesText, { color: theme.textOnPrimary }]}>
               ↓ {newMessagesCount} {t("chat.scrollToLower")}
             </ThemedText>
           </Pressable>
@@ -1567,7 +1530,7 @@ export default function ChatScreen() {
               <Pressable
                 style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                 onPress={handleDeleteChat}>
-                <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                <ThemedText style={[styles.deleteBtnText, { color: theme.textOnPrimary }]}>
                   {t("chat.delete")}
                 </ThemedText>
               </Pressable>
@@ -1607,7 +1570,7 @@ export default function ChatScreen() {
                 <Pressable
                   style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                   onPress={() => handleConfirmDelete("all")}>
-                  <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                  <ThemedText style={[styles.deleteBtnText, { color: theme.textOnPrimary }]}>
                     {t("chat.deleteForAll")}
                   </ThemedText>
                 </Pressable>
@@ -1637,15 +1600,34 @@ export default function ChatScreen() {
         />
       )}
 
-      {/* Menu⋮ header — chọn nền trò chuyện 1-1 */}
+      {/* Menu⋮ header — mục khác: tìm kiếm / nền / xóa hội thoại */}
       <MenuSheet
         visible={menuVisible}
         items={[
+          {
+            key: "search",
+            label: t("chat.searchMessages"),
+            icon: "search",
+            onPress: () => {
+              setSearchActive((prev) => !prev);
+              if (searchActive) {
+                setSearchInput("");
+                room.clearSearch();
+              }
+            },
+          },
           {
             key: "background",
             label: t("chat.background"),
             icon: "palette",
             onPress: () => setBackgroundPickerOpen(true),
+          },
+          {
+            key: "delete",
+            label: t("chat.deleteChat"),
+            icon: "trash",
+            danger: true,
+            onPress: () => setShowDeleteChat(true),
           },
         ]}
         onClose={() => setMenuVisible(false)}
@@ -1888,7 +1870,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   newMessagesText: {
-    color: "#FFF",
     fontSize: 13,
     fontWeight: "600",
   },

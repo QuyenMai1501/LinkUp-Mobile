@@ -111,7 +111,7 @@ export default function StoryStatsModal({
                       <Image source={{ uri: v.avatar_uri }} style={styles.viewerAvatar} contentFit="cover" />
                     ) : (
                       <View style={[styles.viewerAvatar, styles.viewerAvatarFallback]}>
-                        <Icon name="person" size={18} color="#FFFFFF" />
+                        <Icon name="person" size={18} color={theme.textOnPrimary} />
                       </View>
                     )}
                     <View style={styles.viewerInfo}>

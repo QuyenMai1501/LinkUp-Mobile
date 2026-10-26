@@ -160,6 +160,7 @@ export default function HomeScreen() {
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const { t } = useTranslation();
+  const { unreadCount } = useNotification();
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [composerVisible, setComposerVisible] = React.useState(false);
   const [feedKey, setFeedKey] = React.useState(0);
@@ -210,11 +211,21 @@ export default function HomeScreen() {
                   styles.tabItem,
                   isActive && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
                 ]}>
-                <Icon
-                  name={tab.icon}
-                  size={20}
-                  color={isActive ? colors.primary : colors.textSecondary}
-                />
+                <View style={styles.tabIconWrap}>
+                  <Icon
+                    name={tab.icon}
+                    size={20}
+                    color={isActive ? colors.primary : colors.textSecondary}
+                  />
+                  {tab.key === 'notifications' && unreadCount > 0 && (
+                    <View style={[styles.tabBadge, { backgroundColor: colors.accent }]}>
+                      <ThemedText
+                        style={[styles.tabBadgeText, { color: colors.textOnPrimary }]}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             );
           })}
@@ -311,6 +322,24 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+  },
+  tabIconWrap: {
+    position: 'relative',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    minWidth: 16,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   content: {
     flex: 1,

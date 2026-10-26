@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import FriendCard from '@/components/friend-card';
 import FriendRequestCard from '@/components/friend-request-card';
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +22,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { refreshFriendRequestCount } from '@/hooks/use-friend-request-count';
 import { navigateToProfile } from '@/utils/profile-nav';
 import {
   acceptFriendRequest,
@@ -215,9 +216,9 @@ export default function FriendsScreen() {
       try {
         await fn;
         onSuccess();
-        Alert.alert(t('common.success'), successMsg);
+        showAlert(t('common.success'), successMsg);
       } catch (err) {
-        Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+        showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
       }
     },
     [t],
@@ -229,6 +230,7 @@ export default function FriendsScreen() {
       () => {
         setReceived((prev) => prev.filter((r) => r.id !== item.id));
         setSuggestions((prev) => prev.filter((s) => s.user_id !== item.user_id));
+        void refreshFriendRequestCount(); // đồng bộ badge sidebar
       },
       t('friends.actions.acceptSuccess'),
     );
@@ -237,7 +239,10 @@ export default function FriendsScreen() {
   const handleReject = (item: FriendRequestItem) => {
     runAction(
       rejectFriendRequest(item.id),
-      () => setReceived((prev) => prev.filter((r) => r.id !== item.id)),
+      () => {
+        setReceived((prev) => prev.filter((r) => r.id !== item.id));
+        void refreshFriendRequestCount(); // đồng bộ badge sidebar
+      },
       t('friends.actions.rejectSuccess'),
     );
   };
@@ -284,10 +289,10 @@ export default function FriendsScreen() {
     try {
       await unfriend(unfriendTarget.user_id);
       setFriends((prev) => prev.filter((f) => f.user_id !== unfriendTarget.user_id));
-      Alert.alert(t('common.success'), t('friends.actions.unfriendSuccess'));
+      showAlert(t('common.success'), t('friends.actions.unfriendSuccess'));
       setUnfriendTarget(null);
     } catch (err) {
-      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+      showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setUnfriending(false);
     }
@@ -325,7 +330,7 @@ export default function FriendsScreen() {
     if (requestsError && items.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {requestsError}
           </ThemedText>
@@ -398,7 +403,7 @@ export default function FriendsScreen() {
     if (suggestionsError && suggestions.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {suggestionsError}
           </ThemedText>
@@ -443,7 +448,7 @@ export default function FriendsScreen() {
               displayName={item.display_name}
               subtitle={subtitle}
               actionLabel={item._friendStatus === 'sent' ? t('common.done') : t('friends.actions.addFriend')}
-              actionIcon={item._friendStatus === 'sent' ? <Icon name="check" size={14} color="#43A047" /> : undefined}
+              actionIcon={item._friendStatus === 'sent' ? <Icon name="check" size={14} color={theme.success} /> : undefined}
               onAction={() => {
                 if (item._friendStatus !== 'sent') handleAddFriend(item);
               }}
@@ -500,7 +505,7 @@ export default function FriendsScreen() {
     if (friendsError && friends.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {friendsError}
           </ThemedText>
@@ -536,7 +541,7 @@ export default function FriendsScreen() {
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
             actionLabel={t('friends.actions.removeFriend')}
-            actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
+            actionIcon={<Icon name="close" size={14} color={theme.textOnPrimary} />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
             onPress={() => navigateToProfile(router, item.user_id)}
@@ -597,6 +602,7 @@ export default function FriendsScreen() {
                 onPress={() => setMainTab(tab.key)}
                 style={[
                   styles.tabItem,
+                  tab.key === 'requests' && styles.tabItemBadgePad,
                   isActive && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
                 ]}>
                 <Icon
@@ -605,6 +611,7 @@ export default function FriendsScreen() {
                   color={isActive ? theme.primary : theme.textSecondary}
                 />
                 <ThemedText
+                  numberOfLines={1}
                   style={[
                     styles.tabLabel,
                     { color: isActive ? theme.primary : theme.textSecondary },
@@ -613,7 +620,7 @@ export default function FriendsScreen() {
                 </ThemedText>
                 {tab.key === 'requests' && unreadCount > 0 && (
                   <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-                    <ThemedText style={styles.badgeText}>
+                    <ThemedText style={[styles.badgeText, { color: theme.textOnPrimary }]}>
                       {unreadCount > MAX_BADGE ? `${MAX_BADGE}+` : unreadCount}
                     </ThemedText>
                   </View>
@@ -707,9 +714,9 @@ export default function FriendsScreen() {
                   pressed && styles.modalBtnPressed,
                 ]}>
                 {unfriending ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={theme.textOnPrimary} size="small" />
                 ) : (
-                  <ThemedText style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
+                  <ThemedText style={[styles.modalBtnLabel, { color: theme.textOnPrimary }]}>
                     {t('friends.actions.removeFriend')}
                   </ThemedText>
                 )}
@@ -760,13 +767,22 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
     gap: Spacing.xs,
   },
+  // Trừ vùng badge góc phải để icon+label căn giữa không đè lên badge
+  // (luôn áp cho tab "Chờ xác nhận" — badge vừa hiện thì label không nhảy chỗ).
+  tabItemBadgePad: {
+    paddingRight: 26,
+  },
   tabLabel: {
     ...Typography.body,
     fontSize: 13,
     fontWeight: 600,
     lineHeight: 18,
+    flexShrink: 1,
   },
   badge: {
+    position: 'absolute',
+    top: 3,
+    right: 6,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: Radius.pill,
@@ -774,7 +790,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 700,
   },

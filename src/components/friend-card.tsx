@@ -51,10 +51,10 @@ export default function FriendCard({
         : theme.primary;
   const actionTextColor =
     actionVariant === 'danger'
-      ? '#FFFFFF'
+      ? theme.textOnPrimary
       : actionVariant === 'ghost'
         ? theme.textSecondary
-        : '#FFFFFF';
+        : theme.textOnPrimary;
 
   return (
     <Pressable

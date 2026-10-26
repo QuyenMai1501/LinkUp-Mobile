@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
@@ -139,7 +140,7 @@ export function ChatComposer({
     Keyboard.dismiss();
     void (async () => {
       const started = await voice.start();
-      if (!started) Alert.alert(t('common.error'), t('call.permissionDenied'));
+      if (!started) showAlert(t('common.error'), t('call.permissionDenied'));
     })();
   };
 
@@ -291,7 +292,7 @@ export function ChatComposer({
               <Pressable
                 style={[styles.attachmentRemove, { backgroundColor: theme.danger }]}
                 onPress={() => handleRemoveAttachment(index)}>
-                <Icon name="close" size={10} color="#FFF" />
+                <Icon name="close" size={10} color={theme.textOnPrimary} />
               </Pressable>
             </View>
           ))}
@@ -321,7 +322,7 @@ export function ChatComposer({
           <Pressable
             onPress={handleStopRecording}
             style={[styles.barAction, { backgroundColor: theme.primary }]}>
-            <Icon name="stop" size={18} color="#FFF" />
+            <Icon name="stop" size={18} color={theme.textOnPrimary} />
           </Pressable>
         </View>
       ) : voicePreview ? (
@@ -342,7 +343,7 @@ export function ChatComposer({
           <Pressable
             onPress={handleSendVoice}
             style={[styles.barAction, { backgroundColor: theme.primary }]}>
-            <Icon name="sendFilled" size={18} color="#FFF" />
+            <Icon name="sendFilled" size={18} color={theme.textOnPrimary} />
           </Pressable>
         </View>
       ) : (
@@ -397,7 +398,7 @@ export function ChatComposer({
                 styles.sendBtn,
                 { backgroundColor: theme.primary, opacity: pressed ? 0.7 : 1 },
               ]}>
-              <Icon name="mic" size={20} color="#FFF" />
+              <Icon name="mic" size={20} color={theme.textOnPrimary} />
             </Pressable>
           ) : (
             <Pressable
@@ -420,7 +421,7 @@ export function ChatComposer({
                     {
                       borderColor:
                         text.trim() || attachments.length > 0 || forwardStickerReady
-                          ? '#FFF'
+                          ? theme.textOnPrimary
                           : theme.textSecondary,
                     },
                   ]}

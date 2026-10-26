@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
+  Animated as RNAnimated,
   KeyboardAvoidingView,
   Modal,
   NativeScrollEvent,
@@ -10,7 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import {
   Gesture,
@@ -26,12 +26,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ApiError } from '@/api/client';
 import { createReport, getViolationRules } from '@/api/reports';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ReportTargetType, ViolationRule } from '../types/report';
 
@@ -65,6 +67,7 @@ interface Props {
  */
 export default function ReportSheet({ targetType, targetId, onClose, onSubmitted }: Props) {
   const theme = useTheme();
+  const shimmer = useShimmer();
   const { t } = useTranslation();
   const [rules, setRules] = useState<ViolationRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -257,12 +260,12 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
         violation_rule_id: rule ? rule.id : undefined,
         reason_detail: detail.trim(),
       });
-      Alert.alert(t('common.success'), t('report.success'));
+      showAlert(t('common.success'), t('report.success'));
       // Đóng có animation (không dùng handleClose — submitting vẫn đang true).
       animateClose();
       onSubmitted?.();
     } catch (e) {
-      Alert.alert(
+      showAlert(
         t('common.error'),
         e instanceof ApiError && e.serverMessage ? e.serverMessage : t('common.error'),
       );
@@ -317,9 +320,15 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
 
                   {loading ? (
                     [0, 1, 2, 3].map((i) => (
-                      <View
+                      <RNAnimated.View
                         key={i}
-                        style={[styles.skeletonRow, { backgroundColor: theme.bgSecondary }]}
+                        style={[
+                          styles.skeletonRow,
+                          {
+                            backgroundColor: theme.bgSecondary,
+                            opacity: shimmer,
+                          },
+                        ]}
                       />
                     ))
                   ) : loadError ? (
@@ -334,7 +343,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                           pressed && { opacity: 0.85 },
                         ]}
                         onPress={retry}>
-                        <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+                        <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
                       </Pressable>
                     </View>
                   ) : (
@@ -366,7 +375,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                                   backgroundColor: theme.primary,
                                 },
                               ]}>
-                              {isSelected ? <View style={styles.radioDot} /> : null}
+                              {isSelected ? <View style={[styles.radioDot, { backgroundColor: theme.textOnPrimary }]} /> : null}
                             </View>
                             <View style={styles.ruleText}>
                               <View style={styles.ruleTitleRow}>
@@ -411,7 +420,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                               backgroundColor: theme.primary,
                             },
                           ]}>
-                          {selected === OTHER_VALUE ? <View style={styles.radioDot} /> : null}
+                          {selected === OTHER_VALUE ? <View style={[styles.radioDot, { backgroundColor: theme.textOnPrimary }]} /> : null}
                         </View>
                         <ThemedText style={styles.ruleTitle}>{t('report.otherReason')}</ThemedText>
                       </Pressable>
@@ -468,7 +477,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                   ]}
                   disabled={submitting || loading || loadError}
                   onPress={handleSubmit}>
-                  <ThemedText style={[styles.btnText, styles.btnPrimaryText]}>
+                  <ThemedText style={[styles.btnText, styles.btnPrimaryText, { color: theme.textOnPrimary }]}>
                     {submitting ? t('common.loading') : t('report.submit')}
                   </ThemedText>
                 </Pressable>
@@ -552,7 +561,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   ruleRow: {
     flexDirection: 'row',
@@ -576,7 +584,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
   },
   ruleText: {
     flex: 1,
@@ -642,6 +649,5 @@ const styles = StyleSheet.create({
     fontWeight: 600,
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
   },
 });

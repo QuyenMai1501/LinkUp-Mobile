@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -10,13 +9,14 @@ import {
   Text,
   TextInput,
   useWindowDimensions,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing } from '@/constants/spacing';
@@ -70,7 +70,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     // Đã có nội dung mà đóng → xác nhận "Bỏ draft?" (đồng bộ Web)
     const hasDraft = mode === 'photos' ? assets.length > 0 : textContent.trim().length > 0;
     if (hasDraft) {
-      Alert.alert(t('story.discardTitle'), t('story.discardConfirm'), [
+      showAlert(t('story.discardTitle'), t('story.discardConfirm'), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('story.discardBtn'),
@@ -90,7 +90,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   const pickPhotos = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('common.error'), t('story.permissionNeeded'));
+      showAlert(t('common.error'), t('story.permissionNeeded'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -108,7 +108,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     }));
 
     if (picked.length > MAX_PHOTOS) {
-      Alert.alert(t('common.error'), t('story.multiErrorMax'));
+      showAlert(t('common.error'), t('story.multiErrorMax'));
       return;
     }
 
@@ -143,7 +143,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     try {
       if (mode === 'photos') {
         if (assets.length === 0) {
-          Alert.alert(t('common.error'), t('story.contentRequired'));
+          showAlert(t('common.error'), t('story.contentRequired'));
           setPosting(false);
           return;
         }
@@ -158,18 +158,18 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       } else {
         const text = textContent.trim();
         if (!text) {
-          Alert.alert(t('common.error'), t('story.contentRequired'));
+          showAlert(t('common.error'), t('story.contentRequired'));
           setPosting(false);
           return;
         }
         await createStories([{ caption: text }]);
       }
-      Alert.alert(t('common.success'), t('story.created'));
+      showAlert(t('common.success'), t('story.created'));
       reset();
       onCreated?.();
       onClose();
     } catch (err) {
-      Alert.alert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
+      showAlert(t('common.error'), err instanceof Error ? err.message : t('common.error'));
     } finally {
       setPosting(false);
     }
@@ -191,7 +191,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
               disabled={posting}
               onPress={handlePost}
               style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
-              <ThemedText style={styles.postBtnText}>
+              <ThemedText style={[styles.postBtnText, { color: theme.textOnPrimary }]}>
                 {posting ? t('story.posting') : t('story.submit')}
               </ThemedText>
             </Pressable>
@@ -253,10 +253,10 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                         />
                       )}
                       <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
-                        <Icon name="close" size={18} color="#FFFFFF" />
+                        <Icon name="close" size={18} color={theme.textOnPrimary} />
                       </Pressable>
                       <View style={styles.counter}>
-                        <ThemedText style={styles.counterText}>
+                        <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
                           {activeIndex + 1}/{assets.length}
                         </ThemedText>
                       </View>
@@ -303,7 +303,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                   end={{ x: 1, y: 1 }}
                   style={styles.textPreview}>
                   <TextInput
-                    style={styles.textStoryInput}
+                    style={[styles.textStoryInput, { color: theme.textOnPrimary }]}
                     placeholder={t('story.textStoryHint')}
                     placeholderTextColor="rgba(255,255,255,0.7)"
                     value={textContent}
@@ -319,7 +319,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                         colors={g}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={[styles.gradientDot, i === textGradientIndex && styles.gradientDotActive]}
+                        style={[styles.gradientDot, i === textGradientIndex && [styles.gradientDotActive, { borderColor: theme.textOnPrimary }]]}
                       />
                     </Pressable>
                   ))}
@@ -359,7 +359,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   postBtnText: {
-    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -430,7 +429,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   counterText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -471,7 +469,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   textStoryInput: {
-    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
@@ -491,7 +488,6 @@ const styles = StyleSheet.create({
   },
   gradientDotActive: {
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   charCount: {
     ...Typography.caption,

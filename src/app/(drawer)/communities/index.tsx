@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Pressable,
   RefreshControl,
@@ -25,6 +26,7 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useTheme } from '@/hooks/use-theme';
+import { useShimmer } from '@/hooks/use-shimmer';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommunityListItem, CommunityListResponse } from '@/types/community';
 
@@ -36,17 +38,27 @@ const MAX_PAGE = 50;
 const SKELETON_KEYS = ['sk1', 'sk2', 'sk3', 'sk4', 'sk5', 'sk6'];
 
 function SkeletonCard() {
+  const theme = useTheme();
+  const shimmer = useShimmer();
   return (
-    <View style={styles.skeleton}>
-      <View style={styles.skelCover} />
+    <Animated.View
+      style={[
+        styles.skeleton,
+        {
+          backgroundColor: theme.bgSecondary,
+          borderColor: theme.border,
+          opacity: shimmer,
+        },
+      ]}>
+      <View style={[styles.skelCover, { backgroundColor: theme.border }]} />
       <View style={styles.skelBody}>
-        <View style={styles.skelAvatar} />
-        <View style={[styles.skelLine, { width: '70%' }]} />
-        <View style={[styles.skelLine, { width: '90%' }]} />
-        <View style={[styles.skelLine, { width: '50%' }]} />
-        <View style={styles.skelAction} />
+        <View style={[styles.skelAvatar, { backgroundColor: theme.border, borderColor: theme.bgSecondary }]} />
+        <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '70%' }]} />
+        <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '90%' }]} />
+        <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '50%' }]} />
+        <View style={[styles.skelAction, { backgroundColor: theme.border }]} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -179,7 +191,7 @@ export default function CommunitiesScreen() {
     if (showError) {
       return (
         <View style={styles.centerContent}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText style={styles.emptyTitle}>{error}</ThemedText>
           <Pressable
             onPress={() => void fetchPage(true)}
@@ -188,7 +200,7 @@ export default function CommunitiesScreen() {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText style={styles.primaryBtnText}>{t('common.retry')}</ThemedText>
+            <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -243,7 +255,7 @@ export default function CommunitiesScreen() {
                 { backgroundColor: theme.primary },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText style={styles.primaryBtnText}>{t('communities.createBtn')}</ThemedText>
+              <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.createBtn')}</ThemedText>
             </Pressable>
             {filtersActive && (
               <Pressable
@@ -483,13 +495,10 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#F5F5F5',
     overflow: 'hidden',
   },
   skelCover: {
     height: 84,
-    backgroundColor: '#E0E0E0',
   },
   skelBody: {
     padding: Spacing.sm + 4,
@@ -499,20 +508,16 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#E0E0E0',
     marginTop: -26,
     borderWidth: 3,
-    borderColor: '#F5F5F5',
   },
   skelLine: {
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#E0E0E0',
   },
   skelAction: {
     height: 30,
     borderRadius: Radius.pill,
-    backgroundColor: '#E0E0E0',
     marginTop: 4,
   },
   listContent: {
@@ -553,7 +558,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   ghostBtn: {
     marginTop: Spacing.xs,

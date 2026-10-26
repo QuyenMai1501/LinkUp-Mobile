@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   NativeScrollEvent,
@@ -10,10 +9,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { showAlert } from '@/utils/alert';
 import {
   getGroupChatBackground,
   getGroupSettings,
@@ -342,7 +342,7 @@ export default function GroupChatScreen() {
         if (!uploadJobsRef.current.has(tempId)) return;
         room.failUpload(tempId);
         const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(t('common.error'), msg || t('chat.uploadFailed'));
+        showAlert(t('common.error'), msg || t('chat.uploadFailed'));
       }
     },
     [chatId, room, t],
@@ -440,7 +440,7 @@ export default function GroupChatScreen() {
           }
         }
         if (failedCount > 0) {
-          Alert.alert(
+          showAlert(
             t('common.error'),
             t('chat.uploadFailedCount', {
               count: failedCount,
@@ -775,7 +775,7 @@ export default function GroupChatScreen() {
                 <Icon
                   name="people"
                   size={18}
-                  color={headerChrome ? '#FFFFFF' : theme.primary}
+                  color={headerChrome ? theme.textOnPrimary : theme.primary}
                 />
               </View>
             )}
@@ -784,7 +784,7 @@ export default function GroupChatScreen() {
               <ThemedText
                 style={[
                   styles.headerName,
-                  headerChrome && { color: '#FFFFFF' },
+                  headerChrome && { color: theme.textOnPrimary },
                 ]}
                 numberOfLines={1}>
                 {groupName}
@@ -828,7 +828,7 @@ export default function GroupChatScreen() {
               color={
                 searchActive
                   ? headerChrome
-                    ? '#FFFFFF'
+                    ? theme.textOnPrimary
                     : theme.primary
                   : chromeIcon
               }
@@ -1135,7 +1135,7 @@ export default function GroupChatScreen() {
                       showAvatar={prev?.senderId !== gc.caller_id}
                       activeCallId={activeGroupCallId}
                       onRequestJoin={(callId) => {
-                        Alert.alert(
+                        showAlert(
                           t('groupCall.requestJoin'),
                           t('groupCall.pendingRequestBody', {
                             name:
@@ -1240,7 +1240,7 @@ export default function GroupChatScreen() {
               },
             ]}
             onPress={scrollToBottom}>
-            <ThemedText style={styles.newMessagesText}>
+            <ThemedText style={[styles.newMessagesText, { color: theme.textOnPrimary }]}>
               ↓ {newMessagesCount} {t('chat.scrollToLower')}
             </ThemedText>
           </Pressable>
@@ -1327,7 +1327,7 @@ export default function GroupChatScreen() {
                 <Pressable
                   style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                   onPress={() => handleConfirmDelete('all')}>
-                  <ThemedText style={[styles.deleteBtnText, { color: '#FFF' }]}>
+                  <ThemedText style={[styles.deleteBtnText, { color: theme.textOnPrimary }]}>
                     {t('chat.deleteForAll')}
                   </ThemedText>
                 </Pressable>
@@ -1540,7 +1540,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   newMessagesText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
   },

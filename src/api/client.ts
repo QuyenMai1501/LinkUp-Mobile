@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 
 import { tokenStorage } from './token-storage';
+import { resolveErrorCode } from '../utils/resolve-error';
 import type { TokenResponse } from '../types/auth';
 
 /**
@@ -28,6 +29,7 @@ async function getAccessToken(): Promise<string | null> {
 interface ApiErrorBody {
   error?: string;
   message?: string;
+  params?: Record<string, string | number>;
 }
 
 /**
@@ -38,11 +40,15 @@ interface ApiErrorBody {
 export class ApiError extends Error {
   code?: string;
   serverMessage?: string;
+  params?: Record<string, string | number>;
 }
 
-/** Thông báo lỗi thân thiện: serverMessage (VI) → code → fallback. */
+/** Thông báo lỗi thân thiện: bản dịch theo ngôn ngữ (code + params) → serverMessage → code → fallback. */
 export function apiErrorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.serverMessage || e.message || fallback;
+  if (e instanceof ApiError) {
+    const resolved = e.code ? resolveErrorCode(e.code, e.params) : undefined;
+    return resolved ?? e.serverMessage ?? e.message ?? fallback;
+  }
   if (e instanceof Error) return e.message;
   return fallback;
 }
@@ -113,6 +119,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const err = new ApiError(body?.error || body?.message || `HTTP ${res.status}`);
     err.code = body?.error;
     err.serverMessage = body?.message;
+    err.params = body?.params;
     throw err;
   }
 

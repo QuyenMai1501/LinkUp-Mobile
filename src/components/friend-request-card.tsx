@@ -33,48 +33,70 @@ export default function FriendRequestCard({
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Pressable
-        style={[styles.avatar, { backgroundColor: theme.primaryLight }]}
-        hitSlop={4}
-        onPress={onProfilePress}>
-        {avatarUri ? (
-          <Image
-            source={{ uri: avatarUri }}
-            style={styles.avatarImage}
-            contentFit="cover"
-          />
-        ) : (
-          <ThemedText style={[styles.avatarFallback, { color: theme.primary }]}>
-            {displayName.charAt(0).toUpperCase()}
-          </ThemedText>
-        )}
-      </Pressable>
-
-      <View style={styles.meta}>
-        <Pressable hitSlop={4} onPress={onProfilePress}>
-          <ThemedText style={styles.name} numberOfLines={1}>
-            {displayName}
-          </ThemedText>
+      <View style={styles.identityRow}>
+        <Pressable
+          style={[styles.avatar, { backgroundColor: theme.primaryLight }]}
+          hitSlop={4}
+          onPress={onProfilePress}>
+          {avatarUri ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+            />
+          ) : (
+            <ThemedText style={[styles.avatarFallback, { color: theme.primary }]}>
+              {displayName.charAt(0).toUpperCase()}
+            </ThemedText>
+          )}
         </Pressable>
-        <ThemedText themeColor="textSecondary" style={styles.directionLabel}>
-          {direction === 'received' ? t('friends.request.wantsToAdd') : t('friends.request.sentRequest')}
-        </ThemedText>
+
+        <View style={styles.meta}>
+          <Pressable hitSlop={4} onPress={onProfilePress}>
+            <ThemedText style={styles.name} numberOfLines={1}>
+              {displayName}
+            </ThemedText>
+          </Pressable>
+          <ThemedText themeColor="textSecondary" style={styles.directionLabel}>
+            {direction === 'received' ? t('friends.request.wantsToAdd') : t('friends.request.sentRequest')}
+          </ThemedText>
+        </View>
+
+        {direction === 'sent' && (
+          <Pressable
+            onPress={onRevoke}
+            disabled={loading}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              { backgroundColor: 'transparent', borderColor: theme.border },
+              pressed && styles.actionPressed,
+            ]}>
+            {loading ? (
+              <ActivityIndicator color={theme.textSecondary} size="small" />
+            ) : (
+              <ThemedText style={[styles.actionBtnRevoke, { color: theme.textSecondary }]}>
+                {t('friends.actions.revoke')}
+              </ThemedText>
+            )}
+          </Pressable>
+        )}
       </View>
 
-      {direction === 'received' ? (
+      {direction === 'received' && (
         <View style={styles.actions}>
           <Pressable
             onPress={onAccept}
             disabled={loading}
             style={({ pressed }) => [
               styles.actionBtn,
+              styles.actionBtnGrow,
               { backgroundColor: theme.primary, borderColor: theme.primary },
               pressed && styles.actionPressed,
             ]}>
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={theme.textOnPrimary} size="small" />
             ) : (
-              <ThemedText style={styles.actionBtnAccept}>{t('friends.actions.accept')}</ThemedText>
+              <ThemedText style={[styles.actionBtnAccept, { color: theme.textOnPrimary }]}>{t('friends.actions.accept')}</ThemedText>
             )}
           </Pressable>
           <Pressable
@@ -82,6 +104,7 @@ export default function FriendRequestCard({
             disabled={loading}
             style={({ pressed }) => [
               styles.actionBtn,
+              styles.actionBtnGrow,
               { backgroundColor: 'transparent', borderColor: theme.border },
               pressed && styles.actionPressed,
             ]}>
@@ -90,23 +113,6 @@ export default function FriendRequestCard({
             </ThemedText>
           </Pressable>
         </View>
-      ) : (
-        <Pressable
-          onPress={onRevoke}
-          disabled={loading}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: 'transparent', borderColor: theme.border },
-            pressed && styles.actionPressed,
-          ]}>
-          {loading ? (
-            <ActivityIndicator color={theme.textSecondary} size="small" />
-          ) : (
-            <ThemedText style={[styles.actionBtnRevoke, { color: theme.textSecondary }]}>
-              {t('friends.actions.revoke')}
-            </ThemedText>
-          )}
-        </Pressable>
       )}
     </View>
   );
@@ -114,11 +120,16 @@ export default function FriendRequestCard({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
+    gap: Spacing.sm,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   avatar: {
@@ -155,6 +166,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.xs,
   },
+  actionBtnGrow: {
+    flex: 1,
+  },
   actionBtn: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm - 1,
@@ -169,7 +183,6 @@ const styles = StyleSheet.create({
   },
   actionBtnAccept: {
     ...Typography.caption,
-    color: '#FFFFFF',
     fontWeight: 600,
     lineHeight: 20,
   },

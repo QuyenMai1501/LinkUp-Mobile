@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Alert,
   Clipboard,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -298,7 +298,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       setReplyingTo(null);
       setPost((prev) => (prev ? { ...prev, comments_count: res.data.length } : prev));
     } catch {
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     } finally {
       setSubmittingComment(false);
     }
@@ -313,9 +313,9 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           ? { ...prev, shares_count: prev.shares_count + 1, is_shared: true }
           : prev,
       );
-      Alert.alert(t('postDetail.shared'));
+      showAlert(t('postDetail.shared'));
     } catch {
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     }
   };
 
@@ -327,7 +327,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
   const handleDelete = () => {
     if (!post) return;
-    Alert.alert(
+    showAlert(
       t('postDetail.delete'),
       t('postDetail.deleteConfirm'),
       [
@@ -338,11 +338,11 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           onPress: async () => {
             try {
               await deletePost(post.id);
-              Alert.alert(t('postDetail.deleted'));
+              showAlert(t('postDetail.deleted'));
               onDeleted?.();
               onBack?.();
             } catch {
-              Alert.alert(t('common.error'), t('common.error'));
+              showAlert(t('common.error'), t('common.error'));
             }
           },
         },
@@ -363,7 +363,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
       await followUser(post.user_id);
     } catch {
       setPost((prev) => (prev ? { ...prev, is_following: !next } : prev));
-      Alert.alert(t('common.error'), t('common.error'));
+      showAlert(t('common.error'), t('common.error'));
     }
   };
 
@@ -379,10 +379,10 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   if (error || !post) {
     return (
       <ThemedView style={styles.center}>
-        <Icon name="warning" size={32} color="#FB8C00" />
+        <Icon name="warning" size={32} color={theme.accent} />
         <ThemedText themeColor="textSecondary">{error ?? t('common.error')}</ThemedText>
         <Pressable onPress={onBack} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
-          <ThemedText style={styles.retryText}>{t('common.back')}</ThemedText>
+          <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.back')}</ThemedText>
         </Pressable>
       </ThemedView>
     );
@@ -397,7 +397,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
   const handleCopyLink = () => {
     Clipboard.setString(postLink(post.id));
-    Alert.alert(t('postDetail.copied'), postLink(post.id));
+    showAlert(t('postDetail.copied'), postLink(post.id));
   };
 
   const handleToggleComments = async () => {
@@ -409,14 +409,14 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
     try {
       const res = await setCommentsEnabled(post.id, next);
       setPost((p) => (p ? { ...p, comments_enabled: res.data.comments_enabled } : p));
-      Alert.alert(
+      showAlert(
         res.data.comments_enabled
           ? t('postDetail.commentsEnabledToast')
           : t('postDetail.commentsDisabledToast'),
       );
     } catch (e) {
       setPost((p) => (p ? { ...p, comments_enabled: prev } : p));
-      Alert.alert(e instanceof Error ? e.message : t('common.error'));
+      showAlert(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setTogglingComments(false);
     }
@@ -465,7 +465,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
           <ThemedText style={styles.headerTitle}>{t('postDetail.title')}</ThemedText>
           {isOwner && (
             <Pressable onPress={handleDelete} style={styles.backBtn}>
-              <Icon name="trash" size={20} color="#E53935" />
+              <Icon name="trash" size={20} color={theme.danger} />
             </Pressable>
           )}
           <Pressable
@@ -508,7 +508,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
                   ) : (
                     <View style={[styles.avatarPlaceholder, { backgroundColor: theme.bgSecondary }]}>
-                      <ThemedText style={styles.avatarInitial}>
+                      <ThemedText style={[styles.avatarInitial, { color: theme.textSecondary }]}>
                         {post.display_name?.charAt(0)?.toUpperCase() || '?'}
                       </ThemedText>
                     </View>
@@ -547,7 +547,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                       ]}
                       hitSlop={6}
                       onPress={handleFollowToggle}>
-                      <ThemedText style={[styles.followBtnText, styles.followBtnTextPrimary]}>
+                      <ThemedText style={[styles.followBtnText, styles.followBtnTextPrimary, { color: theme.textOnPrimary }]}>
                         {t('post.follow')}
                       </ThemedText>
                     </Pressable>
@@ -583,7 +583,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   />
                   {mediaList.length > 1 && (
                     <View style={[styles.mediaCounter, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-                      <ThemedText style={styles.mediaCounterText}>
+                      <ThemedText style={[styles.mediaCounterText, { color: theme.textOnPrimary }]}>
                         {mediaIndex + 1} / {mediaList.length}
                       </ThemedText>
                     </View>
@@ -596,18 +596,18 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                 {isRepost && sharedPost ? (
                   <View>
                     {post.share_content ? (
-                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+                      <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
                     ) : null}
                     <View style={[styles.embeddedPost, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
                       <Pressable
                         style={styles.embeddedAuthor}
                         hitSlop={4}
                         onPress={() => navigateToProfile(router, sharedPost.user_id)}>
-                        <View style={styles.embeddedAvatar}>
+                        <View style={[styles.embeddedAvatar, { backgroundColor: theme.bgHover }]}>
                           {sharedPost.avatar_uri ? (
                             <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
                           ) : (
-                            <ThemedText style={styles.embeddedAvatarInitial}>
+                            <ThemedText style={[styles.embeddedAvatarInitial, { color: theme.textSecondary }]}>
                               {sharedPost.display_name?.charAt(0)?.toUpperCase() || '?'}
                             </ThemedText>
                           )}
@@ -623,7 +623,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                         <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
                       ) : null}
                       {sharedPost.content ? (
-                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+                        <RichContent content={sharedPost.content} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
                       ) : null}
                     </View>
                   </View>
@@ -631,7 +631,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                   <>
                     {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
                     {post.content ? (
-                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+                      <RichContent content={post.content} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
                     ) : null}
                   </>
                 )}
@@ -653,7 +653,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
               {/* Action bar */}
               <View style={[styles.actionBar, { borderTopColor: theme.border }]}>
               <Pressable style={styles.actionBtn} onPress={handleLike}>
-                <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? '#E53935' : undefined} />
+                <Icon name={post.is_liked ? 'heartFilled' : 'heart'} size={18} color={post.is_liked ? theme.heart : undefined} />
                 <ThemedText themeColor="textSecondary" style={styles.actionCount}>
                   {formatCount(post.likes_count)}
                 </ThemedText>
@@ -817,7 +817,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -866,7 +865,6 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#666',
   },
   authorMeta: {
     flex: 1,
@@ -882,7 +880,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   followBtnTextPrimary: {
-    color: '#FFFFFF',
   },
   displayName: {
     ...Typography.body,
@@ -913,7 +910,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   mediaCounterText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -932,7 +928,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   hashtag: {
-    color: '#12A5A1',
     fontWeight: '600',
   },
   embeddedPost: {
@@ -953,7 +948,6 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -964,7 +958,6 @@ const styles = StyleSheet.create({
   embeddedAvatarInitial: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#666666',
   },
   embeddedAuthorMeta: {
     flex: 1,

@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,13 +8,14 @@ import {
   StyleSheet,
   Switch,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 
+import { showAlert } from '@/utils/alert';
 import {
   communityErrorText,
   createCommunity,
@@ -50,7 +50,7 @@ export default function CreateCommunityScreen() {
     async (kind: 'avatar' | 'background') => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('common.error'), t('story.permissionNeeded'));
+        showAlert(t('common.error'), t('story.permissionNeeded'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -82,10 +82,10 @@ export default function CreateCommunityScreen() {
         avatar,
         background,
       });
-      Alert.alert(t('common.success'), t('communities.createSuccess'));
+      showAlert(t('common.success'), t('communities.createSuccess'));
       (router as any).replace(`/(drawer)/communities/${res.community_id}`);
     } catch (err) {
-      Alert.alert(t('common.error'), communityErrorText(err, t('communities.createError')));
+      showAlert(t('common.error'), communityErrorText(err, t('communities.createError')));
     } finally {
       setLoading(false);
     }
@@ -151,7 +151,7 @@ export default function CreateCommunityScreen() {
                     { backgroundColor: 'rgba(0, 0, 0, 0.55)' },
                     pressed && styles.pressed,
                   ]}>
-                  <Icon name="close" size={16} color="#FFFFFF" />
+                  <Icon name="close" size={16} color={theme.textOnPrimary} />
                 </Pressable>
               )}
 
@@ -270,7 +270,7 @@ export default function CreateCommunityScreen() {
                   onValueChange={setAutoApprove}
                   disabled={loading}
                   trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor="#FFFFFF"
+                  thumbColor={theme.textOnPrimary}
                 />
               </View>
             </View>
@@ -287,9 +287,9 @@ export default function CreateCommunityScreen() {
                 },
               ]}>
               {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
-                <ThemedText style={styles.submitText}>{t('communities.createSubmit')}</ThemedText>
+                <ThemedText style={[styles.submitText, { color: theme.textOnPrimary }]}>{t('communities.createSubmit')}</ThemedText>
               )}
             </Pressable>
           </ScrollView>
@@ -446,6 +446,5 @@ const styles = StyleSheet.create({
   submitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

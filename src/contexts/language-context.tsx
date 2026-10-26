@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import vi from '@/locales/vi.json';
 import en from '@/locales/en.json';
+import { setErrorLanguage } from '@/utils/resolve-error';
 
 type Language = 'vi' | 'en';
 
@@ -44,12 +45,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     AsyncStorage.getItem(LANGUAGE_KEY).then((saved) => {
       if (saved === 'vi' || saved === 'en') {
         setLanguageState(saved);
+        setErrorLanguage(saved);
       }
     });
   }, []);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
+    setErrorLanguage(lang);
     AsyncStorage.setItem(LANGUAGE_KEY, lang);
   }, []);
 
