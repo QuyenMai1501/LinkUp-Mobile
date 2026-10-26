@@ -597,6 +597,7 @@ export default function FriendsScreen() {
                 onPress={() => setMainTab(tab.key)}
                 style={[
                   styles.tabItem,
+                  tab.key === 'requests' && styles.tabItemBadgePad,
                   isActive && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
                 ]}>
                 <Icon
@@ -605,6 +606,7 @@ export default function FriendsScreen() {
                   color={isActive ? theme.primary : theme.textSecondary}
                 />
                 <ThemedText
+                  numberOfLines={1}
                   style={[
                     styles.tabLabel,
                     { color: isActive ? theme.primary : theme.textSecondary },
@@ -760,13 +762,22 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
     gap: Spacing.xs,
   },
+  // Trừ vùng badge góc phải để icon+label căn giữa không đè lên badge
+  // (luôn áp cho tab "Chờ xác nhận" — badge vừa hiện thì label không nhảy chỗ).
+  tabItemBadgePad: {
+    paddingRight: 26,
+  },
   tabLabel: {
     ...Typography.body,
     fontSize: 13,
     fontWeight: 600,
     lineHeight: 18,
+    flexShrink: 1,
   },
   badge: {
+    position: 'absolute',
+    top: 3,
+    right: 6,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: Radius.pill,
