@@ -2,6 +2,7 @@ import { Text, Image, type StyleProp, type TextStyle } from 'react-native';
 
 import { isGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
 import { isEmojifyiUrl } from '@/api/emojifyi';
+import { useTheme } from '@/hooks/use-theme';
 import type { EmojiItem } from '@/utils/emojis';
 
 const EMOJI_RE = /(:[a-z0-9+_-]+:)/gi;
@@ -78,10 +79,13 @@ interface RichContentProps {
  * - `#hashtag` -> pressable (nếu có onHashtagPress)
  */
 export function RichContent({ content, style, emojiMap, size = 18, numberOfLines, onHashtagPress, hashtagStyle }: RichContentProps) {
+  const theme = useTheme();
   const segments = splitContentSegments(content);
 
   return (
-    <Text style={style} numberOfLines={numberOfLines}>
+    // Color mặc định theo theme (RN Text đen mặc định → chìm trong dark mode);
+    // style caller xếp sau nên color truyền từ call site vẫn thắng.
+    <Text style={[{ color: theme.text }, style]} numberOfLines={numberOfLines}>
       {segments.map((seg, i) => {
         if (seg.k === 'emojifyi') {
           return (
