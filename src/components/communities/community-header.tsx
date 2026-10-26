@@ -142,9 +142,9 @@ export default function CommunityHeader({
           (pressed || loading) && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.actionTextPrimary}>{t('communities.join')}</ThemedText>
+          <ThemedText style={[styles.actionTextPrimary, { color: theme.textOnPrimary }]}>{t('communities.join')}</ThemedText>
         )}
       </Pressable>
     );
@@ -170,8 +170,8 @@ export default function CommunityHeader({
           </View>
         )}
         <View style={[styles.privacyBadge, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
-          <Icon name={isPublic ? 'globe' : 'lock'} size={12} color="#FFFFFF" />
-          <ThemedText style={styles.privacyBadgeText}>
+          <Icon name={isPublic ? 'globe' : 'lock'} size={12} color={theme.textOnPrimary} />
+          <ThemedText style={[styles.privacyBadgeText, { color: theme.textOnPrimary }]}>
             {isPublic ? t('communities.privacyPublic') : t('communities.inviteOnlyShort')}
           </ThemedText>
         </View>
@@ -180,7 +180,7 @@ export default function CommunityHeader({
       {/* Info */}
       <View style={styles.info}>
         <View style={styles.nameActionsRow}>
-          <View style={[styles.avatarWrap, { borderColor: theme.card }]}>
+          <View style={[styles.avatarWrap, { backgroundColor: theme.textOnPrimary }, { borderColor: theme.card }]}>
             {avatarError || !community.avatar_uri ? (
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.primaryLight }]}>
                 <Icon name="people" size={28} color={theme.primary} />
@@ -267,7 +267,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   privacyBadgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -288,7 +287,6 @@ const styles = StyleSheet.create({
     borderRadius: 42,
     borderWidth: 3,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
   },
   avatar: {
     width: '100%',
@@ -328,7 +326,6 @@ const styles = StyleSheet.create({
   actionTextPrimary: {
     ...Typography.caption,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pill: {
     flexDirection: 'row',

@@ -104,7 +104,7 @@ export default function SelfProfileScreen() {
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
-            <Icon name="warning" size={32} color="#FB8C00" />
+            <Icon name="warning" size={32} color={theme.accent} />
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}
             </ThemedText>

@@ -156,7 +156,7 @@ export function ShareOptionsSheet({ visible, onClose, onRepost, onSendToFriend }
                     pressed && { opacity: 0.85 },
                   ]}
                   onPress={submitRepost}>
-                  <ThemedText style={[styles.btnText, styles.btnPrimaryText]}>
+                  <ThemedText style={[styles.btnText, styles.btnPrimaryText, { color: theme.textOnPrimary }]}>
                     {t('post.repost')}
                   </ThemedText>
                 </Pressable>
@@ -250,6 +250,5 @@ const styles = StyleSheet.create({
     fontWeight: 600,
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
   },
 });

@@ -140,9 +140,9 @@ export function JoinCodeModal({
                   pressed && styles.pressed,
                 ]}>
                 {loading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={styles.submitText}>{t('communities.join')}</ThemedText>
+                  <ThemedText style={[styles.submitText, { color: theme.textOnPrimary }]}>{t('communities.join')}</ThemedText>
                 )}
               </Pressable>
             </View>
@@ -223,7 +223,6 @@ const styles = StyleSheet.create({
   submitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

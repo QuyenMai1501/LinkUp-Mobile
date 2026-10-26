@@ -243,7 +243,7 @@ export function GroupInviteBubble({ message, myUserId, onAccepted }: Props) {
                 {loading ? (
                   <ActivityIndicator size="small" color={theme.textSecondary} />
                 ) : (
-                  <ThemedText style={styles.modalBtnAcceptText}>
+                  <ThemedText style={[styles.modalBtnAcceptText, { color: theme.textOnPrimary }]}>
                     {t('chat.groupInviteJoin')}
                   </ThemedText>
                 )}
@@ -370,7 +370,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modalBtnAcceptText: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

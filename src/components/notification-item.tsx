@@ -147,7 +147,7 @@ export default function NotificationItem({ item, onPress }: NotificationItemProp
       <View style={styles.endSection}>
         {item.count > 1 && (
           <View style={[styles.countBadge, { backgroundColor: theme.primary }]}>
-            <ThemedText style={styles.countText}>+{item.count}</ThemedText>
+            <ThemedText style={[styles.countText, { color: theme.textOnPrimary }]}>+{item.count}</ThemedText>
           </View>
         )}
         {!item.is_read && <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} />}
@@ -209,7 +209,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 700,
   },

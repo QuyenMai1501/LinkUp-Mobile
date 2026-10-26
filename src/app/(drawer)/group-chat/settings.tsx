@@ -425,9 +425,9 @@ export default function GroupChatSettingsScreen() {
                     disabled={savingName}
                     style={[styles.saveBtn, { backgroundColor: theme.primary }]}>
                     {savingName ? (
-                      <ActivityIndicator size={12} color="#FFF" />
+                      <ActivityIndicator size={12} color={theme.textOnPrimary} />
                     ) : (
-                      <ThemedText style={styles.saveBtnText}>{t('common.success')}</ThemedText>
+                      <ThemedText style={[styles.saveBtnText, { color: theme.textOnPrimary }]}>{t('common.success')}</ThemedText>
                     )}
                   </Pressable>
                 </View>
@@ -776,9 +776,9 @@ export default function GroupChatSettingsScreen() {
                 onPress={() => void handleLeave()}
                 disabled={leaving}>
                 {leaving ? (
-                  <ActivityIndicator size={14} color="#FFF" />
+                  <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={{ color: '#FFF' }}>{t('chat.leaveGroup')}</ThemedText>
+                  <ThemedText style={{ color: theme.textOnPrimary }}>{t('chat.leaveGroup')}</ThemedText>
                 )}
               </Pressable>
             </View>
@@ -862,9 +862,9 @@ export default function GroupChatSettingsScreen() {
                 onPress={() => void handleConfirmMute()}
                 disabled={actionBusy}>
                 {actionBusy ? (
-                  <ActivityIndicator size={14} color="#FFF" />
+                  <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={{ color: '#FFF' }}>
+                  <ThemedText style={{ color: theme.textOnPrimary }}>
                     {t('chat.mute')}
                   </ThemedText>
                 )}
@@ -907,9 +907,9 @@ export default function GroupChatSettingsScreen() {
                 onPress={() => handleBan(confirmBan)}
                 disabled={actionBusy}>
                 {actionBusy ? (
-                  <ActivityIndicator size={14} color="#FFF" />
+                  <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={{ color: '#FFF' }}>
+                  <ThemedText style={{ color: theme.textOnPrimary }}>
                     {t('chat.ban')}
                   </ThemedText>
                 )}
@@ -955,9 +955,9 @@ export default function GroupChatSettingsScreen() {
                 onPress={handleConfirmTransfer}
                 disabled={actionBusy}>
                 {actionBusy ? (
-                  <ActivityIndicator size={14} color="#FFF" />
+                  <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={{ color: '#FFF' }}>
+                  <ThemedText style={{ color: theme.textOnPrimary }}>
                     {t('chat.transferAdmin')}
                   </ThemedText>
                 )}
@@ -1076,7 +1076,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
   },

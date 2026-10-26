@@ -124,7 +124,7 @@ export default function StoryBar({
                 <Image source={{ uri: avatarUri }} style={styles.previewMedia} contentFit="cover" />
               ) : (
                 <View style={[styles.previewMedia, styles.previewFallback, { backgroundColor: theme.primary }]}>
-                  <ThemedText style={styles.ownInitial}>
+                  <ThemedText style={[styles.ownInitial, { color: theme.textOnPrimary }]}>
                     {t('story.yourStory').charAt(0)}
                   </ThemedText>
                 </View>
@@ -144,7 +144,7 @@ export default function StoryBar({
                   },
                 ]}
                 onPress={onCreateStory}>
-                <ThemedText style={styles.plusBadgeText}>+</ThemedText>
+                <ThemedText style={[styles.plusBadgeText, { color: theme.textOnPrimary }]}>+</ThemedText>
               </Pressable>
               <View style={styles.cardOverlay}>
                 <StoryAvatarRing
@@ -154,7 +154,7 @@ export default function StoryBar({
                   hasViewed={ownViewed}
                   size={40}
                 />
-                <ThemedText style={styles.cardName} numberOfLines={1}>
+                <ThemedText style={[styles.cardName, { color: theme.textOnPrimary }]} numberOfLines={1}>
                   {t('story.yourStory')}
                 </ThemedText>
               </View>
@@ -191,7 +191,7 @@ export default function StoryBar({
                     hitSlop={6}
                     style={styles.moreBtn}
                     onPress={() => confirmMute(item.user.id, item.user.display_name)}>
-                    <ThemedText style={styles.moreBtnText}>⋯</ThemedText>
+                    <ThemedText style={[styles.moreBtnText, { color: theme.textOnPrimary }]}>⋯</ThemedText>
                   </Pressable>
                 )}
                 <View style={styles.cardOverlay}>
@@ -202,7 +202,7 @@ export default function StoryBar({
                     hasViewed={hasViewed}
                     size={40}
                   />
-                  <ThemedText style={styles.cardName} numberOfLines={1}>
+                  <ThemedText style={[styles.cardName, { color: theme.textOnPrimary }]} numberOfLines={1}>
                     {item.user.display_name}
                   </ThemedText>
                 </View>
@@ -268,7 +268,6 @@ const styles = StyleSheet.create({
   cardName: {
     ...Typography.caption,
     fontSize: 11,
-    color: '#FFFFFF',
     maxWidth: CARD_W - 8,
     textAlign: 'center',
   },
@@ -285,7 +284,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   plusBadgeText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,
@@ -301,12 +299,10 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   moreBtnText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
   ownInitial: {
-    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
   },

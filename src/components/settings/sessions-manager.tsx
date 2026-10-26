@@ -175,7 +175,7 @@ export default function SessionsManager() {
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: colors.danger }]}
                 onPress={handleRevokeAll}>
-                <ThemedText style={[styles.modalBtnText, { color: '#fff' }]}>
+                <ThemedText style={[styles.modalBtnText, { color: colors.textOnPrimary }]}>
                   {revokingAll ? t('settings.sessions.processing') : t('common.confirm')}
                 </ThemedText>
               </TouchableOpacity>

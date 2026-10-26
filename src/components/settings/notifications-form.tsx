@@ -102,7 +102,7 @@ export default function NotificationsForm() {
               setValues((prev) => ({ ...prev, [row.key]: v }))
             }
             trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor="#fff"
+            thumbColor={colors.textOnPrimary}
           />
         </ThemedView>
       ))}

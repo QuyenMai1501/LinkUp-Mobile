@@ -107,9 +107,9 @@ export function VoicePlayer({ uri, durationSeconds, isMine, style }: Props) {
   };
 
   const trackColor = isMine ? 'rgba(255,255,255,0.35)' : theme.border;
-  const fillColor = isMine ? '#FFFFFF' : theme.primary;
-  const btnBg = isMine ? '#FFFFFF' : theme.primary;
-  const btnIcon = isMine ? theme.primary : '#FFFFFF';
+  const fillColor = isMine ? theme.textOnPrimary : theme.primary;
+  const btnBg = isMine ? theme.textOnPrimary : theme.primary;
+  const btnIcon = isMine ? theme.primary : theme.textOnPrimary;
   const timeColor = isMine ? 'rgba(255,255,255,0.9)' : theme.textSecondary;
   const fillPct = Math.round(progress * 100);
 

@@ -154,7 +154,7 @@ export function ShareToChatModal({ visible, onClose, postId }: Props) {
                   backgroundColor: isSelected ? theme.primary : 'transparent',
                 },
               ]}>
-              {isSelected && <Icon name="check" size={14} color="#FFFFFF" />}
+              {isSelected && <Icon name="check" size={14} color={theme.textOnPrimary} />}
             </View>
           }
         />
@@ -230,7 +230,7 @@ export function ShareToChatModal({ visible, onClose, postId }: Props) {
                 <ThemedText
                   style={[
                     styles.shareBtnText,
-                    { color: selected.size > 0 && !sending ? '#FFFFFF' : theme.textSecondary },
+                    { color: selected.size > 0 && !sending ? theme.textOnPrimary : theme.textSecondary },
                   ]}>
                   {sending
                     ? t('common.loading')

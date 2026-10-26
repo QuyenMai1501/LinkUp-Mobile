@@ -151,7 +151,7 @@ export default function CreateCommunityScreen() {
                     { backgroundColor: 'rgba(0, 0, 0, 0.55)' },
                     pressed && styles.pressed,
                   ]}>
-                  <Icon name="close" size={16} color="#FFFFFF" />
+                  <Icon name="close" size={16} color={theme.textOnPrimary} />
                 </Pressable>
               )}
 
@@ -270,7 +270,7 @@ export default function CreateCommunityScreen() {
                   onValueChange={setAutoApprove}
                   disabled={loading}
                   trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor="#FFFFFF"
+                  thumbColor={theme.textOnPrimary}
                 />
               </View>
             </View>
@@ -287,9 +287,9 @@ export default function CreateCommunityScreen() {
                 },
               ]}>
               {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={theme.textOnPrimary} />
               ) : (
-                <ThemedText style={styles.submitText}>{t('communities.createSubmit')}</ThemedText>
+                <ThemedText style={[styles.submitText, { color: theme.textOnPrimary }]}>{t('communities.createSubmit')}</ThemedText>
               )}
             </Pressable>
           </ScrollView>
@@ -446,6 +446,5 @@ const styles = StyleSheet.create({
   submitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

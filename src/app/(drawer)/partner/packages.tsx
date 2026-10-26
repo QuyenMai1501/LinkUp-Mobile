@@ -419,9 +419,9 @@ export default function PartnerPackagesScreen() {
               ]}
               onPress={() => onSubscribe()}>
               {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
-                <ThemedText style={styles.subscribeText}>
+                <ThemedText style={[styles.subscribeText, { color: colors.textOnPrimary }]}>
                   {selectedId && selectedId === activePkgId
                     ? t('partner.packages.subscribed')
                     : t('partner.packages.subscribe')}
@@ -544,5 +544,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   subscribeBtnDisabled: { opacity: 0.5 },
-  subscribeText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  subscribeText: { fontSize: 16, fontWeight: '600' },
 });

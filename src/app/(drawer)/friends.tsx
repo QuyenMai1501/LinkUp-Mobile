@@ -325,7 +325,7 @@ export default function FriendsScreen() {
     if (requestsError && items.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {requestsError}
           </ThemedText>
@@ -398,7 +398,7 @@ export default function FriendsScreen() {
     if (suggestionsError && suggestions.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {suggestionsError}
           </ThemedText>
@@ -443,7 +443,7 @@ export default function FriendsScreen() {
               displayName={item.display_name}
               subtitle={subtitle}
               actionLabel={item._friendStatus === 'sent' ? t('common.done') : t('friends.actions.addFriend')}
-              actionIcon={item._friendStatus === 'sent' ? <Icon name="check" size={14} color="#43A047" /> : undefined}
+              actionIcon={item._friendStatus === 'sent' ? <Icon name="check" size={14} color={theme.success} /> : undefined}
               onAction={() => {
                 if (item._friendStatus !== 'sent') handleAddFriend(item);
               }}
@@ -500,7 +500,7 @@ export default function FriendsScreen() {
     if (friendsError && friends.length === 0) {
       return (
         <View style={styles.center}>
-          <Icon name="warning" size={48} color="#FB8C00" />
+          <Icon name="warning" size={48} color={theme.accent} />
           <ThemedText themeColor="textSecondary" style={styles.emptyText}>
             {friendsError}
           </ThemedText>
@@ -536,7 +536,7 @@ export default function FriendsScreen() {
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
             actionLabel={t('friends.actions.removeFriend')}
-            actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
+            actionIcon={<Icon name="close" size={14} color={theme.textOnPrimary} />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
             onPress={() => navigateToProfile(router, item.user_id)}
@@ -613,7 +613,7 @@ export default function FriendsScreen() {
                 </ThemedText>
                 {tab.key === 'requests' && unreadCount > 0 && (
                   <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-                    <ThemedText style={styles.badgeText}>
+                    <ThemedText style={[styles.badgeText, { color: theme.textOnPrimary }]}>
                       {unreadCount > MAX_BADGE ? `${MAX_BADGE}+` : unreadCount}
                     </ThemedText>
                   </View>
@@ -707,9 +707,9 @@ export default function FriendsScreen() {
                   pressed && styles.modalBtnPressed,
                 ]}>
                 {unfriending ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={theme.textOnPrimary} size="small" />
                 ) : (
-                  <ThemedText style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
+                  <ThemedText style={[styles.modalBtnLabel, { color: theme.textOnPrimary }]}>
                     {t('friends.actions.removeFriend')}
                   </ThemedText>
                 )}
@@ -774,7 +774,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 700,
   },

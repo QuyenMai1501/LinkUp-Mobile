@@ -115,7 +115,7 @@ export default function CommentItem({
     : null;
 
   return (
-    <View style={[styles.container, depth > 0 && styles.replyContainer]}>
+    <View style={[styles.container, { borderBottomColor: theme.border }, depth > 0 && [styles.replyContainer, { borderLeftColor: theme.border }]]}>
       <View style={styles.row}>
         <Pressable
           style={styles.avatarContainer}
@@ -125,7 +125,7 @@ export default function CommentItem({
             <Image source={{ uri: comment.avatar_uri }} style={styles.avatarImg} />
           ) : (
             <View style={[styles.avatarPlaceholder, { backgroundColor: theme.bgSecondary }]}>
-              <ThemedText style={styles.avatarInitial}>
+              <ThemedText style={[styles.avatarInitial, { color: theme.textSecondary }]}>
                 {comment.display_name?.charAt(0)?.toUpperCase() || '?'}
               </ThemedText>
             </View>
@@ -211,13 +211,11 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
   },
   replyContainer: {
     marginLeft: 36,
     paddingLeft: Spacing.md,
     borderLeftWidth: 2,
-    borderLeftColor: '#E0E0E0',
   },
   row: {
     flexDirection: 'row',
@@ -244,7 +242,6 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#666',
   },
   contentCol: {
     flex: 1,

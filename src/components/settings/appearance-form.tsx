@@ -49,7 +49,7 @@ export default function AppearanceForm() {
           value={theme === 'dark'}
           onValueChange={(v) => handleThemeChange(v ? 'dark' : 'light')}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
       </ThemedView>
 
@@ -64,12 +64,13 @@ export default function AppearanceForm() {
           <ThemedView
             style={[
               styles.langBtn,
+              { borderColor: colors.border },
               language === 'vi' && { backgroundColor: colors.primary },
             ]}>
             <ThemedText
               style={[
                 styles.langText,
-                language === 'vi' && { color: '#fff' },
+                language === 'vi' && { color: colors.textOnPrimary },
               ]}
               onPress={() => handleLanguageChange('vi')}>
               VI
@@ -78,12 +79,13 @@ export default function AppearanceForm() {
           <ThemedView
             style={[
               styles.langBtn,
+              { borderColor: colors.border },
               language === 'en' && { backgroundColor: colors.primary },
             ]}>
             <ThemedText
               style={[
                 styles.langText,
-                language === 'en' && { color: '#fff' },
+                language === 'en' && { color: colors.textOnPrimary },
               ]}
               onPress={() => handleLanguageChange('en')}>
               EN
@@ -113,7 +115,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     alignItems: 'center',
     justifyContent: 'center',
   },

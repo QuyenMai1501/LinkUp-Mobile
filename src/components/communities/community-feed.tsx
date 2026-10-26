@@ -57,15 +57,15 @@ function SkeletonCard() {
         },
       ]}>
       <View style={styles.skelHeader}>
-        <View style={styles.skelAvatar} />
+        <View style={[styles.skelAvatar, { backgroundColor: theme.border }]} />
         <View style={styles.skelLines}>
-          <View style={[styles.skelLine, { width: '40%' }]} />
-          <View style={[styles.skelLine, { width: '25%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '40%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '25%' }]} />
         </View>
       </View>
-      <View style={[styles.skelLine, { width: '80%', marginTop: 12 }]} />
-      <View style={styles.skelLine} />
-      <View style={[styles.skelLine, { width: '55%' }]} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '80%', marginTop: 12 }]} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }]} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '55%' }]} />
     </Animated.View>
   );
 }
@@ -282,7 +282,7 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
   if (error && posts.length === 0) {
     return (
       <View style={styles.centerContent}>
-        <Icon name="warning" size={48} color="#FB8C00" />
+        <Icon name="warning" size={48} color={theme.accent} />
         <ThemedText style={styles.errorText}>{error}</ThemedText>
         <Pressable
           onPress={() => {
@@ -291,7 +291,7 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
             void fetchNext(true);
           }}
           style={({ pressed }) => [styles.primaryBtn, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
-          <ThemedText style={styles.primaryBtnText}>{t('common.retry')}</ThemedText>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
         </Pressable>
       </View>
     );
@@ -478,7 +478,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.7,
@@ -512,7 +511,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0',
   },
   skelLines: {
     flex: 1,
@@ -521,6 +519,5 @@ const styles = StyleSheet.create({
   skelLine: {
     height: 14,
     borderRadius: 8,
-    backgroundColor: '#E0E0E0',
   },
 });

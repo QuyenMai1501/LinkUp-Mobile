@@ -83,12 +83,12 @@ export default function ManageTab({ communityId, community, onUpdate }: ManageTa
               <Icon
                 name={item.icon}
                 size={14}
-                color={active ? '#FFFFFF' : theme.textSecondary}
+                color={active ? theme.textOnPrimary : theme.textSecondary}
               />
               <ThemedText
                 style={[
                   styles.navChipText,
-                  { color: active ? '#FFFFFF' : theme.text },
+                  { color: active ? theme.textOnPrimary : theme.text },
                 ]}>
                 {t(item.labelKey)}
               </ThemedText>
@@ -227,7 +227,7 @@ function SettingsSection({
           onValueChange={setAutoApprove}
           disabled={loading}
           trackColor={{ true: theme.primary, false: theme.border }}
-          thumbColor="#FFFFFF"
+          thumbColor={theme.textOnPrimary}
         />
         <ThemedText style={styles.toggleLabel}>
           {autoApprove ? t('communities.autoApproveOn') : t('communities.autoApproveOff')}
@@ -246,9 +246,9 @@ function SettingsSection({
           pressed && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.primaryBtnText}>{t('communities.settingsSave')}</ThemedText>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.settingsSave')}</ThemedText>
         )}
       </Pressable>
     </View>
@@ -359,10 +359,10 @@ function RequestsSection({ communityId }: { communityId: string }) {
               hitSlop={6}
               style={({ pressed }) => [
                 styles.decideBtn,
-                { backgroundColor: theme.success ?? '#2E7D32' },
+                { backgroundColor: theme.success },
                 (busy || pressed) && styles.pressed,
               ]}>
-              <Icon name="check" size={16} color="#FFFFFF" />
+              <Icon name="check" size={16} color={theme.textOnPrimary} />
             </Pressable>
             <Pressable
               disabled={busy}
@@ -374,7 +374,7 @@ function RequestsSection({ communityId }: { communityId: string }) {
                 { backgroundColor: theme.danger },
                 (busy || pressed) && styles.pressed,
               ]}>
-              <Icon name="close" size={16} color="#FFFFFF" />
+              <Icon name="close" size={16} color={theme.textOnPrimary} />
             </Pressable>
           </View>
         );
@@ -470,8 +470,8 @@ function CodesSection({ communityId }: { communityId: string }) {
           styles.primaryBtn,
           { backgroundColor: theme.primary, opacity: pressed ? 0.8 : 1 },
         ]}>
-        <Icon name="add" size={16} color="#FFFFFF" />
-        <ThemedText style={styles.primaryBtnText}>{t('communities.createCode')}</ThemedText>
+        <Icon name="add" size={16} color={theme.textOnPrimary} />
+        <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.createCode')}</ThemedText>
       </Pressable>
 
       {codes === null && !loadError ? (
@@ -575,9 +575,9 @@ function CodesSection({ communityId }: { communityId: string }) {
                     pressed && styles.pressed,
                   ]}>
                   {creating ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <ThemedText style={styles.primaryBtnText}>{t('communities.createCode')}</ThemedText>
+                    <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.createCode')}</ThemedText>
                   )}
                 </Pressable>
               </View>
@@ -662,7 +662,7 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
           onValueChange={setKeepAdmin}
           disabled={loading}
           trackColor={{ true: theme.primary, false: theme.border }}
-          thumbColor="#FFFFFF"
+          thumbColor={theme.textOnPrimary}
         />
         <ThemedText style={styles.toggleLabel}>
           {keepAdmin ? t('communities.yes') : t('communities.no')}
@@ -681,9 +681,9 @@ function TransferSection({ communityId, onUpdate }: { communityId: string; onUpd
           pressed && styles.pressed,
         ]}>
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.primaryBtnText}>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>
             {t('communities.transferOwnership')}
           </ThemedText>
         )}
@@ -845,7 +845,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   ghostBtn: {
     flex: 1,

@@ -57,15 +57,15 @@ function SkeletonCard() {
         },
       ]}>
       <View style={styles.skelHeader}>
-        <View style={styles.skelAvatar} />
+        <View style={[styles.skelAvatar, { backgroundColor: theme.border }]} />
         <View style={styles.skelLines}>
-          <View style={[styles.skelLine, { width: '40%' }]} />
-          <View style={[styles.skelLine, { width: '25%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '40%' }]} />
+          <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '25%' }]} />
         </View>
       </View>
-      <View style={[styles.skelLine, { width: '60%', marginTop: 12 }]} />
-      <View style={[styles.skelLine, { width: '80%' }]} />
-      <View style={styles.skelMedia} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '60%', marginTop: 12 }]} />
+      <View style={[styles.skelLine, { backgroundColor: theme.border }, { width: '80%' }]} />
+      <View style={[styles.skelMedia, { backgroundColor: theme.border }]} />
     </Animated.View>
   );
 }
@@ -310,7 +310,7 @@ export default function SavedScreen() {
             <ThemedText style={styles.headerTitle}>{t('saved.title')}</ThemedText>
           </View>
           <View style={styles.centerContent}>
-            <Icon name="warning" size={48} color="#FB8C00" />
+            <Icon name="warning" size={48} color={theme.accent} />
             <ThemedText style={styles.emptyTitle}>{error}</ThemedText>
             <Pressable
               onPress={() => {
@@ -318,7 +318,7 @@ export default function SavedScreen() {
                 fetchNext();
               }}
               style={({ pressed }) => [styles.retryBtn, { backgroundColor: theme.primary }, pressed && { opacity: 0.7 }]}>
-              <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+              <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -378,7 +378,7 @@ export default function SavedScreen() {
                   { backgroundColor: theme.primary },
                   pressed && { opacity: 0.7 },
                 ]}>
-                <ThemedText style={styles.exploreText}>{t('saved.explore')}</ThemedText>
+                <ThemedText style={[styles.exploreText, { color: theme.textOnPrimary }]}>{t('saved.explore')}</ThemedText>
               </Pressable>
             </View>
           }
@@ -495,7 +495,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   exploreBtn: {
     marginTop: Spacing.sm,
@@ -506,7 +505,6 @@ const styles = StyleSheet.create({
   exploreText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   loadingMore: {
     flexDirection: 'row',
@@ -538,7 +536,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0',
   },
   skelLines: {
     flex: 1,
@@ -547,13 +544,11 @@ const styles = StyleSheet.create({
   skelLine: {
     height: 14,
     borderRadius: 8,
-    backgroundColor: '#E0E0E0',
   },
   skelMedia: {
     width: '100%',
     height: 200,
     borderRadius: 12,
-    backgroundColor: '#E0E0E0',
     marginTop: 12,
   },
 });

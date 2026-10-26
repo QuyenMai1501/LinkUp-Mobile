@@ -255,7 +255,7 @@ export function CreateGroupModal({ visible, onClose, onCreated }: Props) {
               </View>
             )}
             <View style={[styles.cameraBadge, { backgroundColor: theme.primary }]}>
-              <Icon name="camera" size={12} color="#FFF" />
+              <Icon name="camera" size={12} color={theme.textOnPrimary} />
             </View>
           </Pressable>
           <TextInput

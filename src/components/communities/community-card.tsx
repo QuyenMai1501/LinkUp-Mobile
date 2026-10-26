@@ -102,9 +102,9 @@ export default function CommunityCard({ community, onPress, style }: CommunityCa
           (pressed || joining) && styles.pressed,
         ]}>
         {joining ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.actionBtnTextPrimary}>{t('communities.join')}</ThemedText>
+          <ThemedText style={[styles.actionBtnTextPrimary, { color: theme.textOnPrimary }]}>{t('communities.join')}</ThemedText>
         )}
       </Pressable>
     );
@@ -136,8 +136,8 @@ export default function CommunityCard({ community, onPress, style }: CommunityCa
             </View>
           )}
           <View style={[styles.privacyBadge, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
-            <Icon name={isPublic ? 'globe' : 'lock'} size={12} color="#FFFFFF" />
-            <ThemedText style={styles.privacyBadgeText}>
+            <Icon name={isPublic ? 'globe' : 'lock'} size={12} color={theme.textOnPrimary} />
+            <ThemedText style={[styles.privacyBadgeText, { color: theme.textOnPrimary }]}>
               {isPublic ? t('communities.privacyPublic') : t('communities.inviteOnlyShort')}
             </ThemedText>
           </View>
@@ -145,7 +145,7 @@ export default function CommunityCard({ community, onPress, style }: CommunityCa
 
         {/* Body */}
         <View style={styles.body}>
-          <View style={[styles.avatarWrap, { borderColor: theme.card }]}>
+          <View style={[styles.avatarWrap, { backgroundColor: theme.textOnPrimary }, { borderColor: theme.card }]}>
             {community.avatar_uri ? (
               <Image source={{ uri: community.avatar_uri }} style={styles.avatar} contentFit="cover" />
             ) : (
@@ -237,7 +237,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   privacyBadgeText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -254,7 +253,6 @@ const styles = StyleSheet.create({
     marginTop: -26,
     alignSelf: 'flex-start',
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
   },
   avatar: {
     width: '100%',
@@ -322,7 +320,6 @@ const styles = StyleSheet.create({
   actionBtnTextPrimary: {
     ...Typography.caption,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   actionPill: {
     flexDirection: 'row',

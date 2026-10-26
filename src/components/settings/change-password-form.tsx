@@ -109,7 +109,7 @@ export default function ChangePasswordForm() {
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.oldPassword && (
-          <ThemedText style={styles.error}>{fieldErrors.oldPassword}</ThemedText>
+          <ThemedText style={[styles.error, { color: colors.danger }]}>{fieldErrors.oldPassword}</ThemedText>
         )}
       </ThemedView>
 
@@ -130,7 +130,7 @@ export default function ChangePasswordForm() {
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.newPassword && (
-          <ThemedText style={styles.error}>{fieldErrors.newPassword}</ThemedText>
+          <ThemedText style={[styles.error, { color: colors.danger }]}>{fieldErrors.newPassword}</ThemedText>
         )}
       </ThemedView>
 
@@ -151,7 +151,7 @@ export default function ChangePasswordForm() {
           </TouchableOpacity>
         </ThemedView>
         {fieldErrors.confirmPassword && (
-          <ThemedText style={styles.error}>{fieldErrors.confirmPassword}</ThemedText>
+          <ThemedText style={[styles.error, { color: colors.danger }]}>{fieldErrors.confirmPassword}</ThemedText>
         )}
       </ThemedView>
 
@@ -161,9 +161,9 @@ export default function ChangePasswordForm() {
         disabled={loading}
         activeOpacity={0.8}>
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.buttonText}>{t('settings.changePassword.changeButton')}</ThemedText>
+          <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.changePassword.changeButton')}</ThemedText>
         )}
       </TouchableOpacity>
     </ThemedView>
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 16 },
   eyeBtn: { paddingLeft: Spacing.sm },
-  error: { fontSize: 12, color: '#D32F2F', marginTop: 2 },
+  error: { fontSize: 12, marginTop: 2 },
   button: {
     height: 48,
     borderRadius: 12,
@@ -191,5 +191,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: Spacing.sm,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { fontSize: 16, fontWeight: '600' },
 });

@@ -23,7 +23,7 @@ export function SharedPostBubble({ message, isMine = false, onOpenPost, onLongPr
   const { t } = useTranslation();
   const post = message.shared_post;
   const subColor = isMine ? 'rgba(255,255,255,0.75)' : theme.textSecondary;
-  const titleColor = isMine ? '#FFFFFF' : theme.text;
+  const titleColor = isMine ? theme.textOnPrimary : theme.text;
   const bodyColor = isMine ? 'rgba(255,255,255,0.85)' : theme.textSecondary;
   const borderColor = isMine ? 'rgba(255,255,255,0.3)' : theme.border;
 

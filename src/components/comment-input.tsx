@@ -36,7 +36,7 @@ export default function CommentInput({
             {t('postDetail.replyingTo', { username: replyingTo.username })}
           </ThemedText>
           <Pressable onPress={onCancelReply} style={styles.cancelBtn}>
-            <Icon name="close" size={14} color="#999" />
+            <Icon name="close" size={14} color={theme.textSecondary} />
           </Pressable>
         </View>
       )}
@@ -59,7 +59,7 @@ export default function CommentInput({
           ]}
           onPress={onSubmit}
           disabled={!value.trim() || submitting}>
-          <Icon name={submitting ? "hourglass" : "send"} size={16} color="#fff" />
+          <Icon name={submitting ? "hourglass" : "send"} size={16} color={theme.textOnPrimary} />
         </Pressable>
       </View>
     </View>

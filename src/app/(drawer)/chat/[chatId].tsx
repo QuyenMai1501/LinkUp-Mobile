@@ -929,7 +929,7 @@ export default function ChatScreen() {
                   },
                 ]}>
                 <ThemedText
-                  style={{ color: headerChrome ? "#FFFFFF" : theme.primary }}>
+                  style={{ color: headerChrome ? theme.textOnPrimary : theme.primary }}>
                   {(partner?.display_name || "?")[0]?.toUpperCase()}
                 </ThemedText>
               </View>
@@ -939,7 +939,7 @@ export default function ChatScreen() {
               <ThemedText
                 style={[
                   styles.headerName,
-                  headerChrome && { color: "#FFFFFF" },
+                  headerChrome && { color: theme.textOnPrimary },
                 ]}
                 numberOfLines={1}>
                 {partner?.display_name || t("chat.unknown")}
@@ -1038,7 +1038,7 @@ export default function ChatScreen() {
               color={
                 searchActive
                   ? headerChrome
-                    ? "#FFFFFF"
+                    ? theme.textOnPrimary
                     : theme.primary
                   : chromeIcon
               }
@@ -1487,7 +1487,7 @@ export default function ChatScreen() {
               },
             ]}
             onPress={scrollToBottom}>
-            <ThemedText style={styles.newMessagesText}>
+            <ThemedText style={[styles.newMessagesText, { color: theme.textOnPrimary }]}>
               ↓ {newMessagesCount} {t("chat.scrollToLower")}
             </ThemedText>
           </Pressable>
@@ -1567,7 +1567,7 @@ export default function ChatScreen() {
               <Pressable
                 style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                 onPress={handleDeleteChat}>
-                <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                <ThemedText style={[styles.deleteBtnText, { color: theme.textOnPrimary }]}>
                   {t("chat.delete")}
                 </ThemedText>
               </Pressable>
@@ -1607,7 +1607,7 @@ export default function ChatScreen() {
                 <Pressable
                   style={[styles.deleteBtn, { backgroundColor: theme.danger }]}
                   onPress={() => handleConfirmDelete("all")}>
-                  <ThemedText style={[styles.deleteBtnText, { color: "#FFF" }]}>
+                  <ThemedText style={[styles.deleteBtnText, { color: theme.textOnPrimary }]}>
                     {t("chat.deleteForAll")}
                   </ThemedText>
                 </Pressable>
@@ -1888,7 +1888,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   newMessagesText: {
-    color: "#FFF",
     fontSize: 13,
     fontWeight: "600",
   },

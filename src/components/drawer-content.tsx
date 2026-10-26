@@ -125,8 +125,8 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
               { backgroundColor: colors.danger },
               pressed && { opacity: 0.7 },
             ]}>
-            <Icon name="logout" size={20} color="#FFFFFF" />
-            <ThemedText style={styles.logoutLabel}>{t('sidebar.logout')}</ThemedText>
+            <Icon name="logout" size={20} color={colors.textOnPrimary} />
+            <ThemedText style={[styles.logoutLabel, { color: colors.textOnPrimary }]}>{t('sidebar.logout')}</ThemedText>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -226,6 +226,5 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

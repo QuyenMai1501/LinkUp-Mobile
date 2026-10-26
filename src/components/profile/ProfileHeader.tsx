@@ -156,7 +156,7 @@ export function ProfileHeader({
           <Image source={{ uri: profile.cover_uri }} style={styles.coverImg} contentFit="cover" />
         ) : (
           <LinearGradient
-            colors={['#12A5A1', '#0A1F44']}
+            colors={[theme.primary, theme.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.coverGradient}
@@ -164,7 +164,7 @@ export function ProfileHeader({
         )}
         {isSelf && (
           <View style={styles.coverCameraBadge}>
-            <Icon name="camera" size={14} color="#FFFFFF" />
+            <Icon name="camera" size={14} color={theme.textOnPrimary} />
           </View>
         )}
       </Pressable>
@@ -182,7 +182,7 @@ export function ProfileHeader({
             onPress={handleAvatarPress}>
             {profile.avatar_uri?.trim() ? undefined : (
               <View style={[styles.avatarFallback, { backgroundColor: theme.primary }]}>
-                <ThemedText style={styles.avatarFallbackText}>
+                <ThemedText style={[styles.avatarFallbackText, { color: theme.textOnPrimary }]}>
                   {profile.display_name?.charAt(0)?.toUpperCase() || '?'}
                 </ThemedText>
               </View>
@@ -190,7 +190,7 @@ export function ProfileHeader({
           </StoryAvatarRing>
           {isSelf && (
             <View style={styles.avatarCameraBadge}>
-              <Icon name="camera" size={12} color="#FFFFFF" />
+              <Icon name="camera" size={12} color={theme.textOnPrimary} />
             </View>
           )}
         </View>
@@ -342,7 +342,6 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 48,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
   },
   avatarFallback: {
     alignItems: 'center',
@@ -351,7 +350,6 @@ const styles = StyleSheet.create({
   avatarFallbackText: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   avatarCameraBadge: {
     position: 'absolute',

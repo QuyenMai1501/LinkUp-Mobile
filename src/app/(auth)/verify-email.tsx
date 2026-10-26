@@ -201,7 +201,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'success' && (
                 <>
-                  <View style={styles.iconWrap}><Icon name="checkCircle" size={48} color="#43A047" /></View>
+                  <View style={styles.iconWrap}><Icon name="checkCircle" size={48} color={theme.success} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifySuccess')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.verifySuccess')}
@@ -211,7 +211,7 @@ export default function VerifyEmailScreen() {
 
               {status === 'error' && (
                 <>
-                  <View style={styles.iconWrap}><Icon name="xCircle" size={48} color="#E53935" /></View>
+                  <View style={styles.iconWrap}><Icon name="xCircle" size={48} color={theme.danger} /></View>
                   <ThemedText style={styles.title}>{t('auth.verifyEmail.verifyFailed')}</ThemedText>
                   <ThemedText themeColor="textSecondary" style={styles.subtitle}>
                     {message || t('auth.verifyEmail.invalidCode')}

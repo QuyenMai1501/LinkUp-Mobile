@@ -212,7 +212,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+            <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       );
@@ -405,9 +405,9 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
                     pressed && styles.pressed,
                   ]}>
                   {busy ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={theme.textOnPrimary} />
                   ) : (
-                    <ThemedText style={styles.kickSubmitText}>{t('communities.kick')}</ThemedText>
+                    <ThemedText style={[styles.kickSubmitText, { color: theme.textOnPrimary }]}>{t('communities.kick')}</ThemedText>
                   )}
                 </Pressable>
               </View>
@@ -491,7 +491,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   backdrop: {
     flex: 1,
@@ -596,7 +595,6 @@ const styles = StyleSheet.create({
   kickSubmitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

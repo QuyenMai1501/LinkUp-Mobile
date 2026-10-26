@@ -191,7 +191,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
               disabled={posting}
               onPress={handlePost}
               style={[styles.postBtn, { backgroundColor: theme.primary }, posting && styles.postBtnDisabled]}>
-              <ThemedText style={styles.postBtnText}>
+              <ThemedText style={[styles.postBtnText, { color: theme.textOnPrimary }]}>
                 {posting ? t('story.posting') : t('story.submit')}
               </ThemedText>
             </Pressable>
@@ -253,10 +253,10 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                         />
                       )}
                       <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
-                        <Icon name="close" size={18} color="#FFFFFF" />
+                        <Icon name="close" size={18} color={theme.textOnPrimary} />
                       </Pressable>
                       <View style={styles.counter}>
-                        <ThemedText style={styles.counterText}>
+                        <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
                           {activeIndex + 1}/{assets.length}
                         </ThemedText>
                       </View>
@@ -303,7 +303,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                   end={{ x: 1, y: 1 }}
                   style={styles.textPreview}>
                   <TextInput
-                    style={styles.textStoryInput}
+                    style={[styles.textStoryInput, { color: theme.textOnPrimary }]}
                     placeholder={t('story.textStoryHint')}
                     placeholderTextColor="rgba(255,255,255,0.7)"
                     value={textContent}
@@ -319,7 +319,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
                         colors={g}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={[styles.gradientDot, i === textGradientIndex && styles.gradientDotActive]}
+                        style={[styles.gradientDot, i === textGradientIndex && [styles.gradientDotActive, { borderColor: theme.textOnPrimary }]]}
                       />
                     </Pressable>
                   ))}
@@ -359,7 +359,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   postBtnText: {
-    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -430,7 +429,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   counterText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -471,7 +469,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   textStoryInput: {
-    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
@@ -491,7 +488,6 @@ const styles = StyleSheet.create({
   },
   gradientDotActive: {
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   charCount: {
     ...Typography.caption,

@@ -280,12 +280,12 @@ export default function MediaViewer({
               style={styles.closeButton}
               onPress={handleClose}
               hitSlop={12}>
-              <Icon name="close" size={20} color="#FFFFFF" />
+              <Icon name="close" size={20} color={theme.textOnPrimary} />
             </Pressable>
 
             {media.length > 1 && (
               <View style={styles.counter}>
-                <ThemedText style={styles.counterText}>
+                <ThemedText style={[styles.counterText, { color: theme.textOnPrimary }]}>
                   {safeIndex + 1} / {media.length}
                 </ThemedText>
               </View>
@@ -351,7 +351,7 @@ export default function MediaViewer({
                 onPress={handleToggleInfo}>
                 <View style={styles.infoContent}>
                   <View style={styles.authorRow}>
-                    <ThemedText style={styles.displayName}>
+                    <ThemedText style={[styles.displayName, { color: theme.textOnPrimary }]}>
                       {post.display_name}
                     </ThemedText>
 
@@ -370,7 +370,7 @@ export default function MediaViewer({
                     <RichContent
                       emojiMap={EMOJI_MAP}
                       numberOfLines={infoExpanded ? undefined : 2}
-                      style={styles.content}
+                      style={[styles.content, { color: theme.textOnPrimary }]}
                       content={post.content}
                     />
                   ) : null}
@@ -380,7 +380,7 @@ export default function MediaViewer({
                       {post.is_liked ? (
                         <Icon name="heartFilled" size={19} color={theme.heart} />
                       ) : (
-                        <Icon name="heart" size={19} color="#FFFFFF" />
+                        <Icon name="heart" size={19} color={theme.textOnPrimary} />
                       )}
 
                       <ThemedText style={styles.actionCount}>
@@ -391,7 +391,7 @@ export default function MediaViewer({
                     <Pressable
                       style={styles.actionButton}
                       onPress={onCommentPress}>
-                      <Icon name="chat" size={19} color="#FFFFFF" />
+                      <Icon name="chat" size={19} color={theme.textOnPrimary} />
 
                       <ThemedText style={styles.actionCount}>
                         {formatCount(post.comments_count)}
@@ -401,7 +401,7 @@ export default function MediaViewer({
                     <Pressable
                       style={styles.actionButton}
                       onPress={onSharePress}>
-                      <Icon name="share" size={19} color="#FFFFFF" />
+                      <Icon name="share" size={19} color={theme.textOnPrimary} />
 
                       <ThemedText style={styles.actionCount}>
                         {formatCount(post.shares_count)}
@@ -412,7 +412,7 @@ export default function MediaViewer({
                       {post.is_saved ? (
                         <Icon name="bookmarkFilled" size={19} color="#FBBC04" />
                       ) : (
-                        <Icon name="bookmark" size={19} color="#FFFFFF" />
+                        <Icon name="bookmark" size={19} color={theme.textOnPrimary} />
                       )}
                     </Pressable>
                   </View>
@@ -466,7 +466,6 @@ const styles = StyleSheet.create({
   },
 
   counterText: {
-    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -513,7 +512,6 @@ const styles = StyleSheet.create({
   },
 
   displayName: {
-    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
   },
@@ -534,7 +532,6 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    color: "#FFFFFF",
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 14,

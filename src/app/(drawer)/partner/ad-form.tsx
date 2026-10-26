@@ -273,7 +273,7 @@ export default function AdFormScreen() {
   ];
 
   const chipTextStyle = (active: boolean) => ({
-    color: active ? '#fff' : colors.text,
+    color: active ? colors.textOnPrimary : colors.text,
     fontWeight: active ? ('600' as const) : ('400' as const),
   });
 
@@ -348,7 +348,7 @@ export default function AdFormScreen() {
                       hitSlop={8}
                       style={[styles.removeBtn, { backgroundColor: colors.danger }]}
                       onPress={() => setMedia(null)}>
-                      <Icon name="close" size={12} color="#fff" />
+                      <Icon name="close" size={12} color={colors.textOnPrimary} />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -625,9 +625,9 @@ export default function AdFormScreen() {
             ]}
             onPress={() => void submit()}>
             {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
             ) : (
-              <ThemedText style={styles.submitText}>
+              <ThemedText style={[styles.submitText, { color: colors.textOnPrimary }]}>
                 {t('partner.form.save')}
               </ThemedText>
             )}
@@ -738,5 +738,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitDisabled: { opacity: 0.5 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  submitText: { fontSize: 16, fontWeight: '600' },
 });

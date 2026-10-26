@@ -93,7 +93,7 @@ export default function AdAnalyticsScreen() {
           activeOpacity={0.8}
           style={[styles.retryBtn, { backgroundColor: colors.primary }]}
           onPress={retry}>
-          <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+          <ThemedText style={[styles.retryText, { color: colors.textOnPrimary }]}>{t('common.retry')}</ThemedText>
         </TouchableOpacity>
       </ThemedView>
     );
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: Radius.md,
   },
-  retryText: { color: '#fff', fontWeight: '600' },
+  retryText: { fontWeight: '600' },
   content: {
     padding: Spacing.md,
     gap: Spacing.sm,

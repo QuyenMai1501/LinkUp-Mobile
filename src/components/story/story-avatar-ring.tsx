@@ -41,7 +41,7 @@ export function StoryAvatarRing({
         <Image source={{ uri: src }} style={styles.img} contentFit="cover" />
       ) : (
         <View style={[styles.img, styles.fallback]}>
-          <ThemedText style={[styles.fallbackText, { fontSize: innerSize * 0.4 }]}>
+          <ThemedText style={[styles.fallbackText, { color: theme.textOnPrimary }, { fontSize: innerSize * 0.4 }]}>
             {name?.charAt(0)?.toUpperCase() || '?'}
           </ThemedText>
         </View>
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#8E8E93',
   },
   fallbackText: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
 });

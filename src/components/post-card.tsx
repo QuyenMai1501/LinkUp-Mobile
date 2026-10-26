@@ -82,6 +82,7 @@ interface MediaGridProps {
 }
 
 function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
+  const theme = useTheme();
   if (media.length === 0) return null;
 
   const count = Math.min(media.length, 4);
@@ -93,7 +94,7 @@ function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
           key={m.id}
           onPress={() => onPress?.(idx)}
           style={[
-            styles.mediaItem,
+            styles.mediaItem, { backgroundColor: theme.bgHover },
             count === 1 && styles.mediaSingle,
             count === 2 && styles.mediaHalf,
             count === 3 && idx === 0 && styles.mediaHalf,
@@ -112,7 +113,7 @@ function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
           {/* +N overlay trên ô cuối khi media > 4 (mirror Web MediaGrid) */}
           {idx === 3 && media.length > 4 && (
             <View style={styles.mediaMoreOverlay} pointerEvents="none">
-              <ThemedText style={styles.mediaMoreText}>+{media.length - 4}</ThemedText>
+              <ThemedText style={[styles.mediaMoreText, { color: theme.textOnPrimary }]}>+{media.length - 4}</ThemedText>
             </View>
           )}
         </Pressable>
@@ -239,7 +240,7 @@ export default function PostCard({
 
   return (
     <>
-    <ThemedView style={styles.card}>
+    <ThemedView style={[styles.card, { borderColor: theme.border }]}>
       {/* Zone 1: Header — avatar → hồ sơ; tên/giờ/nền → chi tiết bài */}
       <Pressable style={styles.header} onPress={() => onPress?.(post.id)}>
         <Pressable
@@ -249,8 +250,8 @@ export default function PostCard({
             {post.avatar_uri ? (
               <Image source={{ uri: post.avatar_uri }} style={styles.avatarImg} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <ThemedText style={styles.avatarInitial}>
+              <View style={[styles.avatarPlaceholder, { backgroundColor: theme.bgHover }]}>
+                <ThemedText style={[styles.avatarInitial, { color: theme.textSecondary }]}>
                   {post.display_name?.charAt(0)?.toUpperCase() || '?'}
                 </ThemedText>
               </View>
@@ -319,18 +320,18 @@ export default function PostCard({
         {isRepost && sharedPost ? (
           <View>
             {post.share_content ? (
-              <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+              <RichContent content={post.share_content} emojiMap={EMOJI_MAP} style={styles.shareContent} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
             ) : null}
-            <View style={styles.embeddedPost}>
+            <View style={[styles.embeddedPost, { borderColor: theme.border }]}>
               <Pressable
                 style={styles.embeddedAuthor}
                 hitSlop={4}
                 onPress={() => navigateToProfile(router, sharedPost.user_id)}>
-                <View style={styles.embeddedAvatar}>
+                <View style={[styles.embeddedAvatar, { backgroundColor: theme.bgHover }]}>
                   {sharedPost.avatar_uri ? (
                     <Image source={{ uri: sharedPost.avatar_uri }} style={styles.embeddedAvatarImg} />
                   ) : (
-                    <ThemedText style={styles.embeddedAvatarInitial}>
+                    <ThemedText style={[styles.embeddedAvatarInitial, { color: theme.textSecondary }]}>
                       {sharedPost.display_name?.charAt(0)?.toUpperCase() || '?'}
                     </ThemedText>
                   )}
@@ -346,7 +347,7 @@ export default function PostCard({
                 <ThemedText style={styles.embeddedTitle}>{sharedPost.title}</ThemedText>
               ) : null}
               {displaySharedContent ? (
-                <RichContent content={displaySharedContent} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+                <RichContent content={displaySharedContent} emojiMap={EMOJI_MAP} style={styles.embeddedContent} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
               ) : null}
               <MediaGrid
                 media={sharedPost.media}
@@ -360,9 +361,9 @@ export default function PostCard({
             {post.title ? <ThemedText style={styles.title}>{post.title}</ThemedText> : null}
             {post.content ? (
               <View>
-                <RichContent content={displayContent} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={styles.hashtag} />
+                <RichContent content={displayContent} emojiMap={EMOJI_MAP} style={styles.content} onHashtagPress={openHashtag} hashtagStyle={[styles.hashtag, { color: theme.primary }]} />
                 {needsTruncation && (
-                  <ThemedText style={styles.toggleBtn}>
+                  <ThemedText style={[styles.toggleBtn, { color: theme.primary }]}>
                     {expanded ? t('post.collapse') : t('post.readMore')}
                   </ThemedText>
                 )}
@@ -461,7 +462,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     overflow: 'hidden',
     marginBottom: Spacing.md,
   },
@@ -487,14 +487,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#666666',
   },
   authorMeta: {
     flex: 1,
@@ -554,13 +552,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   toggleBtn: {
-    color: '#12A5A1',
     fontSize: 13,
     fontWeight: '600',
     marginTop: Spacing.xs,
   },
   hashtag: {
-    color: '#12A5A1',
     fontWeight: '600',
   },
   emptyBody: {
@@ -574,7 +570,6 @@ const styles = StyleSheet.create({
   },
   embeddedPost: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: Radius.md,
     padding: Spacing.sm,
     gap: Spacing.xs,
@@ -590,7 +585,6 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -601,7 +595,6 @@ const styles = StyleSheet.create({
   embeddedAvatarInitial: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#666666',
   },
   embeddedAuthorMeta: {
     flex: 1,
@@ -636,7 +629,6 @@ const styles = StyleSheet.create({
   mediaItem: {
     borderRadius: Radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#F0F0F0',
   },
   mediaSingle: {
     width: '100%',
@@ -661,7 +653,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mediaMoreText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
   },

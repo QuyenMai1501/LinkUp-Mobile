@@ -128,7 +128,7 @@ function DetailBody({
             </ThemedText>
           </View>
           <View style={styles.centerContent}>
-            <Icon name="warning" size={48} color="#FB8C00" />
+            <Icon name="warning" size={48} color={theme.accent} />
             <ThemedText style={styles.errorTitle}>
               {error ?? t('communities.detailNotFound')}
             </ThemedText>
@@ -142,7 +142,7 @@ function DetailBody({
                 { backgroundColor: theme.primary },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText style={styles.primaryBtnText}>{t('common.retry')}</ThemedText>
+              <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
             </Pressable>
             <Pressable onPress={goBackToList} hitSlop={6}>
               <ThemedText style={[styles.linkBtn, { color: theme.primary }]}>
@@ -363,7 +363,6 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   linkBtn: {
     ...Typography.body,

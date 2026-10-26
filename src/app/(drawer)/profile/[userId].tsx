@@ -121,7 +121,7 @@ export default function UserProfileScreen() {
             ) : errorType === 'not-found' ? (
               <Icon name="person" size={32} />
             ) : (
-              <Icon name="warning" size={32} color="#FB8C00" />
+              <Icon name="warning" size={32} color={theme.accent} />
             )}
             <ThemedText themeColor="textSecondary" style={styles.errorText}>
               {error || t('profile.notFound')}

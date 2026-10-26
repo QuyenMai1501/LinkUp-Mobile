@@ -115,7 +115,7 @@ export default function FriendsListPanel() {
   if (error && friends.length === 0) {
     return (
       <View style={styles.center}>
-        <Icon name="warning" size={48} color="#FB8C00" />
+        <Icon name="warning" size={48} color={theme.accent} />
         <ThemedText themeColor="textSecondary" style={styles.emptyText}>
           {error}
         </ThemedText>
@@ -152,7 +152,7 @@ export default function FriendsListPanel() {
             avatarUri={item.avatar_uri}
             displayName={item.display_name}
             actionLabel={t('friends.actions.removeFriend')}
-            actionIcon={<Icon name="close" size={14} color="#FFFFFF" />}
+            actionIcon={<Icon name="close" size={14} color={theme.textOnPrimary} />}
             onAction={() => handleUnfriend(item)}
             actionVariant="danger"
             onPress={() => navigateToProfile(router, item.user_id)}
@@ -231,9 +231,9 @@ export default function FriendsListPanel() {
                   pressed && styles.modalBtnPressed,
                 ]}>
                 {unfriending ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={theme.textOnPrimary} size="small" />
                 ) : (
-                  <ThemedText style={[styles.modalBtnLabel, { color: '#FFFFFF' }]}>
+                  <ThemedText style={[styles.modalBtnLabel, { color: theme.textOnPrimary }]}>
                     {t('friends.actions.removeFriend')}
                   </ThemedText>
                 )}

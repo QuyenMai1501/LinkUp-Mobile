@@ -163,9 +163,9 @@ export default function RuleForm({ communityId, rule, onSuccess, onCancel }: Rul
             pressed && styles.pressed,
           ]}>
           {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={theme.textOnPrimary} />
           ) : (
-            <ThemedText style={styles.submitText}>
+            <ThemedText style={[styles.submitText, { color: theme.textOnPrimary }]}>
               {isEdit ? t('common.save') : t('communities.addRule')}
             </ThemedText>
           )}
@@ -247,7 +247,6 @@ const styles = StyleSheet.create({
   submitText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

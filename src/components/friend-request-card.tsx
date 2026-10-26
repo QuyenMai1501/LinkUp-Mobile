@@ -72,9 +72,9 @@ export default function FriendRequestCard({
               pressed && styles.actionPressed,
             ]}>
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={theme.textOnPrimary} size="small" />
             ) : (
-              <ThemedText style={styles.actionBtnAccept}>{t('friends.actions.accept')}</ThemedText>
+              <ThemedText style={[styles.actionBtnAccept, { color: theme.textOnPrimary }]}>{t('friends.actions.accept')}</ThemedText>
             )}
           </Pressable>
           <Pressable
@@ -169,7 +169,6 @@ const styles = StyleSheet.create({
   },
   actionBtnAccept: {
     ...Typography.caption,
-    color: '#FFFFFF',
     fontWeight: 600,
     lineHeight: 20,
   },

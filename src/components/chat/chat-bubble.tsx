@@ -185,7 +185,7 @@ export function ChatBubble({
   }
 
   const bgColor = isMine ? theme.primary : theme.card;
-  const textColor = isMine ? "#FFFFFF" : theme.text;
+  const textColor = isMine ? theme.textOnPrimary : theme.text;
   const singleEmoji = isSharedPost
     ? null
     : singleEmojiCode(message.content, emojiMap);
@@ -422,7 +422,7 @@ export function ChatBubble({
                       styles.reactionChipCount,
                       {
                         color:
-                          !bareBg && isMine ? "#FFFFFF" : theme.text,
+                          !bareBg && isMine ? theme.textOnPrimary : theme.text,
                       },
                     ]}>
                     {chip.count}
@@ -461,8 +461,8 @@ export function ChatBubble({
             )}
             {isMine && message.failed ? (
               <View style={styles.failedRow}>
-                <Icon name="warning" size={11} color="#F87171" />
-                <ThemedText style={styles.failedText}>
+                <Icon name="warning" size={11} color={theme.danger} />
+                <ThemedText style={[styles.failedText, { color: theme.danger }]}>
                   {t("chat.sendFailed")}
                 </ThemedText>
               </View>
@@ -645,7 +645,6 @@ const styles = StyleSheet.create({
   failedText: {
     ...Typography.caption,
     fontSize: 10,
-    color: "#F87171",
   },
   sticker: {
     width: 72,

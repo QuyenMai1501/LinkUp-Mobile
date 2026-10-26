@@ -174,7 +174,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
               { backgroundColor: theme.primary },
               pressed && styles.pressed,
             ]}>
-            <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+            <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
           </Pressable>
         </View>
       ) : list.length === 0 && !showForm ? (
@@ -336,7 +336,6 @@ const styles = StyleSheet.create({
   retryText: {
     ...Typography.body,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.8,

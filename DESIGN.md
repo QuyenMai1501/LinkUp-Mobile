@@ -73,6 +73,24 @@ Base colors are identical in both modes; only the `*Light` variants change.
 | `dangerHover` | — | `#B71616` | `#E53935` | Danger hover (dark = brighter) |
 | `info` | `#1976D2` | `#E3F2FD` | `#1E3A5F` | Informational, reviewed badges |
 
+### Allowed Literal Colors (exceptions)
+
+Components should use tokens everywhere. These literals are intentionally exempt after the hex → token sweep — do not "fix" them:
+
+| Category | Values | Where |
+|----------|--------|-------|
+| Over-media whites/blacks | `#FFFFFF`, `#fff`, `rgba(255,255,255,·)`, `rgba(0,0,0,·)` | `chat/media-lightbox`, `profile/MediaLightbox`, `story/story-viewer`, `video-player`, chat/video overlays |
+| Call dark chrome | `#0C0F14`, `#161B22` | `calls/*` |
+| Status colors (web parity) | `#22C55E` (online), `#EF4444` (missed/failed) | `calls/*`, chat status — web hardcodes these in OnlineIndicator/NotificationBanner |
+| Shadow/silhouette blacks | `#000`, `#000000`, `#00000040` | shadows over media, skeleton silhouettes |
+| Domain accents | `#FBBC04` (gold), `#A5F3FC` (seen cyan), `#8E8E93` (muted gray), `#3A3A3C` (dark media), `#FF3B5C` (burst), `#4CAF50` (online dot) | media like counts, story, conversation list |
+| Data/palettes | gradient + preset hexes | `utils/story-gradient.ts`, `chat-background-picker`, `animated-icon` |
+| Push channel light color | `#12A5A1` | `utils/register-push.ts` (Android channel, set at registration) |
+| `rgba(...)` overlays | all | scrims, glows, washes — not swept |
+| Token definitions | all | `constants/colors.ts`, `constants/theme.ts`, `constants/ad-status.ts` |
+
+Note: `textOnPrimary` is `#FFFFFF` in **both** modes, so `#FFFFFF` → `theme.textOnPrimary` conversions are zero-delta visually.
+
 ---
 
 ## Typography

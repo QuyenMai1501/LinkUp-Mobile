@@ -308,9 +308,9 @@ export function AddGroupMemberModal({
                   },
                 ]}>
                 {adding ? (
-                  <ActivityIndicator size={14} color="#FFF" />
+                  <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={styles.addBtnText}>
+                  <ThemedText style={[styles.addBtnText, { color: theme.textOnPrimary }]}>
                     {t('chat.sendInviteCount', { count: selectedCount })}
                   </ThemedText>
                 )}
@@ -402,5 +402,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 150,
   },
-  addBtnText: { ...Typography.body, color: '#FFF', fontWeight: '600', fontSize: 14 },
+  addBtnText: { ...Typography.body, fontWeight: '600', fontSize: 14 },
 });

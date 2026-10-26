@@ -80,7 +80,7 @@ export function RecoveryGateModal({
             placeholderTextColor={theme.textSecondary}
           />
 
-          {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+          {error && <ThemedText style={[styles.error, { color: theme.danger }]}>{error}</ThemedText>}
 
           <View style={styles.footer}>
             <Pressable
@@ -98,7 +98,7 @@ export function RecoveryGateModal({
               ]}
               disabled={!secret.trim() || busy}
               onPress={onUnlock}>
-              <ThemedText style={[styles.btnText, { color: '#fff' }]}>
+              <ThemedText style={[styles.btnText, { color: theme.textOnPrimary }]}>
                 {busy ? t('common.loading') : t('chat.recovery.unlock')}
               </ThemedText>
             </Pressable>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
   },
-  error: { fontSize: 12, color: '#D32F2F' },
+  error: { fontSize: 12 },
   footer: {
     flexDirection: 'row',
     gap: Spacing.sm,

@@ -81,7 +81,7 @@ export default function PrivacyForm() {
           value={discoverable}
           onValueChange={setDiscoverable}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
       </ThemedView>
 
@@ -96,7 +96,7 @@ export default function PrivacyForm() {
           value={allowStrangers}
           onValueChange={setAllowStrangers}
           trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#fff"
+          thumbColor={colors.textOnPrimary}
         />
       </ThemedView>
 

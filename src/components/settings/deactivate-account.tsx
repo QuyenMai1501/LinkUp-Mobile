@@ -52,7 +52,7 @@ export default function DeactivateAccount() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.warningBox, { backgroundColor: colors.dangerLight }]}>
-        <Icon name="warning" size={20} color="#FB8C00" />
+        <Icon name="warning" size={20} color={colors.accent} />
         <ThemedText style={styles.warningText}>
           {t('settings.deactivate.warning')}
         </ThemedText>
@@ -79,9 +79,9 @@ export default function DeactivateAccount() {
         disabled={loading}
         activeOpacity={0.8}>
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textOnPrimary} />
         ) : (
-          <ThemedText style={styles.buttonText}>{t('settings.deactivate.deactivateButton')}</ThemedText>
+          <ThemedText style={[styles.buttonText, { color: colors.textOnPrimary }]}>{t('settings.deactivate.deactivateButton')}</ThemedText>
         )}
       </TouchableOpacity>
     </ThemedView>
@@ -113,5 +113,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { fontSize: 16, fontWeight: '600' },
 });

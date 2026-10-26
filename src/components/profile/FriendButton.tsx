@@ -75,11 +75,11 @@ export function FriendButton({ userId, onStatusChange }: FriendButtonProps) {
   const getButtonConfig = () => {
     switch (status.status) {
       case 'none':
-        return { label: t('friends.actions.addFriend'), bg: theme.primary, text: '#FFFFFF' };
+        return { label: t('friends.actions.addFriend'), bg: theme.primary, text: theme.textOnPrimary };
       case 'sent':
         return { label: t('friends.actions.revoke'), bg: theme.border, text: theme.text };
       case 'received':
-        return { label: t('friends.actions.accept'), bg: theme.primary, text: '#FFFFFF' };
+        return { label: t('friends.actions.accept'), bg: theme.primary, text: theme.textOnPrimary };
       case 'accepted':
         return { label: t('friends.actions.removeFriend'), bg: theme.border, text: theme.text };
       default:

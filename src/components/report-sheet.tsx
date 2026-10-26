@@ -343,7 +343,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                           pressed && { opacity: 0.85 },
                         ]}
                         onPress={retry}>
-                        <ThemedText style={styles.retryText}>{t('common.retry')}</ThemedText>
+                        <ThemedText style={[styles.retryText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
                       </Pressable>
                     </View>
                   ) : (
@@ -375,7 +375,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                                   backgroundColor: theme.primary,
                                 },
                               ]}>
-                              {isSelected ? <View style={styles.radioDot} /> : null}
+                              {isSelected ? <View style={[styles.radioDot, { backgroundColor: theme.textOnPrimary }]} /> : null}
                             </View>
                             <View style={styles.ruleText}>
                               <View style={styles.ruleTitleRow}>
@@ -420,7 +420,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                               backgroundColor: theme.primary,
                             },
                           ]}>
-                          {selected === OTHER_VALUE ? <View style={styles.radioDot} /> : null}
+                          {selected === OTHER_VALUE ? <View style={[styles.radioDot, { backgroundColor: theme.textOnPrimary }]} /> : null}
                         </View>
                         <ThemedText style={styles.ruleTitle}>{t('report.otherReason')}</ThemedText>
                       </Pressable>
@@ -477,7 +477,7 @@ export default function ReportSheet({ targetType, targetId, onClose, onSubmitted
                   ]}
                   disabled={submitting || loading || loadError}
                   onPress={handleSubmit}>
-                  <ThemedText style={[styles.btnText, styles.btnPrimaryText]}>
+                  <ThemedText style={[styles.btnText, styles.btnPrimaryText, { color: theme.textOnPrimary }]}>
                     {submitting ? t('common.loading') : t('report.submit')}
                   </ThemedText>
                 </Pressable>
@@ -561,7 +561,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   ruleRow: {
     flexDirection: 'row',
@@ -585,7 +584,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
   },
   ruleText: {
     flex: 1,
@@ -651,6 +649,5 @@ const styles = StyleSheet.create({
     fontWeight: 600,
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
   },
 });

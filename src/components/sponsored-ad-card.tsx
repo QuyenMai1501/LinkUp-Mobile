@@ -57,7 +57,7 @@ export default function SponsoredAdCard({ ad }: { ad: FeedAd }) {
           activeOpacity={0.8}
           style={[styles.cta, { backgroundColor: colors.primary }]}
           onPress={handlePressCta}>
-          <ThemedText style={styles.ctaText}>
+          <ThemedText style={[styles.ctaText, { color: colors.textOnPrimary }]}>
             {t('feed.sponsoredCta')}
           </ThemedText>
         </TouchableOpacity>
@@ -100,5 +100,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: Radius.md,
   },
-  ctaText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  ctaText: { fontSize: 14, fontWeight: '600' },
 });

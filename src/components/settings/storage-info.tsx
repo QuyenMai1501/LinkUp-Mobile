@@ -78,7 +78,7 @@ export default function StorageInfo() {
         </ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.progressBg}>
+      <ThemedView style={[styles.progressBg, { backgroundColor: colors.border }]}>
         <ThemedView
           style={[styles.progressFill, { width: `${percent}%`, backgroundColor: colors.primary }]}
         />
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
   progressBg: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E0E0E0',
     overflow: 'hidden',
   },
   progressFill: { height: '100%', borderRadius: 4 },

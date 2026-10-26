@@ -63,7 +63,7 @@ export function MessageMedia({ message, onPress, isMine }: Props) {
       <View style={styles.videoWrap}>
         <VideoPlayer uri={src} style={styles.videoInline} muted={false} loop={false} />
         <Pressable onPress={onPress} hitSlop={8} style={styles.expandBtn}>
-          <Icon name="expand" size={14} color="#FFF" />
+          <Icon name="expand" size={14} color={theme.textOnPrimary} />
         </Pressable>
       </View>
     );

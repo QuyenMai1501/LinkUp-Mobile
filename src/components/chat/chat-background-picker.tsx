@@ -386,11 +386,11 @@ export function ChatBackgroundPicker({
                 disabled={saving}
                 style={[styles.uploadBtn, { backgroundColor: theme.primary }]}>
                 {saving ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
                 ) : (
                   <>
-                    <Icon name="images" size={16} color="#FFF" />
-                    <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>
+                    <Icon name="images" size={16} color={theme.textOnPrimary} />
+                    <ThemedText style={{ color: theme.textOnPrimary, fontWeight: '600' }}>
                       {t('chat.backgroundUpload')}
                     </ThemedText>
                   </>
@@ -503,9 +503,9 @@ export function ChatBackgroundPicker({
               (!selected || saving) && styles.disabled,
             ]}>
             {saving ? (
-              <ActivityIndicator size="small" color="#FFF" />
+              <ActivityIndicator size="small" color={theme.textOnPrimary} />
             ) : (
-              <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>
+              <ThemedText style={{ color: theme.textOnPrimary, fontWeight: '600' }}>
                 {t('chat.backgroundApply')}
               </ThemedText>
             )}

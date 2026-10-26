@@ -297,7 +297,7 @@ export default function PartnerAdsScreen() {
               <ThemedText
                 type="small"
                 style={{
-                  color: active ? '#fff' : colors.text,
+                  color: active ? colors.textOnPrimary : colors.text,
                   fontWeight: active ? '600' : '400',
                 }}>
                 {s === '' ? t('partner.ads.allStatus') : statusLabel(s)}
@@ -310,8 +310,8 @@ export default function PartnerAdsScreen() {
         activeOpacity={0.8}
         style={[styles.createBtn, { backgroundColor: colors.primary }]}
         onPress={() => router.push('/partner/ad-form' as never)}>
-        <Icon name="add" size={18} color="#fff" />
-        <ThemedText style={styles.createBtnText}>
+        <Icon name="add" size={18} color={colors.textOnPrimary} />
+        <ThemedText style={[styles.createBtnText, { color: colors.textOnPrimary }]}>
           {t('partner.ads.create')}
         </ThemedText>
       </TouchableOpacity>
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: Radius.md,
   },
-  createBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  createBtnText: { fontSize: 15, fontWeight: '600' },
   card: {
     borderRadius: Radius.lg,
     borderWidth: 1,
