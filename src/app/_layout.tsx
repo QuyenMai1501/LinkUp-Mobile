@@ -9,6 +9,7 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { CallOverlay } from '@/components/calls/call-overlay';
 import { GroupCallIncomingModal } from '@/components/calls/group-call-incoming-modal';
 import { GroupCallOverlay } from '@/components/calls/group-call-overlay';
+import AlertHost from '@/components/ui/alert-host';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { CallProvider } from '@/contexts/call-context';
 import { GroupCallProvider } from '@/contexts/group-call-context';
@@ -96,6 +97,7 @@ export default function RootLayout() {
                 <RootNavigator />
                 <CallOverlay />
                 <GroupCallOverlay />
+                <AlertHost />
                 <GroupCallIncomingModal />
               </GroupCallProvider>
             </CallProvider>
