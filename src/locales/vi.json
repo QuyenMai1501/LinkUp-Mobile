@@ -1160,7 +1160,20 @@
       "redo": "Làm lại",
       "tapToAdd": "Chạm \"Chữ\" để thêm chữ",
       "advanced": "Nâng cao",
-      "mediaLoadFailed": "Không tải được ảnh. Vui lòng thử lại."
+      "mediaLoadFailed": "Không tải được ảnh. Vui lòng thử lại.",
+      "draw": "Vẽ",
+      "filters": "Bộ lọc",
+      "brushSize": "Cỡ bút",
+      "eraser": "Tẩy",
+      "clear": "Xóa nét vẽ",
+      "brushGradient": "Cọ gradient",
+      "intensity": "Cường độ",
+      "original": "Gốc",
+      "bw": "Đen trắng",
+      "warm": "Ấm",
+      "cool": "Mát",
+      "vintage": "Cổ điển",
+      "dramatic": "Tương phản"
     }
   },
   "errors": {

@@ -32,6 +32,8 @@ export const icons = {
   redo: 'arrow-redo-outline' as const,
   textTool: 'text-outline' as const,
   sticker: 'happy-outline' as const,
+  draw: 'brush-outline' as const,
+  filter: 'color-filter-outline' as const,
   copy: 'copy-outline' as const,
   pin: 'pin' as const,
   history: 'time-outline' as const,
