@@ -1016,47 +1016,10 @@ export default function ChatScreen() {
           )}
 
           <Pressable
-            onPress={() => {
-              setSearchActive((prev) => !prev);
-              if (searchActive) {
-                setSearchInput("");
-                room.clearSearch();
-              }
-            }}
-            hitSlop={8}
-            style={[
-              styles.headerAction,
-              searchActive && {
-                backgroundColor: headerChrome
-                  ? "rgba(255,255,255,0.2)"
-                  : theme.bgSecondary,
-              },
-            ]}>
-            <Icon
-              name="search"
-              size={18}
-              color={
-                searchActive
-                  ? headerChrome
-                    ? theme.textOnPrimary
-                    : theme.primary
-                  : chromeIcon
-              }
-            />
-          </Pressable>
-
-          <Pressable
             onPress={() => setMenuVisible(true)}
             hitSlop={8}
             style={styles.headerAction}>
             <Icon name="more" size={18} color={chromeIcon} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => setShowDeleteChat(true)}
-            hitSlop={8}
-            style={styles.headerAction}>
-            <Icon name="trash" size={18} color={chromeIcon} />
           </Pressable>
         </View>
 
@@ -1637,15 +1600,34 @@ export default function ChatScreen() {
         />
       )}
 
-      {/* Menu⋮ header — chọn nền trò chuyện 1-1 */}
+      {/* Menu⋮ header — mục khác: tìm kiếm / nền / xóa hội thoại */}
       <MenuSheet
         visible={menuVisible}
         items={[
+          {
+            key: "search",
+            label: t("chat.searchMessages"),
+            icon: "search",
+            onPress: () => {
+              setSearchActive((prev) => !prev);
+              if (searchActive) {
+                setSearchInput("");
+                room.clearSearch();
+              }
+            },
+          },
           {
             key: "background",
             label: t("chat.background"),
             icon: "palette",
             onPress: () => setBackgroundPickerOpen(true),
+          },
+          {
+            key: "delete",
+            label: t("chat.deleteChat"),
+            icon: "trash",
+            danger: true,
+            onPress: () => setShowDeleteChat(true),
           },
         ]}
         onClose={() => setMenuVisible(false)}
