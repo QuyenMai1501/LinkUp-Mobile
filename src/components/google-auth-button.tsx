@@ -1,25 +1,17 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { showAlert } from '@/utils/alert';
 import { googleLogin } from '@/api/auth';
+import { apiErrorMessage } from '@/api/client';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
-
-/** Mã lỗi backend (errors/messages.go) → key dịch trong locales. */
-const ERROR_KEYS: Record<string, string> = {
-  'auth.GOOGLE_NOT_CONFIGURED': 'auth.google.notConfigured',
-  'auth.INVALID_GOOGLE_TOKEN': 'auth.google.invalidToken',
-  'auth.GOOGLE_ACCOUNT_MISMATCH': 'auth.google.mismatch',
-  'auth.REGISTRATION_DISABLED': 'auth.google.registrationDisabled',
-  'auth.ACCOUNT_INACTIVE': 'auth.google.inactive',
-};
 
 let configured = false;
 
@@ -69,9 +61,7 @@ export default function GoogleAuthButton() {
       const code = (err as { code?: string })?.code;
       if (code === statusCodes.SIGN_IN_CANCELLED || code === statusCodes.IN_PROGRESS) return;
 
-      const raw = err instanceof Error ? err.message : '';
-      const key = ERROR_KEYS[raw];
-      showAlert(t('auth.google.failed'), key ? t(key) : raw || t('auth.google.failed'));
+      showAlert(t('auth.google.failed'), apiErrorMessage(err, t('auth.google.failed')));
     } finally {
       setLoading(false);
     }
@@ -100,7 +90,11 @@ export default function GoogleAuthButton() {
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
           <>
-            <MaterialCommunityIcons name="google" size={20} color={theme.text} />
+            <Image
+              source={require('@/assets/images/google-g.png')}
+              style={styles.googleIcon}
+              contentFit="contain"
+            />
             <ThemedText style={styles.label}>{t('auth.google.button')}</ThemedText>
           </>
         )}
@@ -138,6 +132,10 @@ const styles = StyleSheet.create({
   label: {
     ...Typography.body,
     fontWeight: 700,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
   },
   pressed: {
     opacity: 0.7,
