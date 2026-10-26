@@ -1160,7 +1160,20 @@
       "redo": "Redo",
       "tapToAdd": "Tap \"Text\" to add text",
       "advanced": "Advanced",
-      "mediaLoadFailed": "Could not load the image. Please try again."
+      "mediaLoadFailed": "Could not load the image. Please try again.",
+      "draw": "Draw",
+      "filters": "Filters",
+      "brushSize": "Brush size",
+      "eraser": "Eraser",
+      "clear": "Clear",
+      "brushGradient": "Gradient brush",
+      "intensity": "Intensity",
+      "original": "Original",
+      "bw": "B&W",
+      "warm": "Warm",
+      "cool": "Cool",
+      "vintage": "Vintage",
+      "dramatic": "Dramatic"
     }
   },
   "errors": {

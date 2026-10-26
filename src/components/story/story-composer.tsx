@@ -21,7 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import StoryEditor, { type StoryEditorHandle } from '@/components/story/story-editor';
 import {
-  IDENTITY_TRANSFORM,
+  emptyDoc,
   type StoryEditorDoc,
 } from '@/components/story/story-editor-constants';
 import { Spacing } from '@/constants/spacing';
@@ -139,7 +139,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
     setDocs((prevDocs) => {
       const arr = [...prevDocs];
       while (arr.length < next.length) {
-        arr.push({ bg: { ...IDENTITY_TRANSFORM }, layers: [] });
+        arr.push(emptyDoc());
       }
       return arr.slice(0, next.length);
     });
@@ -368,7 +368,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
               ref={editorRef}
               key={`${activeIndex}:${currentAsset.uri}`}
               uri={currentAsset.uri}
-              doc={docs[activeIndex] ?? { bg: { ...IDENTITY_TRANSFORM }, layers: [] }}
+              doc={docs[activeIndex] ?? emptyDoc()}
               onChange={(d) => setDoc(activeIndex, d)}
               index={activeIndex}
               total={assets.length}

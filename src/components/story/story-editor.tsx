@@ -1,10 +1,11 @@
-/* eslint-disable react-hooks/refs, react-hooks/immutability -- gesture/worklet callbacks đọc ref + ghi SharedValue chủ đích, không chạy trong render */
+/* eslint-disable react-hooks/refs, react-hooks/immutability, react-hooks/preserve-manual-memoization -- gesture/worklet callbacks đọc ref + ghi SharedValue chủ đích, không chạy trong render */
 import { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { Ref } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import {
   Blur,
   Canvas,
+  ColorMatrix,
   DashPathEffect,
   FilterMode,
   Group,
@@ -12,6 +13,7 @@ import {
   ImageFormat,
   LinearGradient,
   MipmapMode,
+  Path,
   Rect,
   Skia,
   Text,
@@ -29,24 +31,34 @@ import { Icon } from '@/components/ui/icon';
 import { Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import StoryEditorBrushPanel from './story-editor-brush-panel';
+import StoryEditorFilterPanel from './story-editor-filter-panel';
 import StoryEditorStickerPanel from './story-editor-sticker-panel';
 import StoryEditorTextPanel from './story-editor-text-panel';
 import {
   CANVAS_H,
   CANVAS_W,
+  DEFAULT_BRUSH,
   DEFAULT_TEXT_STYLE,
   IDENTITY_TRANSFORM,
   STICKER_ASSETS,
   STICKER_BASE,
   buildFont,
+  filterMatrix,
+  hitStroke,
   hitTestLayer,
   layerTf,
   layoutText,
+  strokePathAndBounds,
+  type BrushState,
+  type FilterPresetId,
   type LayerBox,
   type StickerDef,
   type StickerLayer,
   type StoryEditorDoc,
+  type StoryFilterState,
   type StoryLayer,
+  type Stroke,
   type TextLayer,
 } from './story-editor-constants';
 
@@ -58,6 +70,9 @@ const BG_SCALE_MAX = 6;
 const LAYER_SCALE_MIN = 0.2;
 const LAYER_SCALE_MAX = 6;
 const TEXT_MAX = 300;
+const ERASE_TOL = 12;
+const LIVE_PATH_EMPTY = 'M -100000 -100000';
+const DRAW_MIN_D2 = 4;
 
 export interface StoryEditorHandle {
   flush: () => Promise<string | null>;
@@ -243,9 +258,12 @@ export default function StoryEditor({
 
   const [bg, setBg] = useState(doc.bg);
   const [layers, setLayers] = useState<StoryLayer[]>(doc.layers);
+  const [strokes, setStrokes] = useState<Stroke[]>(doc.strokes);
+  const [filter, setFilter] = useState<StoryFilterState>(doc.filter);
+  const [brush, setBrush] = useState<BrushState>(DEFAULT_BRUSH);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [tool, setTool] = useState<'text' | 'stickers' | null>(null);
+  const [tool, setTool] = useState<'stickers' | 'draw' | 'filter' | null>(null);
   const [past, setPast] = useState<StoryEditorDoc[]>([]);
   const [future, setFuture] = useState<StoryEditorDoc[]>([]);
   const [flushing, setFlushing] = useState(false);
@@ -261,20 +279,30 @@ export default function StoryEditor({
   const pinchSeedSV = useSharedValue(1);
   const targetSV = useSharedValue('');
   const panBegunSV = useSharedValue(false);
+  const livePtsSV = useSharedValue<number[]>([]);
+  const livePathSV = useSharedValue(LIVE_PATH_EMPTY);
+  const gradStartSV = useSharedValue({ x: 0, y: 0 });
+  const gradEndSV = useSharedValue({ x: 0, y: 0 });
 
   const selectedLayer = selectedId ? (layers.find((l) => l.id === selectedId) ?? null) : null;
   const selectedBox = selectedLayer ? boxFor(selectedLayer) : null;
   const boxes = useMemo(() => layers.map(boxFor), [layers]);
+  const docNow = useMemo<StoryEditorDoc>(
+    () => ({ bg, layers, strokes, filter }),
+    [bg, filter, layers, strokes],
+  );
 
   const checkpoint = useCallback(() => {
-    setPast((p) => [...p.slice(-19), { bg, layers }]);
+    setPast((p) => [...p.slice(-19), docNow]);
     setFuture([]);
-  }, [bg, layers]);
+  }, [docNow]);
 
   const applyDoc = useCallback(
     (d: StoryEditorDoc) => {
       setBg(d.bg);
       setLayers(d.layers);
+      setStrokes(d.strokes);
+      setFilter(d.filter);
       bgSV.value = layerTf(d.bg.tx, d.bg.ty, d.bg.scale, 0);
       if (selectedId && !d.layers.some((l) => l.id === selectedId)) {
         setSelectedId(null);
@@ -292,25 +320,25 @@ export default function StoryEditor({
     if (!past.length) return;
     const prev = past[past.length - 1];
     setPast(past.slice(0, -1));
-    setFuture([...future, { bg, layers }]);
+    setFuture([...future, docNow]);
     applyDoc(prev);
-  }, [applyDoc, bg, future, layers, past]);
+  }, [applyDoc, docNow, future, past]);
 
   const redo = useCallback(() => {
     if (!future.length) return;
     const next = future[future.length - 1];
     setFuture(future.slice(0, -1));
-    setPast([...past, { bg, layers }]);
+    setPast([...past, docNow]);
     applyDoc(next);
-  }, [applyDoc, bg, future, layers, past]);
+  }, [applyDoc, docNow, future, past]);
 
   const cleanupEmptyText = useCallback(() => {
     const kept = layers.filter((l) => !(l.type === 'text' && !l.text.trim()));
     if (kept.length !== layers.length) {
       setLayers(kept);
-      onChange({ bg, layers: kept });
+      onChange({ ...docNow, layers: kept });
     }
-  }, [bg, layers, onChange]);
+  }, [docNow, layers, onChange]);
 
   const handleTap = useCallback(
     (px: number, py: number) => {
@@ -343,10 +371,10 @@ export default function StoryEditor({
     if (target === 'bg') {
       if (c.tx === bg.tx && c.ty === bg.ty && c.s === bg.scale) return;
       const nextBg = { scale: c.s, tx: c.tx, ty: c.ty };
-      setPast((p) => [...p.slice(-19), { bg, layers }]);
+      setPast((p) => [...p.slice(-19), docNow]);
       setFuture([]);
       setBg(nextBg);
-      onChange({ bg: nextBg, layers });
+      onChange({ ...docNow, bg: nextBg });
       return;
     }
     if (!target) return;
@@ -356,11 +384,11 @@ export default function StoryEditor({
     const nextLayers = layers.map((x) =>
       x.id === target ? { ...x, x: c.tx, y: c.ty, scale: c.s } : x,
     );
-    setPast((p) => [...p.slice(-19), { bg, layers }]);
+    setPast((p) => [...p.slice(-19), docNow]);
     setFuture([]);
     setLayers(nextLayers);
-    onChange({ bg, layers: nextLayers });
-  }, [bg, curSV, layers, onChange, panBegunSV, targetSV]);
+    onChange({ ...docNow, layers: nextLayers });
+  }, [bg, curSV, docNow, layers, onChange, panBegunSV, targetSV]);
 
   const scheduleCommit = useCallback(() => {
     if (commitTimer.current) clearTimeout(commitTimer.current);
@@ -448,14 +476,69 @@ export default function StoryEditor({
       runOnJS(handleTap)(e.x * K, e.y * K);
     });
 
-  const composed = useMemo(
-    () => Gesture.Simultaneous(panGesture, pinchGesture, tapGesture),
-    [panGesture, pinchGesture, tapGesture],
-  );
+  const drawPan = Gesture.Pan()
+    .maxPointers(1)
+    .minDistance(0)
+    .onBegin((e) => {
+      const px = e.x * K;
+      const py = e.y * K;
+      livePtsSV.value = [px, py];
+      const r = strokePathAndBounds([px, py]);
+      livePathSV.value = r.d;
+      gradStartSV.value = { x: r.minX, y: r.minY };
+      gradEndSV.value = { x: r.maxX, y: r.maxY };
+    })
+    .onUpdate((e) => {
+      const pts = livePtsSV.value;
+      if (!pts.length) return;
+      const nx = e.x * K;
+      const ny = e.y * K;
+      const dx = nx - pts[pts.length - 2];
+      const dy = ny - pts[pts.length - 1];
+      if (dx * dx + dy * dy < DRAW_MIN_D2) return;
+      const next = [...pts, nx, ny];
+      livePtsSV.value = next;
+      const r = strokePathAndBounds(next);
+      livePathSV.value = r.d;
+      gradStartSV.value = { x: r.minX, y: r.minY };
+      gradEndSV.value = { x: r.maxX, y: r.maxY };
+    })
+    .onFinalize(() => {
+      runOnJS(endStroke)();
+    });
 
-  const showTextPanel =
-    tool !== 'stickers' && selectedLayer?.type === 'text';
+  const eraseTap = Gesture.Tap()
+    .maxDuration(400)
+    .maxDistance(10)
+    .onEnd((e) => {
+      runOnJS(eraseAt)(e.x * K, e.y * K);
+    });
+
+  const drawing = tool === 'draw';
+  const composed =
+    drawing && brush.eraser
+      ? eraseTap
+      : drawing
+        ? drawPan
+        : Gesture.Simultaneous(panGesture, pinchGesture, tapGesture);
+
+  const showTextPanel = tool === null && selectedLayer?.type === 'text';
   const showStickerPanel = tool === 'stickers';
+  const showBrushPanel = tool === 'draw';
+  const showFilterPanel = tool === 'filter';
+  const filterMx =
+    filter.id === 'original' ? null : filterMatrix(filter.id, filter.intensity);
+  const strokeNodes = useMemo(
+    () =>
+      strokes.map((s) => ({
+        key: s.id,
+        ...strokePathAndBounds(s.points),
+        width: s.width,
+        color: s.color,
+        gradient: s.gradient,
+      })),
+    [strokes],
+  );
 
   const addText = useCallback(() => {
     cleanupEmptyText();
@@ -469,16 +552,16 @@ export default function StoryEditor({
       scale: 1,
       rotation: 0,
     };
-    setPast((p) => [...p.slice(-19), { bg, layers }]);
+    setPast((p) => [...p.slice(-19), docNow]);
     setFuture([]);
     const next = [...layers, layer];
     setLayers(next);
-    onChange({ bg, layers: next });
+    onChange({ ...docNow, layers: next });
     setSelectedId(layer.id);
     setEditingId(layer.id);
     setTool(null);
     liveSV.value = layerTf(layer.x, layer.y, 1, 0);
-  }, [bg, layers, liveSV, onChange, cleanupEmptyText]);
+  }, [cleanupEmptyText, docNow, layers, liveSV, onChange]);
 
   const addSticker = useCallback(
     (def: StickerDef) => {
@@ -492,28 +575,28 @@ export default function StoryEditor({
         scale: 1,
         rotation: 0,
       };
-      setPast((p) => [...p.slice(-19), { bg, layers }]);
+      setPast((p) => [...p.slice(-19), docNow]);
       setFuture([]);
       const next = [...layers, layer];
       setLayers(next);
-      onChange({ bg, layers: next });
+      onChange({ ...docNow, layers: next });
       setSelectedId(layer.id);
       setEditingId(null);
       liveSV.value = layerTf(layer.x, layer.y, 1, 0);
     },
-    [bg, layers, liveSV, onChange],
+    [docNow, layers, liveSV, onChange],
   );
 
   const removeSelected = useCallback(() => {
     if (!selectedId) return;
-    setPast((p) => [...p.slice(-19), { bg, layers }]);
+    setPast((p) => [...p.slice(-19), docNow]);
     setFuture([]);
     const next = layers.filter((l) => l.id !== selectedId);
     setLayers(next);
-    onChange({ bg, layers: next });
+    onChange({ ...docNow, layers: next });
     setSelectedId(null);
     setEditingId(null);
-  }, [bg, layers, onChange, selectedId]);
+  }, [docNow, layers, onChange, selectedId]);
 
   const applyStyle = useCallback(
     (patch: Partial<TextLayer['style']>) => {
@@ -522,9 +605,9 @@ export default function StoryEditor({
         l.id === selectedId && l.type === 'text' ? { ...l, style: { ...l.style, ...patch } } : l,
       );
       setLayers(next);
-      onChange({ bg, layers: next });
+      onChange({ ...docNow, layers: next });
     },
-    [bg, layers, onChange, selectedId],
+    [docNow, layers, onChange, selectedId],
   );
 
   const editLayer = editingId ? (layers.find((l) => l.id === editingId) as TextLayer) : null;
@@ -537,19 +620,97 @@ export default function StoryEditor({
         l.id === editingId && l.type === 'text' ? { ...l, text } : l,
       );
       setLayers(next);
-      onChange({ bg, layers: next });
+      onChange({ ...docNow, layers: next });
     },
-    [bg, editingId, layers, onChange],
+    [docNow, editingId, layers, onChange],
   );
 
   const resetBg = useCallback(() => {
-    setPast((p) => [...p.slice(-19), { bg, layers }]);
+    setPast((p) => [...p.slice(-19), docNow]);
     setFuture([]);
     const next = { ...IDENTITY_TRANSFORM };
     setBg(next);
     bgSV.value = layerTf(next.tx, next.ty, next.scale, 0);
-    onChange({ bg: next, layers });
-  }, [bg, bgSV, layers, onChange]);
+    onChange({ ...docNow, bg: next });
+  }, [bgSV, docNow, onChange]);
+
+  const endStroke = useCallback(() => {
+    const pts = livePtsSV.value.slice();
+    livePtsSV.value = [];
+    livePathSV.value = LIVE_PATH_EMPTY;
+    gradStartSV.value = { x: 0, y: 0 };
+    gradEndSV.value = { x: 0, y: 0 };
+    if (pts.length < 4) return;
+    const stroke: Stroke = {
+      id: newId(),
+      points: pts,
+      color: brush.color,
+      width: brush.size,
+      gradient: brush.gradient.enabled
+        ? { from: brush.gradient.from, to: brush.gradient.to }
+        : null,
+    };
+    setPast((p) => [...p.slice(-19), docNow]);
+    setFuture([]);
+    const next = [...strokes, stroke];
+    setStrokes(next);
+    onChange({ ...docNow, strokes: next });
+  }, [brush, docNow, livePathSV, livePtsSV, gradStartSV, gradEndSV, onChange, strokes]);
+
+  const eraseAt = useCallback(
+    (px: number, py: number) => {
+      let hitIdx = -1;
+      for (let i = strokes.length - 1; i >= 0; i--) {
+        if (hitStroke(strokes[i], px, py, ERASE_TOL)) {
+          hitIdx = i;
+          break;
+        }
+      }
+      if (hitIdx < 0) return;
+      setPast((p) => [...p.slice(-19), docNow]);
+      setFuture([]);
+      const next = strokes.filter((_, i) => i !== hitIdx);
+      setStrokes(next);
+      onChange({ ...docNow, strokes: next });
+    },
+    [docNow, onChange, strokes],
+  );
+
+  const clearStrokes = useCallback(() => {
+    if (!strokes.length) return;
+    setPast((p) => [...p.slice(-19), docNow]);
+    setFuture([]);
+    setStrokes([]);
+    onChange({ ...docNow, strokes: [] });
+  }, [docNow, onChange, strokes]);
+
+  const patchBrush = useCallback((patch: Partial<BrushState>) => {
+    setBrush((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const selectFilter = useCallback(
+    (id: FilterPresetId) => {
+      const next: StoryFilterState = { id, intensity: filter.intensity };
+      setFilter(next);
+      onChange({ ...docNow, filter: next });
+    },
+    [docNow, filter.intensity, onChange],
+  );
+
+  const changeIntensity = useCallback(
+    (v: number) => {
+      const next: StoryFilterState = { id: filter.id, intensity: v };
+      setFilter(next);
+      onChange({ ...docNow, filter: next });
+    },
+    [docNow, filter.id, onChange],
+  );
+
+  const toggleTool = useCallback((next: 'stickers' | 'draw' | 'filter') => {
+    setTool((prev) => (prev === next ? null : next));
+    setSelectedId(null);
+    setEditingId(null);
+  }, []);
 
   const flush = useCallback(async (): Promise<string | null> => {
     cancelCommit();
@@ -605,10 +766,11 @@ export default function StoryEditor({
       })()
     : null;
 
-  const panelVisible = showTextPanel || showStickerPanel;
+  const panelVisible =
+    showTextPanel || showStickerPanel || showBrushPanel || showFilterPanel;
 
   return (
-    <View style={[styles.root, { width }]}>
+    <View style={styles.root}>
       <View style={[styles.frameWrap, { width, height, borderRadius: 16 }]}>
         <View
           style={{
@@ -644,8 +806,9 @@ export default function StoryEditor({
                   fit="contain"
                   transform={bgSV}
                   origin={{ x: CANVAS_W / 2, y: CANVAS_H / 2 }}
-                  antiAlias
-                />
+                  antiAlias>
+                  {filterMx && <ColorMatrix matrix={filterMx} />}
+                </Image>
               </>
             )}
             {layers.map((l) => {
@@ -659,6 +822,43 @@ export default function StoryEditor({
                 <TextNode key={l.id} layer={l} tf={tf} selected={isSelected} />
               );
             })}
+            {strokeNodes.map((s) => (
+              <Path
+                key={s.key}
+                path={s.d}
+                strokeWidth={s.width}
+                color={s.gradient ? undefined : s.color}
+                style="stroke"
+                strokeCap="round"
+                strokeJoin="round"
+                antiAlias>
+                {s.gradient && (
+                  <LinearGradient
+                    start={{ x: s.minX, y: s.minY }}
+                    end={{ x: s.maxX, y: s.maxY }}
+                    colors={[s.gradient.from, s.gradient.to]}
+                  />
+                )}
+              </Path>
+            ))}
+            {drawing && !brush.eraser && (
+              <Path
+                path={livePathSV}
+                strokeWidth={brush.size}
+                color={brush.gradient.enabled ? undefined : brush.color}
+                style="stroke"
+                strokeCap="round"
+                strokeJoin="round"
+                antiAlias>
+                {brush.gradient.enabled && (
+                  <LinearGradient
+                    start={gradStartSV}
+                    end={gradEndSV}
+                    colors={[brush.gradient.from, brush.gradient.to]}
+                  />
+                )}
+              </Path>
+            )}
           </Canvas>
         </View>
 
@@ -729,19 +929,42 @@ export default function StoryEditor({
           accessibilityLabel={t('story.editor.text')}
           onPress={addText}>
           <Icon name="textTool" size={22} />
-          <ThemedText style={styles.toolLabel}>{t('story.editor.text')}</ThemedText>
         </Pressable>
         <Pressable
           style={styles.toolBtn}
           accessibilityRole="button"
           accessibilityState={{ selected: showStickerPanel }}
           accessibilityLabel={t('story.editor.stickers')}
-          onPress={() => setTool((prev) => (prev === 'stickers' ? null : 'stickers'))}>
-          <Icon name="sticker" size={22} color={showStickerPanel ? theme.primary : undefined} />
-          <ThemedText
-            style={[styles.toolLabel, showStickerPanel && { color: theme.primary }]}>
-            {t('story.editor.stickers')}
-          </ThemedText>
+          onPress={() => toggleTool('stickers')}>
+          <Icon
+            name="sticker"
+            size={22}
+            color={showStickerPanel ? theme.primary : undefined}
+          />
+        </Pressable>
+        <Pressable
+          style={styles.toolBtn}
+          accessibilityRole="button"
+          accessibilityState={{ selected: showBrushPanel }}
+          accessibilityLabel={t('story.editor.draw')}
+          onPress={() => toggleTool('draw')}>
+          <Icon
+            name="draw"
+            size={22}
+            color={showBrushPanel ? theme.primary : undefined}
+          />
+        </Pressable>
+        <Pressable
+          style={styles.toolBtn}
+          accessibilityRole="button"
+          accessibilityState={{ selected: showFilterPanel }}
+          accessibilityLabel={t('story.editor.filters')}
+          onPress={() => toggleTool('filter')}>
+          <Icon
+            name="filter"
+            size={22}
+            color={showFilterPanel ? theme.primary : undefined}
+          />
         </Pressable>
         <View style={styles.toolSpacer} />
         <Pressable
@@ -774,7 +997,22 @@ export default function StoryEditor({
         <View style={[styles.panelAnchor, { bottom: 56 }]}>
           {showStickerPanel ? (
             <StoryEditorStickerPanel onPick={addSticker} />
-          ) : selectedLayer?.type === 'text' ? (
+          ) : showBrushPanel ? (
+            <StoryEditorBrushPanel
+              brush={brush}
+              onChange={patchBrush}
+              hasStrokes={strokes.length > 0}
+              onClear={clearStrokes}
+            />
+          ) : showFilterPanel ? (
+            <StoryEditorFilterPanel
+              uri={uri}
+              filter={filter}
+              onSelect={selectFilter}
+              onIntensity={changeIntensity}
+              onCheckpoint={checkpoint}
+            />
+          ) : showTextPanel && selectedLayer?.type === 'text' ? (
             <StoryEditorTextPanel
               style={selectedLayer.style}
               hasSelection
@@ -791,6 +1029,7 @@ export default function StoryEditor({
 const styles = StyleSheet.create({
   root: {
     alignSelf: 'center',
+    width: '100%',
   },
   frameWrap: {
     overflow: 'hidden',
@@ -852,15 +1091,11 @@ const styles = StyleSheet.create({
   toolBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     paddingVertical: 6,
     borderRadius: 8,
-    minWidth: 52,
+    minWidth: 40,
     gap: 2,
-  },
-  toolLabel: {
-    fontSize: 10,
-    fontWeight: '600',
   },
   toolSpacer: {
     flex: 1,
