@@ -285,7 +285,6 @@ export default function StoryEditor({
   const gradEndSV = useSharedValue({ x: 0, y: 0 });
 
   const selectedLayer = selectedId ? (layers.find((l) => l.id === selectedId) ?? null) : null;
-  const selectedBox = selectedLayer ? boxFor(selectedLayer) : null;
   const boxes = useMemo(() => layers.map(boxFor), [layers]);
   const docNow = useMemo<StoryEditorDoc>(
     () => ({ bg, layers, strokes, filter }),
@@ -363,6 +362,19 @@ export default function StoryEditor({
     [boxes, cleanupEmptyText, layers, liveSV, selectedId],
   );
 
+  const selectForDrag = useCallback(
+    (id: string) => {
+      if (id === selectedId) return;
+      const l = layers.find((x) => x.id === id);
+      if (!l) return;
+      setSelectedId(id);
+      setEditingId(null);
+      setTool(null);
+      liveSV.value = layerTf(l.x, l.y, l.scale, l.rotation);
+    },
+    [layers, liveSV, selectedId],
+  );
+
   const doCommit = useCallback(() => {
     const target = targetSV.value;
     const c = { tx: curSV.value.tx, ty: curSV.value.ty, s: curSV.value.s };
@@ -431,8 +443,9 @@ export default function StoryEditor({
     .onBegin((e) => {
       runOnJS(cancelCommit)();
       panBegunSV.value = true;
-      const hit = hitTestLayer(selectedBox ? [selectedBox] : [], e.x * K, e.y * K);
+      const hit = hitTestLayer(boxes, e.x * K, e.y * K);
       targetSV.value = hit ?? 'bg';
+      if (hit && hit !== selectedId) runOnJS(selectForDrag)(hit);
       seedFromState();
       panStartSV.value = { x: e.x, y: e.y };
       writeTF();
@@ -582,6 +595,7 @@ export default function StoryEditor({
       onChange({ ...docNow, layers: next });
       setSelectedId(layer.id);
       setEditingId(null);
+      setTool(null);
       liveSV.value = layerTf(layer.x, layer.y, 1, 0);
     },
     [docNow, layers, liveSV, onChange],
@@ -899,6 +913,8 @@ export default function StoryEditor({
             onChangeText={onEditText}
             onBlur={() => setEditingId(null)}
             autoFocus
+            caretHidden
+            underlineColorAndroid="transparent"
             multiline
             maxLength={TEXT_MAX}
             textAlignVertical="center"
@@ -1032,6 +1048,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   frameWrap: {
+    alignSelf: 'center',
     overflow: 'hidden',
     backgroundColor: '#000000',
   },
