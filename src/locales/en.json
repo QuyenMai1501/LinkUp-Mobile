@@ -559,7 +559,11 @@
     "pendingRequestBody": "{name} wants to join the call",
     "approve": "Accept",
     "callHistoryLabel": "Group call",
-    "callerYou": "You started a call"
+    "callerYou": "You started a call",
+    "inCall": "In a group call",
+    "requestToJoin": "Request to join",
+    "expand": "Expand",
+    "joinRequestConfirm": "Do you want to join the group call of {name}?"
   },
   "partner": {
     "nav": {

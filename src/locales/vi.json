@@ -559,7 +559,11 @@
     "pendingRequestBody": "{name} muốn tham gia cuộc gọi",
     "approve": "Chấp nhận",
     "callHistoryLabel": "Cuộc gọi nhóm",
-    "callerYou": "Bạn đã tạo cuộc gọi"
+    "callerYou": "Bạn đã bắt đầu cuộc gọi",
+    "inCall": "Đang trong cuộc gọi nhóm",
+    "requestToJoin": "Yêu cầu tham gia",
+    "expand": "Phóng to",
+    "joinRequestConfirm": "Bạn có muốn tham gia cuộc gọi nhóm của {name} không?"
   },
   "partner": {
     "nav": {
