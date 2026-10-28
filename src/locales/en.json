@@ -535,7 +535,9 @@
     "statusBusy": "User is busy",
     "statusCancelled": "Call cancelled",
     "noAnswer": "No answer",
-    "callback": "Callback"
+    "callback": "Callback",
+    "minimize": "Minimize",
+    "expand": "Expand"
   },
   "groupCall": {
     "you": "You",

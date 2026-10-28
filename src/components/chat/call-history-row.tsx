@@ -31,6 +31,12 @@ export function CallHistoryRow({ item, partnerAvatar, partnerName, isInCall, onC
       ? t('call.videoCall')
       : t('call.voiceCall');
   const showDuration = item.duration > 0;
+  // Meta "02:35 · 14:30" — duration (nếu có) · giờ gọi, mirror Web CallHistoryBubble
+  const started = new Date(item.created_at);
+  const timeText = `${String(started.getHours()).padStart(2, '0')}:${String(
+    started.getMinutes(),
+  ).padStart(2, '0')}`;
+  const meta = showDuration ? `${formatCallDuration(item.duration)} · ${timeText}` : timeText;
   const accent = missed ? theme.danger : mine ? theme.primary : theme.textSecondary;
   const avatarUri = item.other_user.avatar_url || partnerAvatar || null;
   const letter = (item.other_user.display_name || partnerName || '?')[0]?.toUpperCase();
@@ -52,11 +58,9 @@ export function CallHistoryRow({ item, partnerAvatar, partnerName, isInCall, onC
           <ThemedText style={[styles.label, { color: missed ? theme.danger : theme.text }]} numberOfLines={1}>
             {label}
           </ThemedText>
-          {showDuration && (
-            <ThemedText style={[styles.duration, { color: theme.textSecondary }]}>
-              {formatCallDuration(item.duration)}
-            </ThemedText>
-          )}
+          <ThemedText style={[styles.duration, { color: theme.textSecondary }]}>
+            {meta}
+          </ThemedText>
         </View>
 
         {!mine && !isInCall && (

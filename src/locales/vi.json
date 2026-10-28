@@ -535,7 +535,9 @@
     "statusBusy": "Người dùng đang bận",
     "statusCancelled": "Cuộc gọi đã hủy",
     "noAnswer": "Không có ai nghe máy",
-    "callback": "Gọi lại"
+    "callback": "Gọi lại",
+    "minimize": "Thu nhỏ",
+    "expand": "Phóng to"
   },
   "groupCall": {
     "you": "Bạn",

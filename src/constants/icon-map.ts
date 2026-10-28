@@ -111,6 +111,7 @@ export const icons = {
   pencil: 'create-outline' as const,
   moon: 'moon-outline' as const,
   sun: 'sunny-outline' as const,
+  chevronDown: 'chevron-down-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;
