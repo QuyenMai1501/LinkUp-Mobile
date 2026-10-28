@@ -11,7 +11,9 @@
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx3g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\" -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false",
+        "CMAKE_BUILD_PARALLEL_LEVEL": "2"
       }
     },
     "preview": {
@@ -23,7 +25,9 @@
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx3g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\" -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false",
+        "CMAKE_BUILD_PARALLEL_LEVEL": "2"
       }
     },
     "production": {
@@ -32,7 +36,9 @@
         "EXPO_PUBLIC_API_URL": "http://192.168.20.116:8080/api",
         "EXPO_PUBLIC_GIPHY_API_KEY": "gGEOtMDlxfbV8DVFGLsCBmsNyyh0AM9J",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "764453029635-pbp1u78fi55k3dq7jrqi4b4fhh9t6mhu.apps.googleusercontent.com",
-        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a"
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a",
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx3g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\" -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false",
+        "CMAKE_BUILD_PARALLEL_LEVEL": "2"
       }
     }
   },
