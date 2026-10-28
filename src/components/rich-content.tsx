@@ -111,12 +111,9 @@ export function RichContent({ content, style, emojiMap, size = 18, numberOfLines
           const emoji = emojiMap.get(seg.v);
           if (emoji) {
             return (
-              <Image
-                key={i}
-                source={{ uri: emoji.image_uri }}
-                style={{ width: size, height: size }}
-                resizeMode="contain"
-              />
+              <Text key={i} style={{ fontSize: size, lineHeight: Math.round(size * 1.3) }}>
+                {emoji.emoji}
+              </Text>
             );
           }
         }

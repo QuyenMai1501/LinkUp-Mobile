@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { StyleSheet, Text } from 'react-native';
 
 import type { EmojiItem } from '@/utils/emojis';
 
@@ -9,23 +7,12 @@ interface EmojiImageProps {
   size?: number;
 }
 
+/** Render emoji native bằng ký tự unicode — không CDN ảnh. */
 export function EmojiImage({ emoji, size = 24 }: EmojiImageProps) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return <Text style={[styles.fallback, { fontSize: size }]}>{emoji.emoji}</Text>;
-  }
-
   return (
-    <View style={styles.container}>
-      <Image
-        source={{ uri: emoji.image_uri }}
-        style={{ width: size, height: size }}
-        contentFit="contain"
-        transition={200}
-        onError={() => setFailed(true)}
-      />
-    </View>
+    <Text style={[styles.char, { fontSize: size, lineHeight: Math.round(size * 1.25) }]}>
+      {emoji.emoji}
+    </Text>
   );
 }
 
@@ -48,10 +35,7 @@ export function renderEmojiContent(
 }
 
 const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
-  },
-  fallback: {
-    lineHeight: 20,
+  char: {
+    textAlign: 'center',
   },
 });

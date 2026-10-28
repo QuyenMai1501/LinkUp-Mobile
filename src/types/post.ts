@@ -49,6 +49,13 @@ export interface EmojiItem {
   id: string;
   code: string;
   image_uri: string;
+  /** Ký tự unicode render native (vd "😀") — client mới dùng field này. */
+  character: string;
+  name: string;
+  keywords: string;
+  category: string;
+  sort_order: number;
+  is_reaction: boolean;
 }
 
 export interface CommentItem {

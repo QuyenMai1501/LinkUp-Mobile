@@ -1,5 +1,3 @@
-import { emojifyiImageUrl } from '@/api/emojifyi';
-
 export type EmojiGroup = 'positive' | 'neutral' | 'negative';
 
 export interface EmojiItem {
@@ -8,7 +6,6 @@ export interface EmojiItem {
   emoji: string;
   label: string;
   group: EmojiGroup;
-  image_uri: string;
 }
 
 export const EMOTION_GROUPS: EmojiGroup[] = ['positive', 'neutral', 'negative'];
@@ -46,10 +43,7 @@ const EMOTION_EMOJIS: { code: string; emoji: string; label: string; group: Emoji
   { code: ':scared:', emoji: '\u{1F628}', label: 'Scared', group: 'negative' },
 ];
 
-/** Ảnh render cho 1 code: CDN emojifyi (noto) sinh từ ký tự unicode. */
-export function emojiImageUrl(fallbackEmoji: string): string {
-  return emojifyiImageUrl(fallbackEmoji);
-}
+/** Render native bằng ký tự unicode (emoji.emoji) — không CDN ảnh. */
 
 let cachedEmojis: EmojiItem[] | null = null;
 
@@ -61,7 +55,6 @@ export function getEmotionEmojis(): EmojiItem[] {
     emoji: e.emoji,
     label: e.label,
     group: e.group,
-    image_uri: emojiImageUrl(e.emoji),
   }));
   return cachedEmojis;
 }

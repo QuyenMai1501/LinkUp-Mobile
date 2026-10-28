@@ -112,8 +112,10 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - Screen: `app/(drawer)/search.tsx` (hỗ trợ deep-link `?q=#tag` từ hashtag trong bài — prefill + tìm ngay khi mount) · API: `api/search.ts` · Types: `types/search.ts`
 
 ### Emoji / GIF (Giphy)
-- Components: `components/emoji-picker.tsx`, `giphy-gif-picker.tsx`
-- API: `api/giphy.ts`, `api/emojifyi.ts` (emoji từ server) · Hooks: `use-server-emojis` · Utils: `utils/emojis.ts`
+- Components: `components/emoji-picker.tsx` (grid 8 cột render `character` native + search debounce 400ms + 9 tab category hardcode khớp seed server, infinite scroll `onEndReached` 60/trang, cache per-tab `useRef<Map>`), `giphy-gif-picker.tsx`
+- Emoji data: **DB server** — `GET /emojis` qua `getEmojis({q,category,limit,offset,scope})` trong `api/posts.ts` (`EmojisResponse {data,total,has_more}`); không còn gọi API ngoài (emojifyi chỉ giữ nhận diện URL legacy trong `api/emojifyi.ts`)
+- Render: chip/sticker/quick-react/story reaction đều vẽ `<Text>{character}</Text>` (server `image_uri` rỗng — seed ưu tiên `character`); `:code:` fallback qua `utils/emojis.ts` (EMOTION_EMOJIS unicode) trong `rich-content.tsx`/`emoji-image.tsx`
+- Hooks: `use-server-emojis` (cache module `byId`/`byCode` + `quickReactEmojis`) · Types: `EmojiItem` đầy đủ trong `types/post.ts` · Utils: `utils/emojis.ts`
 
 ### Partner Hub (quảng cáo / ads management)
 - Screens: `app/(drawer)/partner/` — `_layout.tsx` (Stack con, `headerShown:false, swipeEnabled:false`), `packages.tsx` (danh sách gói + chọn radio + thanh toán VNPay "Coming Soon"/gói free active, subscribe → `signIn({user, tokens})` lưu JWT role PARTNER mới → `replace('/partner/dashboard')`, `useFocusEffect` refetch, guard thiếu token → `sessionError`), `dashboard.tsx` (hero Remaining + progress bar spent/total, grid 6 stat card, card subscription, pull-to-refresh + CTA), `ads.tsx` (FlatList phân trang 20/trang + `onEndReached`, search debounce 400ms, filter chips, pull-to-refresh, focus refetch, card thumb 56 + badge + stats + actions pause/play/edit/analytics/trash với Alert confirm), `ad-form.tsx` (mode theo `?id=`; edit prefill `getMyAds().find()` + banner status/rejection_reason; create: media picker images+videos, format chips gate theo capabilities gói, gender/age/locations, dates → RFC3339, validation inline red khi `tried`, footer save), `ad-analytics.tsx` (header card + budget hero (remaining/total/daily + progress) + grid 2×2 metrics + rates CTR/CPC/CPM + video card)

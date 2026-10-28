@@ -15,7 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useVoiceRecorder, type VoiceRecording } from '@/hooks/use-voice-recorder';
 import type { GiphyGif } from '@/api/giphy';
-import type { EmojiOption } from '@/api/emojifyi';
+import type { EmojiItem } from '@/types/post';
 import type { ChatMessage } from '@/types/chat';
 
 const MAX_ATTACHMENTS = 10;
@@ -119,7 +119,7 @@ export function ChatComposer({
   };
 
   // Chèn ký tự emoji unicode — TextInput hiển thị trực tiếp, nối tiếp được nhiều emoji.
-  const handleEmojiSelect = (emoji: EmojiOption) => {
+  const handleEmojiSelect = (emoji: EmojiItem) => {
     setText((prev) => prev + emoji.character);
     onTyping(true);
   };

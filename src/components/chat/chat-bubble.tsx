@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useMemo } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { isSingleEmojifyiUrl } from "@/api/emojifyi";
@@ -306,12 +306,9 @@ export function ChatBubble({
           <>
             {isSticker ? (
               stickerEmoji ? (
-                <Image
-                  source={{ uri: stickerEmoji.image_uri }}
-                  style={styles.sticker}
-                  contentFit="contain"
-                  transition={200}
-                />
+                <Text style={styles.stickerEmoji}>
+                  {stickerEmoji.character || stickerEmoji.code}
+                </Text>
               ) : emojis ? (
                 // Đã load danh sách emoji nhưng không tìm thấy id → báo hết hạn.
                 <ThemedText themeColor="textSecondary" style={styles.deletedText}>
@@ -411,11 +408,9 @@ export function ChatBubble({
                     borderColor: chip.mine ? theme.primary : theme.border,
                   },
                 ]}>
-                <Image
-                  source={{ uri: chip.emoji.image_uri }}
-                  style={styles.reactionChipEmoji}
-                  contentFit="contain"
-                />
+                <Text style={styles.reactionChipEmoji}>
+                  {chip.emoji.character || chip.emoji.code}
+                </Text>
                 {chip.count > 1 && (
                   <ThemedText
                     style={[
@@ -625,10 +620,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  reactionChipEmoji: {
-    width: 14,
-    height: 14,
-  },
+    reactionChipEmoji: {
+      fontSize: 12,
+      lineHeight: 14,
+    },
   reactionChipCount: {
     fontSize: 10,
     fontWeight: "600",
@@ -646,10 +641,12 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontSize: 10,
   },
-  sticker: {
-    width: 72,
-    height: 72,
-  },
+    stickerEmoji: {
+      fontSize: 64,
+      lineHeight: 72,
+      height: 72,
+      textAlign: "center",
+    },
   time: {
     ...Typography.caption,
     fontSize: 10,
