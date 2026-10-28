@@ -11,10 +11,11 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
@@ -51,11 +52,21 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   const theme = useTheme();
   const { t } = useTranslation();
   const { height: winH, width: winW } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   // Giữ preview trong tầm nhìn: không cao hơn ~45% chiều cao màn hình
   const previewMaxH = Math.round(winH * 0.45);
   const contentW = winW - Spacing.md * 2;
   const frameW = Math.min(contentW, Math.floor((previewMaxH * 9) / 16));
   const frameH = Math.round((frameW * 16) / 9);
+  // Bước edit: khung lấp đầy vùng khả dụng thay vì 45% — tránh trống lớn phía dưới.
+  // chrome = header(50) + toolbar(46) + thumbs(56+8) + padding editBody(2×md) + gap(sm) + safe-area
+  const editChromeH =
+    50 + 46 + 64 + Spacing.md * 2 + Spacing.sm + insets.top + insets.bottom;
+  const editFrameH = Math.max(
+    240,
+    Math.min(winH - editChromeH, Math.floor((contentW * 16) / 9)),
+  );
+  const editFrameW = Math.round((editFrameH * 9) / 16);
 
   const [mode, setMode] = useState<'photos' | 'text'>('photos');
   const [step, setStep] = useState<Step>('pick');
@@ -372,8 +383,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
               onChange={(d) => setDoc(activeIndex, d)}
               index={activeIndex}
               total={assets.length}
-              width={frameW}
-              height={frameH}
+              width={editFrameW}
+              height={editFrameH}
             />
           )}
           {renderThumbs(true)}
@@ -419,7 +430,9 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.root, { backgroundColor: theme.background }]}>
+      {/* Bắt buộc có GestureHandlerRootView bên trong Modal */}
+      <GestureHandlerRootView style={styles.flex}>
+        <View style={[styles.root, { backgroundColor: theme.background }]}>
         <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: theme.border }]}>
@@ -503,7 +516,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
             )}
           </KeyboardAvoidingView>
         </SafeAreaView>
-      </View>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
