@@ -484,21 +484,6 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                 </View>
               )}
 
-              {/* Comments toggle */}
-              <View style={[styles.optionRow, { borderTopColor: theme.border }]}>
-                <Icon name="chat" size={18} />
-                <ThemedText style={styles.optionLabel}>{t('composer.comments')}</ThemedText>
-                <ThemedText themeColor="textSecondary" style={styles.optionValue}>
-                  {commentsDisabled ? t('composer.commentsOff') : t('composer.commentsOn')}
-                </ThemedText>
-                <Switch
-                  value={!commentsDisabled}
-                  onValueChange={(v) => setCommentsDisabled(!v)}
-                  trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor={theme.textOnPrimary}
-                />
-              </View>
-
               {/* Error */}
               {error && (
                 <ThemedText style={[styles.errorText, { color: theme.danger }]}>{error}</ThemedText>
@@ -548,6 +533,21 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                 onSelect={insertEmoji}
               />
             )}
+
+            {/* Comments toggle — fixed, luôn ngay trên toolbar (mirror web options row) */}
+            <View style={[styles.optionRow, { borderTopColor: theme.border }]}>
+              <Icon name="chat" size={18} />
+              <ThemedText style={styles.optionLabel}>{t('composer.comments')}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.optionValue}>
+                {commentsDisabled ? t('composer.commentsOff') : t('composer.commentsOn')}
+              </ThemedText>
+              <Switch
+                value={!commentsDisabled}
+                onValueChange={(v) => setCommentsDisabled(!v)}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={theme.textOnPrimary}
+              />
+            </View>
 
             {/* Toolbar */}
             <ThemedView style={[styles.toolbar, { borderTopColor: theme.border }]}>
