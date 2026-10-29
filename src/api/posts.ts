@@ -30,7 +30,34 @@ export const savePost = (postId: string) =>
     method: 'POST',
   });
 
-export const getEmojis = () => request<{ data: EmojiItem[] }>('/emojis');
+export interface GetEmojisParams {
+  /** Tìm theo name/keywords/code (server LIKE). */
+  q?: string;
+  /** Lọc category (vd "smileys") — bỏ qua khi có q. */
+  category?: string;
+  /** limit (server max 100, default 50). */
+  limit?: number;
+  offset?: number;
+  /** "reactions" = 10 emoji quick-react. */
+  scope?: 'reactions';
+}
+
+export interface EmojisResponse {
+  data: EmojiItem[];
+  total: number;
+  has_more: boolean;
+}
+
+export const getEmojis = (params?: GetEmojisParams) => {
+  const query = new URLSearchParams();
+  if (params?.q) query.set('q', params.q);
+  if (params?.category) query.set('category', params.category);
+  if (params?.limit != null) query.set('limit', String(params.limit));
+  if (params?.offset != null) query.set('offset', String(params.offset));
+  if (params?.scope) query.set('scope', params.scope);
+  const qs = query.toString();
+  return request<EmojisResponse>(`/emojis${qs ? `?${qs}` : ''}`);
+};
 
 export const setCommentsEnabled = (postId: string, enabled: boolean) =>
   request<{ message: string; data: FeedPost }>(`/posts/${postId}/comments`, {

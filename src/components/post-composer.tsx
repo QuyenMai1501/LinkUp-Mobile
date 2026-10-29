@@ -32,10 +32,9 @@ import { getMyProfile } from '@/api/profile';
 import { createPost } from '@/api/posts';
 import { search } from '@/api/search';
 import { navigateToProfile } from '@/utils/profile-nav';
-import type { EmojiOption } from '@/api/emojifyi';
 import type { GiphyGif } from '@/api/giphy';
 import type { HashtagSearchResult } from '@/types/search';
-import type { PostStatus, FeedPost } from '@/types/post';
+import type { EmojiItem, PostStatus, FeedPost } from '@/types/post';
 import type { ViewProfileResponse } from '@/types/profile';
 
 const CONTENT_MAX = 5000;
@@ -265,7 +264,7 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
     setMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const insertEmoji = (emoji: EmojiOption) => {
+  const insertEmoji = (emoji: EmojiItem) => {
     // Chèn ký tự emoji unicode — TextInput hiển thị trực tiếp, nối tiếp được nhiều emoji.
     // (Emoji picker blur input → caret luôn ở cuối; giữ contentTextRef đồng bộ với state.)
     const next = contentTextRef.current + emoji.character;

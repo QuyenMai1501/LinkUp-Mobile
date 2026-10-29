@@ -5,126 +5,115 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 
+import { getEmojis } from '@/api/posts';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
-import {
-  fetchCategoryEmojis,
-  fetchEmojiCategories,
-  prefetchCategoryEmojis,
-  searchEmojis,
-  type EmojiCategory,
-  type EmojiOption,
-} from '@/api/emojifyi';
+import type { EmojiItem } from '@/types/post';
 
 interface Props {
   onClose: () => void;
-  onSelect: (emoji: EmojiOption) => void;
+  onSelect: (emoji: EmojiItem) => void;
 }
 
 const COLUMNS = 8;
 const DEBOUNCE_MS = 400;
+const PAGE_SIZE = 60;
 /** Chiều cao panel inline (đặt trên ô nhập — không che composer). */
 const PANEL_HEIGHT = 280;
 const TAB_BAR_HEIGHT = 44;
-/** Prefetch nền: delay đầu né animation mở panel, gap giữa 2 request. */
-const PREFETCH_DELAY_MS = 400;
-const PREFETCH_GAP_MS = 250;
+
+/** Tab category — khớp seed server (mirror web EMOJI_CATEGORIES). */
+const CATEGORIES = [
+  { id: 'smileys', icon: '😀', label: 'Smileys' },
+  { id: 'people', icon: '👋', label: 'People' },
+  { id: 'nature', icon: '🌿', label: 'Nature' },
+  { id: 'food', icon: '🍔', label: 'Food' },
+  { id: 'travel', icon: '✈️', label: 'Travel' },
+  { id: 'activity', icon: '⚽', label: 'Activity' },
+  { id: 'objects', icon: '💡', label: 'Objects' },
+  { id: 'symbols', icon: '❤️', label: 'Symbols' },
+  { id: 'flags', icon: '🏳️', label: 'Flags' },
+] as const;
 
 export function EmojiPicker({ onClose, onSelect }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [query, setQuery] = useState('');
-  const [categories, setCategories] = useState<EmojiCategory[]>([]);
-  const [activeSlug, setActiveSlug] = useState<string | null>(null);
-  const [items, setItems] = useState<EmojiOption[]>([]);
+  const [activeCat, setActiveCat] = useState<string>(CATEGORIES[0].id);
+  const [items, setItems] = useState<EmojiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const requestIdRef = useRef(0);
+  const offsetRef = useRef(0);
+  const loadingRef = useRef(false);
+  const itemsRef = useRef<EmojiItem[]>([]);
   /** slug category đang chọn — đọc stale trong effect search mà không re-trigger. */
-  const activeSlugRef = useRef<string | null>(null);
+  const activeCatRef = useRef<string>(CATEGORIES[0].id);
   /** Đã chạy search ít nhất 1 lần — phân biệt "mở panel" vs "xóa ô search". */
   const didSearchRef = useRef(false);
-  /** Đã kick prefetch nền cho phiên mở panel này. */
-  const prefetchedRef = useRef(false);
+  /** Cache tích lũy per-category — mở lại tab là tức thì, infinite scroll tiếp tục. */
+  const catCacheRef = useRef(new Map<string, { items: EmojiItem[]; hasMore: boolean }>());
 
   const searching = query.trim().length > 0;
 
-  /** Nạp emoji của 1 category (cache per-slug — mở lại là tức thì). */
-  const loadCategory = useCallback(
-    (slug: string) => {
-      const id = ++requestIdRef.current;
-      setLoading(true);
-      // Xóa lưới ngay -> spinner hiện liền khi đổi tab (hết hiện emoji category cũ).
-      setItems([]);
-      fetchCategoryEmojis(slug)
-        .then((res) => {
-          if (requestIdRef.current !== id) return;
-          setItems(res);
-          setError(null);
-        })
-        .catch(() => {
-          if (requestIdRef.current === id) setError(t('chat.emojiUnavailable'));
-        })
-        .finally(() => {
-          if (requestIdRef.current === id) setLoading(false);
-        });
-    },
-    [t],
-  );
+  const setLoadingBoth = useCallback((v: boolean) => {
+    loadingRef.current = v;
+    setLoading(v);
+  }, []);
 
-  /** Search (debounce gọi từ effect) — kết quả phẳng, tối đa 50 kq. */
-  const runSearch = useCallback(
-    (term: string) => {
+  /** Nạp/trang tiếp theo: q (search) hoặc category (browse). offset 0 = thay lưới. */
+  const load = useCallback(
+    (cat: string, term: string, offset: number) => {
       const id = ++requestIdRef.current;
-      setLoading(true);
-      searchEmojis(term)
-        .then((res) => {
-          if (requestIdRef.current !== id) return;
-          setItems(res);
-          setError(null);
-        })
-        .catch(() => {
-          if (requestIdRef.current === id) setError(t('chat.emojiUnavailable'));
-        })
-        .finally(() => {
-          if (requestIdRef.current === id) setLoading(false);
-        });
-    },
-    [t],
-  );
-
-  /** Panel mount = đang mở -> lấy danh sách category rồi nạp category đầu.
-   *  Không setLoading đồng bộ trong này (state khởi tạo đã loading=true) —
-   *  tránh lỗi react-hooks/set-state-in-effect. */
-  const bootstrap = useCallback(() => {
-    const id = ++requestIdRef.current;
-    fetchEmojiCategories()
-      .then((cats) => {
-        if (requestIdRef.current !== id) return;
-        setCategories(cats);
-        const first = cats[0];
-        if (first) {
-          activeSlugRef.current = first.slug;
-          setActiveSlug(first.slug);
-          loadCategory(first.slug);
-        } else {
-          setLoading(false);
-        }
+      setLoadingBoth(true);
+      setError(null);
+      getEmojis({
+        q: term || undefined,
+        category: term ? undefined : cat,
+        limit: PAGE_SIZE,
+        offset,
       })
-      .catch(() => {
-        if (requestIdRef.current === id) {
-          setError(t('chat.emojiUnavailable'));
-          setLoading(false);
-        }
-      });
-  }, [loadCategory, t]);
+        .then((res) => {
+          if (requestIdRef.current !== id) return;
+          const merged = offset === 0 ? res.data : [...itemsRef.current, ...res.data];
+          itemsRef.current = merged;
+          setItems(merged);
+          setHasMore(res.has_more);
+          offsetRef.current = merged.length;
+          if (!term) catCacheRef.current.set(cat, { items: merged, hasMore: res.has_more });
+          setError(null);
+        })
+        .catch(() => {
+          if (requestIdRef.current === id) setError(t('chat.emojiUnavailable'));
+        })
+        .finally(() => {
+          if (requestIdRef.current === id) setLoadingBoth(false);
+        });
+    },
+    [setLoadingBoth, t],
+  );
+
+  const restoreCategory = useCallback(
+    (cat: string) => {
+      requestIdRef.current++; // hủy request đang chạy
+      const hit = catCacheRef.current.get(cat);
+      itemsRef.current = hit?.items ?? [];
+      setItems(itemsRef.current);
+      setHasMore(hit?.hasMore ?? false);
+      offsetRef.current = itemsRef.current.length;
+      setLoadingBoth(false);
+      setError(null);
+    },
+    [setLoadingBoth],
+  );
 
   // Đóng panel -> hủy request đang chạy (state tự reset khi unmount).
   const closePicker = useCallback(() => {
@@ -132,30 +121,12 @@ export function EmojiPicker({ onClose, onSelect }: Props) {
     onClose();
   }, [onClose]);
 
+  // Mở panel = load category đầu (defer 1 tick tránh setState đồng bộ trong effect).
   useEffect(() => {
-    bootstrap();
+    const timer = setTimeout(() => load(activeCatRef.current, '', 0), 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Prefetch nền toàn bộ category (1 lần khi panel mở) — ghi vào cache module-level,
-  // KHÔNG setState nên không ảnh hưởng grid/search/request guard. Đóng panel giữa chừng
-  // thì dừng, phần đã tải vẫn còn cache, lần mở sau tiếp tục (cache hit -> không network).
-  useEffect(() => {
-    if (!categories.length || prefetchedRef.current) return;
-    prefetchedRef.current = true;
-    let index = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const tick = () => {
-      const cat = categories[index++];
-      if (!cat) return;
-      prefetchCategoryEmojis(cat.slug);
-      timer = setTimeout(tick, PREFETCH_GAP_MS);
-    };
-    timer = setTimeout(tick, PREFETCH_DELAY_MS);
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [categories]);
 
   // Debounced search — xóa hết ô search -> quay về category đang chọn (cache).
   useEffect(() => {
@@ -163,42 +134,44 @@ export function EmojiPicker({ onClose, onSelect }: Props) {
     if (!term) {
       if (didSearchRef.current) {
         didSearchRef.current = false;
-        const slug = activeSlugRef.current;
-        if (slug) loadCategory(slug);
+        const cat = activeCatRef.current;
+        if (catCacheRef.current.has(cat)) restoreCategory(cat);
+        else load(cat, '', 0);
       }
       return;
     }
     const timeout = setTimeout(() => {
       didSearchRef.current = true;
-      runSearch(term);
+      load(activeCatRef.current, term, 0);
     }, DEBOUNCE_MS);
     return () => clearTimeout(timeout);
-  }, [query, loadCategory, runSearch]);
+  }, [load, query, restoreCategory]);
 
-  const selectCategory = (slug: string) => {
-    if (slug === activeSlugRef.current) return;
-    activeSlugRef.current = slug;
-    setActiveSlug(slug);
-    loadCategory(slug);
+  const selectCategory = (cat: string) => {
+    if (cat === activeCatRef.current) return;
+    activeCatRef.current = cat;
+    setActiveCat(cat);
+    if (catCacheRef.current.has(cat)) restoreCategory(cat);
+    else {
+      itemsRef.current = [];
+      setItems([]);
+      load(cat, '', 0);
+    }
   };
+
+  const onEndReached = useCallback(() => {
+    if (loadingRef.current || !hasMore || error) return;
+    load(activeCatRef.current, didSearchRef.current ? query.trim() : '', offsetRef.current);
+  }, [error, hasMore, load, query]);
 
   // Thử lại sau lỗi — theo ngữ cảnh đang search hay đang ở category.
   const retry = () => {
     const term = query.trim();
-    if (term) {
-      runSearch(term);
-      return;
-    }
-    const slug = activeSlugRef.current;
-    if (slug) loadCategory(slug);
-    else {
-      setLoading(true); // event handler — đồng bộ OK, không ở trong effect
-      bootstrap();
-    }
+    load(activeCatRef.current, term, 0);
   };
 
   // Chọn emoji -> GIỮ panel mở để nhập nhiều emoji liên tiếp; đóng bằng ✕ hoặc bấm lại nút emoji.
-  const handleSelect = (emoji: EmojiOption) => {
+  const handleSelect = (emoji: EmojiItem) => {
     onSelect(emoji);
   };
 
@@ -234,18 +207,21 @@ export function EmojiPicker({ onClose, onSelect }: Props) {
         </Pressable>
       ) : (
         <FlatList
-          key={searching ? 'search' : (activeSlug ?? 'category')}
+          key={searching ? 'search' : activeCat}
           style={styles.gridFlex}
           data={items}
           keyExtractor={(item) => item.id}
           numColumns={COLUMNS}
           contentContainerStyle={styles.grid}
+          keyboardShouldPersistTaps="handled"
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.4}
           ListFooterComponent={
-            <View>
-              <ThemedText themeColor="textSecondary" style={styles.attribution}>
-                Powered by EmojiFYI
-              </ThemedText>
-            </View>
+            loading && items.length > 0 ? (
+              <View style={styles.loading}>
+                <ActivityIndicator color={theme.primary} />
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             loading ? (
@@ -259,28 +235,33 @@ export function EmojiPicker({ onClose, onSelect }: Props) {
             )
           }
           renderItem={({ item }) => (
-            <Pressable style={styles.emojiItem} onPress={() => handleSelect(item)}>
-              <Image source={{ uri: item.preview }} style={styles.emojiImg} contentFit="contain" />
+            <Pressable
+              style={styles.emojiItem}
+              onPress={() => handleSelect(item)}
+              accessibilityLabel={item.name || item.code}>
+              <Text style={styles.emojiChar} numberOfLines={1}>
+                {item.character || item.code}
+              </Text>
             </Pressable>
           )}
         />
       )}
 
       {/* Tab bar category — ẩn khi search (kết quả search gộp nhiều category) */}
-      {!searching && !error && categories.length > 0 && (
+      {!searching && !error && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={[styles.tabBar, { borderTopColor: theme.border }]}
           contentContainerStyle={styles.tabBarContent}>
-          {categories.map((cat) => {
-            const active = cat.slug === activeSlug;
+          {CATEGORIES.map((cat) => {
+            const active = cat.id === activeCat;
             return (
               <Pressable
-                key={cat.slug}
-                onPress={() => selectCategory(cat.slug)}
+                key={cat.id}
+                onPress={() => selectCategory(cat.id)}
                 accessibilityRole="tab"
-                accessibilityLabel={cat.name}
+                accessibilityLabel={cat.label}
                 accessibilityState={{ selected: active }}
                 hitSlop={4}
                 style={[
@@ -344,9 +325,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     padding: 2,
   },
-  emojiImg: {
-    width: '100%',
-    height: '100%',
+  emojiChar: {
+    fontSize: 24,
+    lineHeight: 30,
+    textAlign: 'center',
   },
   loading: {
     paddingVertical: Spacing.md,
@@ -367,11 +349,6 @@ const styles = StyleSheet.create({
   retryHint: {
     fontSize: 12,
     textDecorationLine: 'underline',
-  },
-  attribution: {
-    textAlign: 'center',
-    fontSize: 11,
-    paddingVertical: Spacing.sm,
   },
   tabBar: {
     flexGrow: 0,

@@ -1,4 +1,4 @@
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
@@ -128,7 +128,7 @@ export default function StoryStatsModal({
                       )}
                     </View>
                     {emoji && (
-                      <Image source={{ uri: emoji.image_uri }} style={styles.viewerEmoji} contentFit="contain" />
+                      <Text style={styles.viewerEmoji}>{emoji.character || emoji.code}</Text>
                     )}
                   </View>
                 );
@@ -230,8 +230,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  viewerEmoji: {
-    width: 24,
-    height: 24,
-  },
+    viewerEmoji: {
+      fontSize: 20,
+      lineHeight: 24,
+      textAlign: 'center',
+    },
 });

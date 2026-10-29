@@ -1,5 +1,5 @@
 // ===== GIPHY API client dùng chung (Mobile) — chỉ dùng cho GIF =====
-// Emoji đã chuyển sang emojifyi.com (api/emojifyi.ts).
+// Emoji lấy từ DB server (GET /emojis — api/posts.ts); api/emojifyi.ts chỉ giữ nhận diện URL legacy.
 // Các helper URL GIPHY bên dưới GIỮ NGUYÊN cho nội dung cũ đã lưu trong DB
 // (post/tin nhắn chứa URL media*.giphy.com) + GIF đính kèm.
 // Endpoint GIF đã kiểm chứng: v1/gifs/trending | v1/gifs/search.

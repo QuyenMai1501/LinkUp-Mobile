@@ -1,5 +1,4 @@
-import { Image } from 'expo-image';
-import { Clipboard, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Clipboard, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -108,12 +107,9 @@ export function MessageActions({
                       onReact?.(message.id, emoji.id);
                       onClose();
                     }}>
-                    <Image
-                      source={{ uri: emoji.image_uri }}
-                      style={styles.quickEmojiImg}
-                      contentFit="contain"
-                      transition={150}
-                    />
+                    <Text style={styles.quickEmojiChar}>
+                      {emoji.character || emoji.code}
+                    </Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -254,10 +250,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 3,
   },
-  quickEmojiImg: {
-    width: 26,
-    height: 26,
-  },
+    quickEmojiChar: {
+      fontSize: 24,
+      lineHeight: 26,
+    },
   actionLabel: {
     fontSize: 15,
   },

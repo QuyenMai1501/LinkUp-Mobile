@@ -7,6 +7,7 @@ import {
   Pressable,
   Share,
   StyleSheet,
+  Text,
   TextInput,
   View
 } from 'react-native';
@@ -474,7 +475,9 @@ export default function StoryViewer({
             <View style={styles.reactionBar}>
               {reactionEmojis.map((e) => (
                 <Pressable key={e.id} style={styles.reactBtn} onPress={() => handleReact(e)}>
-                  <Image source={{ uri: e.image_uri }} style={styles.reactImg} contentFit="contain" />
+                  <Text style={styles.reactChar}>
+                    {'character' in e ? e.character : e.emoji}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -486,7 +489,9 @@ export default function StoryViewer({
           {/* Reaction burst */}
           {burst && (
             <Animated.View style={[styles.burst, { opacity: burstOpacity, bottom: actionBottom + 56 }]} pointerEvents="none">
-              <Image source={{ uri: burst.emoji.image_uri }} style={styles.burstImg} contentFit="contain" />
+              <Text style={styles.burstChar}>
+                {'character' in burst.emoji ? burst.emoji.character : burst.emoji.emoji}
+              </Text>
             </Animated.View>
           )}
 
@@ -663,9 +668,10 @@ const styles = StyleSheet.create({
   reactBtn: {
     padding: 2,
   },
-  reactImg: {
-    width: 28,
-    height: 28,
+  reactChar: {
+    fontSize: 24,
+    lineHeight: 28,
+    textAlign: 'center',
   },
   shareBtn: {
     padding: 6,
@@ -675,9 +681,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
   },
-  burstImg: {
-    width: 64,
-    height: 64,
+  burstChar: {
+    fontSize: 56,
+    lineHeight: 64,
+    textAlign: 'center',
   },
   replyBar: {
     position: 'absolute',
