@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -178,7 +179,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
       return (
         <View style={styles.list}>
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-            <View
+            <Animated.View
               key={i}
               style={[
                 styles.row,
@@ -190,7 +191,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
               ]}>
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.bgSecondary }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
-            </View>
+            </Animated.View>
           ))}
         </View>
       );

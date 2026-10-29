@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import { showAlert } from '@/utils/alert';
@@ -145,7 +145,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
 
       {rules === null && !loadError ? (
         Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-          <View
+          <Animated.View
             key={i}
             style={[
               styles.ruleCard,
@@ -157,7 +157,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
             ]}>
             <View style={[styles.ruleNum, { backgroundColor: theme.bgSecondary }]} />
             <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
-          </View>
+          </Animated.View>
         ))
       ) : loadError && list.length === 0 ? (
         <View style={styles.stateWrap}>

@@ -17,15 +17,33 @@ interface CommunityCardProps {
   community: CommunityListItem;
   onPress: (community: CommunityListItem) => void;
   style?: StyleProp<ViewStyle>;
+  /** Báo cha cập nhật list sau khi join xong (card remount vẫn đúng nhờ prop). */
+  onJoinedCommunity?: (communityId: string, status: 'member' | 'pending') => void;
 }
 
-export default function CommunityCard({ community, onPress, style }: CommunityCardProps) {
+/** membership_status của server → trạng thái badge trên card. */
+function statusFromServer(status: CommunityListItem['membership_status']): 'member' | 'pending' | null {
+  if (status === 'member' || status === 'creator') return 'member';
+  if (status === 'pending') return 'pending';
+  return null;
+}
+
+export default function CommunityCard({ community, onPress, style, onJoinedCommunity }: CommunityCardProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [joining, setJoining] = useState(false);
-  const [joinedStatus, setJoinedStatus] = useState<'member' | 'pending' | null>(null);
+  const [joinedStatus, setJoinedStatus] = useState<'member' | 'pending' | null>(() =>
+    statusFromServer(community.membership_status),
+  );
   const [codeOpen, setCodeOpen] = useState(false);
   const [coverError, setCoverError] = useState(false);
+
+  // Sync khi prop membership_status thay đổi (parent update items sau join).
+  const [prevServerStatus, setPrevServerStatus] = useState(community.membership_status);
+  if (community.membership_status !== prevServerStatus) {
+    setPrevServerStatus(community.membership_status);
+    setJoinedStatus(statusFromServer(community.membership_status));
+  }
 
   const cover = !coverError && community.background_uri ? community.background_uri : null;
   const isPublic = community.privacy === 'public';
@@ -35,17 +53,23 @@ export default function CommunityCard({ community, onPress, style }: CommunityCa
     setJoining(true);
     try {
       const res = await joinCommunity(community.id);
-      setJoinedStatus(res.request_id ? 'pending' : 'member');
+      const status = res.request_id ? 'pending' : 'member';
+      setJoinedStatus(status);
+      onJoinedCommunity?.(community.id, status);
     } catch (err) {
       showAlert(t('common.error'), communityErrorText(err, t('communities.joinError')));
     } finally {
       setJoining(false);
     }
-  }, [community.id, joinedStatus, joining, t]);
+  }, [community.id, joinedStatus, joining, onJoinedCommunity, t]);
 
-  const handleJoined = useCallback((status: 'member' | 'pending') => {
-    setJoinedStatus(status);
-  }, []);
+  const handleJoined = useCallback(
+    (status: 'member' | 'pending') => {
+      setJoinedStatus(status);
+      onJoinedCommunity?.(community.id, status);
+    },
+    [community.id, onJoinedCommunity],
+  );
 
   const renderAction = () => {
     if (community.is_creator) {

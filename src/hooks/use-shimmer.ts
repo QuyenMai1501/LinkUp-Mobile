@@ -1,3 +1,5 @@
+'use no memo';
+
 import { useEffect, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
@@ -5,7 +7,10 @@ import { Animated, Easing } from 'react-native';
  * Skeleton shimmer — mirror web `.skeleton` keyframes (globals.css):
  * opacity 0.4 → 0.8 → 0.4, 1.5s ease-in-out infinite.
  *
- * Trả về Animated.Value để đặt vào style của Animated.View skeleton.
+ * 'use no memo': React Compiler DEV freeze giá trị ref (Animated.Value)
+ * → RN ghi property `_tracking` mới khi start animation → TypeError
+ * "Cannot add new property '_tracking'". Opt-out khỏi compiler.
+ * Instance ổn định qua lazy useState (không dùng useRef().current trong render).
  */
 export function useShimmer(): Animated.Value {
   const [opacity] = useState(() => new Animated.Value(0.4));

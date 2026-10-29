@@ -1,31 +1,37 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from "react";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import { communityErrorText, getCommunityDetail } from '@/api/communities';
-import AboutCard from '@/components/communities/about-card';
-import CommunityFeed from '@/components/communities/community-feed';
-import CommunityHeader from '@/components/communities/community-header';
-import { JoinCodeModal } from '@/components/communities/join-code-modal';
-import ManageTab from '@/components/communities/manage-tab';
-import MemberList from '@/components/communities/member-list';
-import RuleList from '@/components/communities/rule-list';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Icon } from '@/components/ui/icon';
-import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
-import { useTheme } from '@/hooks/use-theme';
-import { useShimmer } from '@/hooks/use-shimmer';
-import { useTranslation } from '@/hooks/useTranslation';
+import { communityErrorText, getCommunityDetail } from "@/api/communities";
+import AboutCard from "@/components/communities/about-card";
+import CommunityFeed from "@/components/communities/community-feed";
+import CommunityHeader from "@/components/communities/community-header";
+import { JoinCodeModal } from "@/components/communities/join-code-modal";
+import ManageTab from "@/components/communities/manage-tab";
+import MemberList from "@/components/communities/member-list";
+import RuleList from "@/components/communities/rule-list";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Icon } from "@/components/ui/icon";
+import { Spacing } from "@/constants/spacing";
+import { Typography } from "@/constants/typography";
+import { useTheme } from "@/hooks/use-theme";
+import { useShimmer } from "@/hooks/use-shimmer";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   isCommunityPrivileged,
   type CommunityDetail,
   type MembershipStatus,
-} from '@/types/community';
+} from "@/types/community";
 
-type Tab = 'posts' | 'members' | 'rules' | 'manage';
+type Tab = "posts" | "members" | "rules" | "manage";
 
 export default function CommunityDetailScreen() {
   const { communityId } = useLocalSearchParams<{ communityId: string }>();
@@ -33,7 +39,9 @@ export default function CommunityDetailScreen() {
 
   if (!communityId) return null;
 
-  return <DetailBody key={communityId} communityId={communityId} router={router} />;
+  return (
+    <DetailBody key={communityId} communityId={communityId} router={router} />
+  );
 }
 
 function DetailBody({
@@ -50,8 +58,10 @@ function DetailBody({
   const [detail, setDetail] = useState<CommunityDetail | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusOverride, setStatusOverride] = useState<MembershipStatus | null>(null);
-  const [tab, setTab] = useState<Tab>('posts');
+  const [statusOverride, setStatusOverride] = useState<MembershipStatus | null>(
+    null,
+  );
+  const [tab, setTab] = useState<Tab>("posts");
   const [codeOpen, setCodeOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -60,7 +70,7 @@ function DetailBody({
       setDetail(res);
       setError(null);
     } catch (err) {
-      setError(communityErrorText(err, t('communities.detailNotFound')));
+      setError(communityErrorText(err, t("communities.detailNotFound")));
     } finally {
       setInitialLoading(false);
     }
@@ -82,23 +92,29 @@ function DetailBody({
 
   const goBackToList = useCallback(() => {
     if (router.canGoBack()) router.back();
-    else (router as any).replace('/(drawer)/communities');
+    else (router as any).replace("/(drawer)/communities");
   }, [router]);
 
   if (initialLoading) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
           <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
             <Pressable style={styles.iconBtn} onPress={() => router.back()}>
               <Icon name="chevronLeft" size={22} color={theme.text} />
             </Pressable>
             <ThemedText style={styles.topTitle} numberOfLines={1}>
-              {t('communities.title')}
+              {t("communities.title")}
             </ThemedText>
           </View>
-          <View style={[styles.skeletonHeader, { opacity: shimmer }]}>
-            <View style={[styles.skeletonCover, { backgroundColor: theme.bgSecondary }]} />
+
+          <Animated.View style={[styles.skeletonHeader, { opacity: shimmer }]}>
+            <View
+              style={[
+                styles.skeletonCover,
+                { backgroundColor: theme.bgSecondary },
+              ]}
+            />
             <View style={styles.skeletonInfo}>
               <View
                 style={[
@@ -106,10 +122,20 @@ function DetailBody({
                   { backgroundColor: theme.bgHover, borderColor: theme.card },
                 ]}
               />
-              <View style={[styles.skeletonLine, { backgroundColor: theme.bgHover, width: '60%' }]} />
-              <View style={[styles.skeletonLine, { backgroundColor: theme.bgHover, width: '40%' }]} />
+              <View
+                style={[
+                  styles.skeletonLine,
+                  { backgroundColor: theme.bgHover, width: "60%" },
+                ]}
+              />
+              <View
+                style={[
+                  styles.skeletonLine,
+                  { backgroundColor: theme.bgHover, width: "40%" },
+                ]}
+              />
             </View>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </ThemedView>
     );
@@ -118,19 +144,19 @@ function DetailBody({
   if (error || !detail) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
           <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
             <Pressable style={styles.iconBtn} onPress={() => router.back()}>
               <Icon name="chevronLeft" size={22} color={theme.text} />
             </Pressable>
             <ThemedText style={styles.topTitle} numberOfLines={1}>
-              {t('communities.title')}
+              {t("communities.title")}
             </ThemedText>
           </View>
           <View style={styles.centerContent}>
             <Icon name="warning" size={48} color={theme.accent} />
             <ThemedText style={styles.errorTitle}>
-              {error ?? t('communities.detailNotFound')}
+              {error ?? t("communities.detailNotFound")}
             </ThemedText>
             <Pressable
               onPress={() => {
@@ -142,11 +168,14 @@ function DetailBody({
                 { backgroundColor: theme.primary },
                 pressed && styles.pressed,
               ]}>
-              <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('common.retry')}</ThemedText>
+              <ThemedText
+                style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>
+                {t("common.retry")}
+              </ThemedText>
             </Pressable>
             <Pressable onPress={goBackToList} hitSlop={6}>
               <ThemedText style={[styles.linkBtn, { color: theme.primary }]}>
-                {t('communities.backToList')}
+                {t("communities.backToList")}
               </ThemedText>
             </Pressable>
           </View>
@@ -156,45 +185,71 @@ function DetailBody({
   }
 
   const effective: CommunityDetail =
-    statusOverride === null ? detail : { ...detail, membership_status: statusOverride };
+    statusOverride === null
+      ? detail
+      : { ...detail, membership_status: statusOverride };
   const status = effective.membership_status;
-  const isMember = status === 'member' || status === 'admin' || status === 'creator';
-  const isPrivileged = isCommunityPrivileged(status, effective.user_member_role);
-  const activeTab: Tab = tab === 'manage' && !isPrivileged ? 'posts' : tab;
+  const isMember =
+    status === "member" || status === "admin" || status === "creator";
+  const isPrivileged = isCommunityPrivileged(
+    status,
+    effective.user_member_role,
+  );
+  const activeTab: Tab = tab === "manage" && !isPrivileged ? "posts" : tab;
 
   const tabs: { key: Tab; labelKey: string }[] = [
-    { key: 'posts', labelKey: 'communities.posts' },
-    { key: 'members', labelKey: 'communities.memberList' },
-    { key: 'rules', labelKey: 'communities.rules' },
+    { key: "posts", labelKey: "communities.posts" },
+    { key: "members", labelKey: "communities.memberList" },
+    { key: "rules", labelKey: "communities.rules" },
   ];
-  if (isPrivileged) tabs.push({ key: 'manage', labelKey: 'communities.manage' });
+  if (isPrivileged)
+    tabs.push({ key: "manage", labelKey: "communities.manage" });
 
   const renderPostsTab = () => {
+    // Header lớn sẽ scroll theo
+    const headerBlock = (
+      <>
+        <CommunityHeader
+          community={effective}
+          onStatusChange={handleStatusChange}
+          onRequestCode={() => setCodeOpen(true)}
+        />
+        <AboutCard community={effective} onGoTab={setTab} />
+      </>
+    );
+
     if (!isMember) {
       return (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.locked, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {headerBlock}
+          <View
+            style={[
+              styles.locked,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}>
             <Icon name="lock" size={44} color={theme.primary} />
-            <ThemedText style={styles.lockedTitle}>{t('communities.lockedTitle')}</ThemedText>
+            <ThemedText style={styles.lockedTitle}>
+              {t("communities.lockedTitle")}
+            </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.lockedHint}>
-              {t('communities.lockedHint')}
+              {t("communities.lockedHint")}
             </ThemedText>
           </View>
-          <AboutCard community={effective} onGoTab={setTab} />
         </ScrollView>
       );
     }
+
     return (
       <CommunityFeed
         communityId={communityId}
-        header={<AboutCard community={effective} onGoTab={setTab} />}
+        header={headerBlock} // ← đưa cả CommunityHeader + AboutCard vào đây
       />
     );
   };
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <SafeAreaView edges={["top"]} style={styles.safeArea}>
         {/* Top bar */}
         <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
           <Pressable style={styles.iconBtn} onPress={() => router.back()}>
@@ -204,13 +259,6 @@ function DetailBody({
             {effective.name}
           </ThemedText>
         </View>
-
-        {/* Header */}
-        <CommunityHeader
-          community={effective}
-          onStatusChange={handleStatusChange}
-          onRequestCode={() => setCodeOpen(true)}
-        />
 
         {/* Tabs */}
         <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
@@ -222,7 +270,10 @@ function DetailBody({
                 onPress={() => setTab(item.key)}
                 style={[
                   styles.tabItem,
-                  isActive && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
+                  isActive && {
+                    borderBottomColor: theme.primary,
+                    borderBottomWidth: 2,
+                  },
                 ]}>
                 <ThemedText
                   numberOfLines={1}
@@ -241,14 +292,14 @@ function DetailBody({
 
         {/* Content */}
         <View style={styles.content}>
-          {activeTab === 'posts' && renderPostsTab()}
-          {activeTab === 'members' && (
+          {activeTab === "posts" && renderPostsTab()}
+          {activeTab === "members" && (
             <MemberList communityId={communityId} isAdmin={isPrivileged} />
           )}
-          {activeTab === 'rules' && (
+          {activeTab === "rules" && (
             <RuleList communityId={communityId} isAdmin={isPrivileged} />
           )}
-          {activeTab === 'manage' && (
+          {activeTab === "manage" && (
             <ManageTab
               communityId={communityId}
               community={effective}
@@ -275,8 +326,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderBottomWidth: 1,
@@ -286,35 +337,35 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   topTitle: {
     ...Typography.body,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     flex: 1,
     paddingRight: Spacing.sm,
   },
   tabBar: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderBottomWidth: 1,
   },
   tabItem: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.sm,
     borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
     paddingHorizontal: Spacing.xs,
   },
   tabLabel: {
     ...Typography.body,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 18,
-    textAlign: 'center',
+    textAlign: "center",
   },
   content: {
     flex: 1,
@@ -329,30 +380,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.sm,
   },
   lockedTitle: {
     ...Typography.h2,
     fontSize: 17,
-    textAlign: 'center',
+    textAlign: "center",
   },
   lockedHint: {
     ...Typography.body,
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   centerContent: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.sm,
     paddingHorizontal: Spacing.xl,
   },
   errorTitle: {
     ...Typography.h2,
     fontSize: 17,
-    textAlign: 'center',
+    textAlign: "center",
   },
   primaryBtn: {
     marginTop: Spacing.sm,
@@ -362,22 +413,22 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     ...Typography.body,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   linkBtn: {
     ...Typography.body,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   pressed: {
     opacity: 0.7,
   },
   skeletonHeader: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   skeletonCover: {
     height: 140,
-    width: '100%',
+    width: "100%",
   },
   skeletonInfo: {
     paddingHorizontal: Spacing.md,
