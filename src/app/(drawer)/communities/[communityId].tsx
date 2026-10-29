@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -9,18 +10,25 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import { communityErrorText, getCommunityDetail } from "@/api/communities";
+import { showAlert } from "@/utils/alert";
+import {
+  communityErrorText,
+  getCommunityDetail,
+  joinCommunity,
+} from "@/api/communities";
 import AboutCard from "@/components/communities/about-card";
+import ChallengesTab from "@/components/communities/challenges-tab";
 import CommunityFeed from "@/components/communities/community-feed";
 import CommunityHeader from "@/components/communities/community-header";
 import { JoinCodeModal } from "@/components/communities/join-code-modal";
+import LeaderboardTab from "@/components/communities/leaderboard-tab";
 import ManageTab from "@/components/communities/manage-tab";
 import MemberList from "@/components/communities/member-list";
 import RuleList from "@/components/communities/rule-list";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Icon } from "@/components/ui/icon";
-import { Spacing } from "@/constants/spacing";
+import { Radius, Spacing } from "@/constants/spacing";
 import { Typography } from "@/constants/typography";
 import { useTheme } from "@/hooks/use-theme";
 import { useShimmer } from "@/hooks/use-shimmer";
@@ -31,7 +39,13 @@ import {
   type MembershipStatus,
 } from "@/types/community";
 
-type Tab = "posts" | "members" | "rules" | "manage";
+type Tab =
+  | "posts"
+  | "challenges"
+  | "leaderboard"
+  | "members"
+  | "rules"
+  | "manage";
 
 export default function CommunityDetailScreen() {
   const { communityId } = useLocalSearchParams<{ communityId: string }>();
@@ -63,6 +77,7 @@ function DetailBody({
   );
   const [tab, setTab] = useState<Tab>("posts");
   const [codeOpen, setCodeOpen] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +104,27 @@ function DetailBody({
     },
     [load],
   );
+
+  // Join từ locked panel (mirror web JoinButton trong locked feed).
+  const handleLockedJoin = useCallback(async () => {
+    if (joining || !detail) return;
+    if (detail.privacy !== "public") {
+      setCodeOpen(true);
+      return;
+    }
+    setJoining(true);
+    try {
+      const res = await joinCommunity(detail.id);
+      handleStatusChange(res.request_id ? "pending" : "member");
+    } catch (err) {
+      showAlert(
+        t("common.error"),
+        communityErrorText(err, t("communities.joinError")),
+      );
+    } finally {
+      setJoining(false);
+    }
+  }, [joining, detail, handleStatusChange, t]);
 
   const goBackToList = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -199,21 +235,28 @@ function DetailBody({
 
   const tabs: { key: Tab; labelKey: string }[] = [
     { key: "posts", labelKey: "communities.posts" },
+    { key: "challenges", labelKey: "contribution.tabChallenges" },
+    { key: "leaderboard", labelKey: "contribution.tabLeaderboard" },
     { key: "members", labelKey: "communities.memberList" },
     { key: "rules", labelKey: "communities.rules" },
   ];
   if (isPrivileged)
     tabs.push({ key: "manage", labelKey: "communities.manage" });
 
+  // Header (cover + info) luôn hiện trên mọi tab — mirror web (page-level header).
+  const headerBlock = (
+    <CommunityHeader
+      community={effective}
+      onStatusChange={handleStatusChange}
+      onRequestCode={() => setCodeOpen(true)}
+    />
+  );
+
   const renderPostsTab = () => {
-    // Header lớn sẽ scroll theo
-    const headerBlock = (
+    // Header lớn sẽ scroll theo; AboutCard = rail phải của web (posts tab).
+    const postsHeader = (
       <>
-        <CommunityHeader
-          community={effective}
-          onStatusChange={handleStatusChange}
-          onRequestCode={() => setCodeOpen(true)}
-        />
+        {headerBlock}
         <AboutCard community={effective} onGoTab={setTab} />
       </>
     );
@@ -221,19 +264,66 @@ function DetailBody({
     if (!isMember) {
       return (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {headerBlock}
+          {postsHeader}
+          {/* Mirror web .locked: icon tròn + title + hint + CTA Join/Enter code */}
           <View
             style={[
               styles.locked,
               { backgroundColor: theme.card, borderColor: theme.border },
             ]}>
-            <Icon name="lock" size={44} color={theme.primary} />
+            <View
+              style={[
+                styles.lockedIcon,
+                { backgroundColor: theme.primaryLight },
+              ]}>
+              <Icon name="lock" size={30} color={theme.primary} />
+            </View>
             <ThemedText style={styles.lockedTitle}>
               {t("communities.lockedTitle")}
             </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.lockedHint}>
               {t("communities.lockedHint")}
             </ThemedText>
+            <View style={styles.lockedCtas}>
+              {effective.privacy !== "public" && (
+                <Pressable
+                  onPress={() => setCodeOpen(true)}
+                  style={({ pressed }) => [
+                    styles.lockedCta,
+                    { borderColor: theme.primary },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon name="key" size={14} color={theme.primary} />
+                  <ThemedText
+                    style={[styles.lockedCtaText, { color: theme.primary }]}>
+                    {t("communities.enterCode")}
+                  </ThemedText>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => void handleLockedJoin()}
+                disabled={joining}
+                style={({ pressed }) => [
+                  styles.lockedCta,
+                  {
+                    backgroundColor: theme.primary,
+                    borderColor: theme.primary,
+                  },
+                  (pressed || joining) && styles.pressed,
+                ]}>
+                {joining ? (
+                  <ActivityIndicator size="small" color={theme.textOnPrimary} />
+                ) : (
+                  <ThemedText
+                    style={[
+                      styles.lockedCtaText,
+                      { color: theme.textOnPrimary },
+                    ]}>
+                    {t("communities.join")}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       );
@@ -242,7 +332,7 @@ function DetailBody({
     return (
       <CommunityFeed
         communityId={communityId}
-        header={headerBlock} // ← đưa cả CommunityHeader + AboutCard vào đây
+        header={postsHeader} // ← đưa cả CommunityHeader + AboutCard vào đây
       />
     );
   };
@@ -260,8 +350,16 @@ function DetailBody({
           </ThemedText>
         </View>
 
-        {/* Tabs */}
-        <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
+        {/* Tabs — pill style mirror web (container pill + active primaryLight) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          removeClippedSubviews={false}
+          style={styles.tabBarScroll}
+          contentContainerStyle={[
+            styles.tabBar,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}>
           {tabs.map((item) => {
             const isActive = activeTab === item.key;
             return (
@@ -270,15 +368,10 @@ function DetailBody({
                 onPress={() => setTab(item.key)}
                 style={[
                   styles.tabItem,
-                  isActive && {
-                    borderBottomColor: theme.primary,
-                    borderBottomWidth: 2,
-                  },
+                  isActive && { backgroundColor: theme.primaryLight },
                 ]}>
                 <ThemedText
                   numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
                   style={[
                     styles.tabLabel,
                     { color: isActive ? theme.primary : theme.textSecondary },
@@ -288,16 +381,39 @@ function DetailBody({
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
-        {/* Content */}
+        {/* Content — header hiển thị trên mọi tab (mirror web page-level header) */}
         <View style={styles.content}>
           {activeTab === "posts" && renderPostsTab()}
+          {activeTab === "challenges" && (
+            <ChallengesTab
+              communityId={communityId}
+              isMember={isMember}
+              canManage={isPrivileged}
+              header={headerBlock}
+            />
+          )}
+          {activeTab === "leaderboard" && (
+            <LeaderboardTab
+              communityId={communityId}
+              isMember={isMember}
+              header={headerBlock}
+            />
+          )}
           {activeTab === "members" && (
-            <MemberList communityId={communityId} isAdmin={isPrivileged} />
+            <MemberList
+              communityId={communityId}
+              isAdmin={isPrivileged}
+              header={headerBlock}
+            />
           )}
           {activeTab === "rules" && (
-            <RuleList communityId={communityId} isAdmin={isPrivileged} />
+            <RuleList
+              communityId={communityId}
+              isAdmin={isPrivileged}
+              header={headerBlock}
+            />
           )}
           {activeTab === "manage" && (
             <ManageTab
@@ -347,18 +463,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: Spacing.sm,
   },
+  tabBarScroll: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    flexGrow: 0,
+  },
   tabBar: {
     flexDirection: "row",
-    borderBottomWidth: 1,
+    alignItems: "center",
+    gap: 2,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    padding: 4,
   },
   tabItem: {
-    flex: 1,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-    paddingHorizontal: Spacing.xs,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
   },
   tabLabel: {
     ...Typography.body,
@@ -383,6 +507,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
   },
+  lockedIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
+  },
   lockedTitle: {
     ...Typography.h2,
     fontSize: 17,
@@ -392,6 +524,28 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontSize: 14,
     textAlign: "center",
+  },
+  lockedCtas: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  lockedCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 3,
+    minHeight: 36,
+  },
+  lockedCtaText: {
+    ...Typography.caption,
+    fontWeight: "600",
   },
   centerContent: {
     flex: 1,

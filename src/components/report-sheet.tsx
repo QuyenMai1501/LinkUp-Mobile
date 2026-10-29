@@ -50,6 +50,7 @@ const TITLE_KEYS: Record<ReportTargetType, string> = {
   post: 'report.postTitle',
   comment: 'report.commentTitle',
   user: 'report.userTitle',
+  community: 'report.communityTitle',
 };
 
 interface Props {

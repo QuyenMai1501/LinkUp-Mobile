@@ -1,4 +1,4 @@
-export type ReportTargetType = 'post' | 'comment' | 'user';
+export type ReportTargetType = 'post' | 'comment' | 'user' | 'community';
 
 export interface ViolationRule {
   id: string;

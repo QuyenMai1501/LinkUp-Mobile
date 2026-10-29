@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
@@ -30,10 +30,12 @@ const CATEGORY_LABELS: Record<RuleCategory | 'other', string> = {
 interface RuleListProps {
   communityId: string;
   isAdmin: boolean;
+  /** CommunityHeader — scroll cùng list (mirror web page-level header). */
+  header?: ReactNode;
 }
 
 /** Port CommunityRules — nhóm quy tắc theo category, đánh số liên tục + CRUD (admin). */
-export default function RuleList({ communityId, isAdmin }: RuleListProps) {
+export default function RuleList({ communityId, isAdmin, header }: RuleListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const shimmer = useShimmer();
@@ -120,6 +122,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
       contentContainerStyle={styles.wrap}
       keyboardShouldPersistTaps="handled"
       style={styles.scroll}>
+      {header}
       {isAdmin &&
         (showForm ? (
           <RuleForm

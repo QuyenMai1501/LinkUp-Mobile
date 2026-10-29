@@ -112,6 +112,8 @@ export const icons = {
   moon: 'moon-outline' as const,
   sun: 'sunny-outline' as const,
   chevronDown: 'chevron-down-outline' as const,
+  trophy: 'trophy-outline' as const,
+  medal: 'medal-outline' as const,
 } as const;
 
 export type IconName = keyof typeof icons;
