@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import { showAlert } from '@/utils/alert';
@@ -30,10 +30,12 @@ const CATEGORY_LABELS: Record<RuleCategory | 'other', string> = {
 interface RuleListProps {
   communityId: string;
   isAdmin: boolean;
+  /** CommunityHeader — scroll cùng list (mirror web page-level header). */
+  header?: ReactNode;
 }
 
 /** Port CommunityRules — nhóm quy tắc theo category, đánh số liên tục + CRUD (admin). */
-export default function RuleList({ communityId, isAdmin }: RuleListProps) {
+export default function RuleList({ communityId, isAdmin, header }: RuleListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const shimmer = useShimmer();
@@ -120,6 +122,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
       contentContainerStyle={styles.wrap}
       keyboardShouldPersistTaps="handled"
       style={styles.scroll}>
+      {header}
       {isAdmin &&
         (showForm ? (
           <RuleForm
@@ -145,7 +148,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
 
       {rules === null && !loadError ? (
         Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-          <View
+          <Animated.View
             key={i}
             style={[
               styles.ruleCard,
@@ -157,7 +160,7 @@ export default function RuleList({ communityId, isAdmin }: RuleListProps) {
             ]}>
             <View style={[styles.ruleNum, { backgroundColor: theme.bgSecondary }]} />
             <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
-          </View>
+          </Animated.View>
         ))
       ) : loadError && list.length === 0 ? (
         <View style={styles.stateWrap}>

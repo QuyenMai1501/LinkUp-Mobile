@@ -23,6 +23,8 @@ export interface CommunityListItem {
   privacy: CommunityPrivacy;
   member_count: number;
   is_creator: boolean;
+  /** none | pending | member | creator — server trả từ 2026-10; optional để không vỡ client cũ. */
+  membership_status?: MembershipStatus;
   created_at: string;
 }
 

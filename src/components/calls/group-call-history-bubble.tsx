@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { IconName } from '@/constants/icon-map';
@@ -28,9 +29,9 @@ function formatDuration(seconds: number): string {
 }
 
 /**
- * Bubble lịch sử cuộc gọi nhóm trong timeline tin nhắn — mirror Web
- * ChatWindow item.kind==='group_call': icon + nhãn (nhỡ/thoại/video) +
- * thời lượng + nút Yêu cầu tham gia khi call đang diễn ra.
+ * Bubble lịch sử cuộc gọi nhóm trong timeline tin nhắn — style khớp
+ * CallHistoryRow (1-1): card + hairline border, icon theo accent theme,
+ * pill Yêu cầu tham gia ngang bên phải khi call đang diễn ra.
  */
 export function GroupCallHistoryBubble({
   call,
@@ -46,6 +47,7 @@ export function GroupCallHistoryBubble({
 
   const mine = call.caller_id === myUserId;
   const missed = call.status === 'missed';
+  const isVideo = call.is_video;
   const duration =
     call.ended_at && call.created_at
       ? Math.floor(
@@ -58,19 +60,40 @@ export function GroupCallHistoryBubble({
   const showDuration = !missed && !isThisActive && duration > 0;
   const showJoin =
     isThisActive && !mine && !call.participants.includes(myUserId);
+  // Meta "Anh · 02:35 · 14:30" — caller + duration (nếu có) · giờ gọi.
+  const started = new Date(call.created_at);
+  const timeText = `${String(started.getHours()).padStart(2, '0')}:${String(
+    started.getMinutes(),
+  ).padStart(2, '0')}`;
+  const sub = mine && !missed ? t('groupCall.callerYou') : callerName;
+  const meta = `${sub}${showDuration ? ` · ${formatDuration(duration)}` : ''} · ${timeText}`;
 
-  const icon: IconName = mine ? 'call' : call.is_video ? 'video' : 'call';
+  const icon: IconName = isVideo ? 'video' : 'call';
+  const iconColor = missed
+    ? theme.danger
+    : isVideo
+      ? theme.primary
+      : theme.textSecondary;
   const label = missed
     ? t('call.statusMissed')
-    : call.is_video
+    : isVideo
       ? t('call.videoCallGroup')
       : t('call.voiceCallGroup');
-  const sub = mine && !missed ? t('groupCall.callerYou') : callerName;
+  const letter = (callerName || '?')[0]?.toUpperCase();
 
   // Cột avatar của caller: avatar ở đầu chuỗi, spacer (cùng bề rộng) cho bubble sau.
   const avatarColumn = !mine ? (
-    showAvatar && avatarUri ? (
-      <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
+    showAvatar ? (
+      avatarUri ? (
+        <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
+      ) : (
+        <View
+          style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: theme.primaryLight }]}>
+          <ThemedText style={[styles.avatarLetter, { color: theme.primary }]}>
+            {letter}
+          </ThemedText>
+        </View>
+      )
     ) : (
       <View style={styles.avatarSpacer} />
     )
@@ -82,28 +105,31 @@ export function GroupCallHistoryBubble({
       <View
         style={[
           styles.bubble,
-          { backgroundColor: theme.bgSecondary },
+          { backgroundColor: theme.card, borderColor: missed ? theme.danger : theme.border },
         ]}>
-        <Icon name={icon} size={16} color={missed ? '#EF4444' : '#22C55E'} />
-        <View style={styles.info}>
-          <ThemedText style={styles.label} numberOfLines={1}>
+        <Icon name={icon} size={16} color={iconColor} />
+        <View style={styles.content}>
+          <ThemedText
+            style={[styles.label, { color: missed ? theme.danger : theme.text }]}
+            numberOfLines={1}>
             {label}
           </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.sub} numberOfLines={1}>
-            {sub}
-            {showDuration ? ` · ${formatDuration(duration)}` : ''}
+          <ThemedText style={[styles.meta, { color: theme.textSecondary }]} numberOfLines={1}>
+            {meta}
           </ThemedText>
-          {showJoin && onRequestJoin && (
-            <Pressable
-              onPress={() => onRequestJoin(call.call_id)}
-              style={styles.joinBtn}>
-              <Icon name="call" size={12} color={theme.textOnPrimary} />
-              <ThemedText style={[styles.joinText, { color: theme.textOnPrimary }]}>
-                {t('groupCall.requestJoin')}
-              </ThemedText>
-            </Pressable>
-          )}
         </View>
+
+        {showJoin && onRequestJoin && (
+          <Pressable
+            onPress={() => onRequestJoin(call.call_id)}
+            hitSlop={8}
+            style={[styles.joinBtn, { backgroundColor: theme.primaryLight }]}>
+            <Icon name="call" size={14} color={theme.primary} />
+            <ThemedText style={[styles.joinText, { color: theme.primary }]}>
+              {t('groupCall.requestJoin')}
+            </ThemedText>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -112,10 +138,10 @@ export function GroupCallHistoryBubble({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginVertical: 4,
-    paddingHorizontal: 16,
-    gap: 6,
+    alignItems: 'flex-end',
+    marginVertical: 3,
+    paddingHorizontal: 12,
+    gap: 8,
   },
   rowMine: {
     justifyContent: 'flex-end',
@@ -124,47 +150,52 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginTop: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    ...Typography.caption,
+    fontSize: 12,
+    fontWeight: '600',
   },
   avatarSpacer: {
-    width: 28,
+    width: 26,
     height: 1,
   },
   bubble: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    maxWidth: '80%',
     paddingVertical: 8,
-    maxWidth: '85%',
-    borderLeftWidth: 3,
-    borderLeftColor: '#22C55E',
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  info: {
+  content: {
     flexShrink: 1,
+    gap: 1,
   },
   label: {
-    fontSize: 13,
+    ...Typography.caption,
+    fontSize: 12,
     fontWeight: '600',
   },
-  sub: {
+  meta: {
     fontSize: 11,
-    marginTop: 1,
   },
   joinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#22C55E',
-    borderRadius: 8,
-    paddingHorizontal: 10,
     paddingVertical: 5,
-    marginTop: 6,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    borderRadius: 14,
   },
   joinText: {
     fontSize: 12,

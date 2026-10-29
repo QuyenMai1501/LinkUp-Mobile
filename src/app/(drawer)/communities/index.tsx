@@ -163,6 +163,14 @@ export default function CommunitiesScreen() {
     [router],
   );
 
+  // Sau khi join/pending trong card — cập nhật item tại chỗ để card
+  // remount (đổi tab qua skeleton rồi quay lại) vẫn hiển thị đúng badge.
+  const handleJoinedCommunity = useCallback((communityId: string, status: 'member' | 'pending') => {
+    setItems((prev) =>
+      prev.map((c) => (c.id === communityId ? { ...c, membership_status: status } : c)),
+    );
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setKeyword('');
     setDebounced('');
@@ -226,6 +234,7 @@ export default function CommunitiesScreen() {
           <CommunityCard
             community={item}
             onPress={handleCardPress}
+            onJoinedCommunity={handleJoinedCommunity}
             style={styles.gridItem}
           />
         )}

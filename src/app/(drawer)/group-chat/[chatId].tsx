@@ -41,6 +41,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useCall } from '@/contexts/call-context';
 import { useGroupCall } from '@/contexts/group-call-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useGroupChatRoom } from '@/hooks/useGroupChatRoom';
@@ -126,8 +127,9 @@ export default function GroupChatScreen() {
   const { user } = useAuth();
   const socket = useGroupChatSocket();
   const myUserId = user?.id ?? '';
-  const { isInGroupCall, startGroupCall, call: activeCall, joinGroupCall } =
+  const { isInGroupCall, startGroupCall, call: activeCall, joinGroupCall, phase: groupCallPhase, expand: expandGroupCall } =
     useGroupCall();
+  const { isInCall } = useCall();
 
   // C2: modal chọn thành viên gọi nhóm.
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -285,9 +287,47 @@ export default function GroupChatScreen() {
     return merged.sort((a, b) => itemCreatedMs(a) - itemCreatedMs(b));
   }, [room.messages, room.callHistory]);
 
+  // Cuộc gọi nhóm đang diễn ra — detect từ history (server chưa stamp
+  // ended_at), independent với trạng thái của mình, mirror Web
+  // ChatWindow ongoingGroupCall (dùng cho banner + nút Tham gia bystander).
+  const ongoingGroupCall = useMemo(
+    () =>
+      room.callHistory.find(
+        (gc) => !gc.ended_at && gc.status !== 'ended' && gc.status !== 'missed',
+      ) ?? null,
+    [room.callHistory],
+  );
+
+  // Người ngoài cuộc + đang rảnh → hiện banner + nút Tham gia.
+  const canJoinOngoingCall =
+    ongoingGroupCall !== null &&
+    !isInCall &&
+    !isInGroupCall &&
+    !ongoingGroupCall.participants.includes(myUserId);
+
   // call_id của cuộc gọi nhóm đang diễn ra — nút Yêu cầu tham gia trên history bubble.
-  const activeGroupCallId =
-    activeCall && isInGroupCall ? activeCall.callId : null;
+  // Mình đang trong call → call của mình (ẩn duration dòng đó); còn rảnh →
+  // ongoing call để bystander join được (mirror Web gcShowJoin).
+  const activeGroupCallId = isInGroupCall
+    ? activeCall?.callId ?? null
+    : ongoingGroupCall?.call_id ?? null;
+
+  const confirmJoinGroupCall = useCallback(
+    (callId: string, callerName: string) => {
+      showAlert(
+        t('groupCall.requestJoin'),
+        t('groupCall.joinRequestConfirm', { name: callerName }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('groupCall.join'),
+            onPress: () => void joinGroupCall(callId),
+          },
+        ],
+      );
+    },
+    [t, joinGroupCall],
+  );
 
   const findIndexInGrouped = useCallback(
     (messageId: string): number => {
@@ -838,17 +878,17 @@ export default function GroupChatScreen() {
           {/* C2: gọi nhóm video — mở modal chọn thành viên (trừ khi đã trong call) */}
           <Pressable
             onPress={() => {
-              if (!chatId || isInGroupCall) return;
+              if (!chatId || isInGroupCall || isInCall) return;
               setCallModalOpen(true);
             }}
-            disabled={isInGroupCall}
+            disabled={isInGroupCall || isInCall}
             hitSlop={8}
             style={styles.headerAction}>
             <Icon
               name="video"
               size={20}
               color={
-                isInGroupCall
+                isInGroupCall || isInCall
                   ? headerChrome
                     ? 'rgba(255,255,255,0.35)'
                     : theme.border
@@ -912,6 +952,69 @@ export default function GroupChatScreen() {
                 </Pressable>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Call banners — mirror Web ChatWindow callBanner */}
+        {isInGroupCall &&
+          activeCall?.chatId === chatId &&
+          groupCallPhase === 'active' && (
+            <View
+              style={[
+                styles.callBanner,
+                {
+                  backgroundColor: theme.card,
+                  borderBottomColor: theme.border,
+                },
+              ]}>
+              <View style={[styles.liveDot, { backgroundColor: '#22C55E' }]} />
+              <Icon name="video" size={14} color={theme.primary} />
+              <ThemedText
+                style={[styles.callBannerText, { color: theme.text }]}>
+                {t('groupCall.inCall')}
+              </ThemedText>
+              <Pressable
+                onPress={expandGroupCall}
+                style={[styles.callBannerBtn, { backgroundColor: theme.primary }]}>
+                <ThemedText
+                  style={[styles.callBannerBtnText, { color: theme.textOnPrimary }]}>
+                  {t('groupCall.expand')}
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
+
+        {canJoinOngoingCall && ongoingGroupCall && (
+          <View
+            style={[
+              styles.callBanner,
+              {
+                backgroundColor: theme.card,
+                borderBottomColor: theme.border,
+              },
+            ]}>
+            <View style={[styles.liveDot, { backgroundColor: '#22C55E' }]} />
+            <Icon name="video" size={14} color={theme.primary} />
+            <ThemedText
+              style={[styles.callBannerText, { color: theme.text }]}>
+              {t('groupCall.inCall')} · {ongoingGroupCall.participants.length}
+            </ThemedText>
+            <Pressable
+              onPress={() =>
+                confirmJoinGroupCall(
+                  ongoingGroupCall.call_id,
+                  ongoingGroupCall.caller_id === myUserId
+                    ? t('groupCall.callerYou')
+                    : room.memberNames[ongoingGroupCall.caller_id] ||
+                        t('chat.unknown'),
+                )
+              }
+              style={[styles.callBannerBtn, { backgroundColor: theme.primary }]}>
+              <ThemedText
+                style={[styles.callBannerBtnText, { color: theme.textOnPrimary }]}>
+                {t('groupCall.requestToJoin')}
+              </ThemedText>
+            </Pressable>
           </View>
         )}
 
@@ -1134,23 +1237,12 @@ export default function GroupChatScreen() {
                       avatarUri={room.memberAvatars[gc.caller_id] ?? null}
                       showAvatar={prev?.senderId !== gc.caller_id}
                       activeCallId={activeGroupCallId}
-                      onRequestJoin={(callId) => {
-                        showAlert(
-                          t('groupCall.requestJoin'),
-                          t('groupCall.pendingRequestBody', {
-                            name:
-                              room.memberNames[gc.caller_id] ||
-                              t('chat.unknown'),
-                          }),
-                          [
-                            { text: t('common.cancel'), style: 'cancel' },
-                            {
-                              text: t('groupCall.join'),
-                              onPress: () => void joinGroupCall(callId),
-                            },
-                          ],
-                        );
-                      }}
+                      onRequestJoin={(callId) =>
+                        confirmJoinGroupCall(
+                          callId,
+                          room.memberNames[gc.caller_id] || t('chat.unknown'),
+                        )
+                      }
                     />
                   );
                 }
@@ -1383,6 +1475,33 @@ const styles = StyleSheet.create({
   },
   headerAction: {
     padding: Spacing.xs,
+  },
+  callBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  callBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  callBannerBtn: {
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  callBannerBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   avatar: {
     width: 36,

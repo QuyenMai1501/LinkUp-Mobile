@@ -83,7 +83,7 @@ interface MediaGridProps {
 
 function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
   const theme = useTheme();
-  if (media.length === 0) return null;
+  if (!media || media.length === 0) return null;
 
   const count = Math.min(media.length, 4);
 

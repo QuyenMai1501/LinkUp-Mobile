@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -39,6 +40,8 @@ const ROLE_OPTIONS: ManageableRole[] = ['GROUP_ADMIN', 'GROUP_MOD', 'GROUP_MEMBE
 interface MemberListProps {
   communityId: string;
   isAdmin: boolean;
+  /** CommunityHeader — scroll cùng list (mirror web page-level header). */
+  header?: ReactNode;
 }
 
 const roleLabelKey = (role: CommunityRole): string =>
@@ -66,7 +69,7 @@ function RoleBadge({ role, theme }: { role: CommunityRole; theme: ReturnType<typ
 }
 
 /** Port CommunityMemberList — danh sách thành viên + admin: đổi vai trò / kick. */
-export default function MemberList({ communityId, isAdmin }: MemberListProps) {
+export default function MemberList({ communityId, isAdmin, header }: MemberListProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const shimmer = useShimmer();
@@ -178,7 +181,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
       return (
         <View style={styles.list}>
           {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-            <View
+            <Animated.View
               key={i}
               style={[
                 styles.row,
@@ -190,7 +193,7 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
               ]}>
               <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.bgSecondary }]} />
               <View style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
-            </View>
+            </Animated.View>
           ))}
         </View>
       );
@@ -232,14 +235,19 @@ export default function MemberList({ communityId, isAdmin }: MemberListProps) {
         data={members ?? []}
         keyExtractor={(m) => m.user_id}
         renderItem={renderRow}
+        ListHeaderComponent={header ? <>{header}</> : null}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
       />
     );
   };
 
+  const inList = members !== null && members.length > 0;
+
   return (
     <View style={styles.wrap}>
+      {/* Trạng thái skeleton/error/empty: header render static phía trên */}
+      {!inList && header}
       {content()}
 
       {/* Menu hành động admin: đổi vai trò / kick */}

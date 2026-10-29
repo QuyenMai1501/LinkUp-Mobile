@@ -59,6 +59,10 @@ interface GroupCallContextValue {
   toggleMute: () => void;
   toggleVideo: () => void;
   dismiss: () => void;
+  /** Đang thu nhỏ overlay về mini bar (mirror Web minimized phase). */
+  minimized: boolean;
+  minimize: () => void;
+  expand: () => void;
 }
 
 const GroupCallContext = createContext<GroupCallContextValue | undefined>(
@@ -79,8 +83,8 @@ async function ensureGroupCallPermissions(): Promise<boolean> {
 /**
  * Cuộc gọi nhóm — full mesh WebRTC, mirror Web GroupCallContext.
  * WS riêng /api/group-calls/ws (useGroupCallSocket); server relay
- * group:call:signal tới tất cả joined. Bỏ minimize/PIP (Mobile overlay
- * full-screen như call 1-1).
+ * group:call:signal tới tất cả joined. Overlay active có thể thu nhỏ
+ * về mini bar nổi (minimized/minimize/expand — mirror Web).
  */
 export function GroupCallProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -97,6 +101,15 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
   const [remoteStreams, setRemoteStreams] = useState<
     Map<string, MediaStream>
   >(new Map());
+  const [minimized, setMinimized] = useState(false);
+  // Reset thu nhỏ khi callId đổi (adjust-state-during-render — react-compiler
+  // lint bắt setState đồng bộ trong effect)
+  const [prevMinCallId, setPrevMinCallId] = useState<string | null>(null);
+  const currentCallId = call?.callId ?? null;
+  if (currentCallId !== prevMinCallId) {
+    setPrevMinCallId(currentCallId);
+    setMinimized(false);
+  }
 
   const phaseRef = useRef<GroupCallPhase>('idle');
   const callRef = useRef<ActiveGroupCall | null>(null);
@@ -925,6 +938,14 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     if (phaseRef.current === 'ended') resetToIdle();
   }, [resetToIdle]);
 
+  const minimize = useCallback(() => {
+    if (phaseRef.current === 'active') setMinimized(true);
+  }, []);
+
+  const expand = useCallback(() => {
+    setMinimized(false);
+  }, []);
+
   return (
     <GroupCallContext.Provider
       value={{
@@ -947,6 +968,9 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         toggleMute,
         toggleVideo,
         dismiss,
+        minimized,
+        minimize,
+        expand,
       }}
     >
       {children}

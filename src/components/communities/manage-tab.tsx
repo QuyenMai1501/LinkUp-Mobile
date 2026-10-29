@@ -28,6 +28,7 @@ import {
   transferOwnership,
   updateCommunity,
 } from '@/api/communities';
+import { getContributionPolicy, updateContributionPolicy } from '@/api/contribution';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
@@ -41,8 +42,21 @@ import type {
   CommunityJoinRequest,
   CommunityPrivacy,
 } from '@/types/community';
+import type { ContributionPolicy } from '@/types/contribution';
 
-type ManageSection = 'settings' | 'requests' | 'codes' | 'transfer';
+type ManageSection = 'settings' | 'policy' | 'requests' | 'codes' | 'transfer';
+
+const SECTIONS: {
+  key: ManageSection;
+  labelKey: string;
+  icon: 'settings' | 'medal' | 'personAdd' | 'key' | 'share';
+}[] = [
+  { key: 'settings', labelKey: 'communities.settings', icon: 'settings' },
+  { key: 'policy', labelKey: 'contribution.policyTitle', icon: 'medal' },
+  { key: 'requests', labelKey: 'communities.joinRequests', icon: 'personAdd' },
+  { key: 'codes', labelKey: 'communities.inviteCodes', icon: 'key' },
+  { key: 'transfer', labelKey: 'communities.transferOwnership', icon: 'share' },
+];
 
 interface ManageTabProps {
   communityId: string;
@@ -50,23 +64,16 @@ interface ManageTabProps {
   onUpdate: () => void;
 }
 
-/** Port CommunityManageTab — 4 section: settings / join-requests / invite-codes / transfer. */
+/** Port CommunityManageTab — 5 section: settings / policy / join-requests / invite-codes / transfer. */
 export default function ManageTab({ communityId, community, onUpdate }: ManageTabProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [section, setSection] = useState<ManageSection>('settings');
 
-  const sections: { key: ManageSection; labelKey: string; icon: 'settings' | 'personAdd' | 'key' | 'share' }[] = [
-    { key: 'settings', labelKey: 'communities.settings', icon: 'settings' },
-    { key: 'requests', labelKey: 'communities.joinRequests', icon: 'personAdd' },
-    { key: 'codes', labelKey: 'communities.inviteCodes', icon: 'key' },
-    { key: 'transfer', labelKey: 'communities.transferOwnership', icon: 'share' },
-  ];
-
   return (
     <View style={styles.wrap}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.nav}>
-        {sections.map((item) => {
+      <View style={styles.nav}>
+        {SECTIONS.map((item) => {
           const active = section === item.key;
           return (
             <Pressable
@@ -86,6 +93,7 @@ export default function ManageTab({ communityId, community, onUpdate }: ManageTa
                 color={active ? theme.textOnPrimary : theme.textSecondary}
               />
               <ThemedText
+                numberOfLines={1}
                 style={[
                   styles.navChipText,
                   { color: active ? theme.textOnPrimary : theme.text },
@@ -95,12 +103,13 @@ export default function ManageTab({ communityId, community, onUpdate }: ManageTa
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {section === 'settings' && (
           <SettingsSection communityId={communityId} community={community} onUpdate={onUpdate} />
         )}
+        {section === 'policy' && <PolicySection communityId={communityId} />}
         {section === 'requests' && <RequestsSection communityId={communityId} />}
         {section === 'codes' && <CodesSection communityId={communityId} />}
         {section === 'transfer' && <TransferSection communityId={communityId} onUpdate={onUpdate} />}
@@ -249,6 +258,263 @@ function SettingsSection({
           <ActivityIndicator size="small" color={theme.textOnPrimary} />
         ) : (
           <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>{t('communities.settingsSave')}</ThemedText>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+/* ---------------------------------- Policy ---------------------------------- */
+
+function PolicySection({ communityId }: { communityId: string }) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const shimmer = useShimmer();
+
+  const [policy, setPolicy] = useState<ContributionPolicy | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await getContributionPolicy(communityId);
+      setPolicy(res.data);
+      setLoadError(null);
+    } catch (err) {
+      setPolicy(null);
+      setLoadError(communityErrorText(err, t('contribution.policyError')));
+    }
+  }, [communityId, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  if (policy === null && !loadError) {
+    return (
+      <Animated.View style={[styles.section, { opacity: shimmer }]}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <View key={i} style={[styles.skeletonLine, { backgroundColor: theme.bgSecondary }]} />
+        ))}
+      </Animated.View>
+    );
+  }
+
+  if (loadError || !policy) {
+    return (
+      <View style={styles.section}>
+        <Icon name="warning" size={28} color={theme.accent} />
+        <ThemedText themeColor="textSecondary" style={styles.hint}>
+          {loadError ?? t('contribution.policyError')}
+        </ThemedText>
+        <Pressable
+          onPress={() => {
+            setLoadError(null);
+            void load();
+          }}
+          style={({ pressed }) => [styles.primaryBtn, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>
+            {t('common.retry')}
+          </ThemedText>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return <PolicyForm communityId={communityId} initial={policy} onSaved={() => void load()} />;
+}
+
+function PolicyForm({
+  communityId,
+  initial,
+  onSaved,
+}: {
+  communityId: string;
+  initial: ContributionPolicy;
+  onSaved: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+
+  const [postWeight, setPostWeight] = useState(String(initial.post_weight));
+  const [commentWeight, setCommentWeight] = useState(String(initial.comment_weight));
+  const [reactionWeight, setReactionWeight] = useState(String(initial.reaction_weight));
+  const [eventWeight, setEventWeight] = useState(String(initial.event_weight));
+  const [topThreshold, setTopThreshold] = useState(String(initial.top_contributor_threshold));
+  const [modThreshold, setModThreshold] = useState(String(initial.moderator_promotion_threshold));
+  const [autoPromote, setAutoPromote] = useState(initial.auto_promote_enabled);
+  const [badgeEnabled, setBadgeEnabled] = useState(initial.badge_enabled);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const weightFields: { label: string; value: string; onChange: (v: string) => void }[] = [
+    { label: t('contribution.postWeight'), value: postWeight, onChange: setPostWeight },
+    { label: t('contribution.commentWeight'), value: commentWeight, onChange: setCommentWeight },
+    { label: t('contribution.reactionWeight'), value: reactionWeight, onChange: setReactionWeight },
+    { label: t('contribution.eventWeight'), value: eventWeight, onChange: setEventWeight },
+  ];
+
+  const weightValues = [postWeight, commentWeight, reactionWeight, eventWeight];
+  const weightsValid = weightValues.every((value) => {
+    const numeric = Number(value);
+    return value.trim() !== '' && Number.isInteger(numeric) && numeric >= 0 && numeric <= 100;
+  });
+  const topValue = Number(topThreshold);
+  const modValue = Number(modThreshold);
+  const thresholdsValid =
+    topThreshold.trim() !== '' &&
+    modThreshold.trim() !== '' &&
+    Number.isInteger(topValue) &&
+    topValue > 0 &&
+    Number.isInteger(modValue) &&
+    modValue > 0;
+  const orderValid = modValue > topValue;
+  const canSave = weightsValid && thresholdsValid && orderValid && !saving;
+
+  const handleSave = useCallback(async () => {
+    if (!canSave) return;
+    setFormError('');
+    setSaving(true);
+    try {
+      await updateContributionPolicy(communityId, {
+        post_weight: Number(postWeight),
+        comment_weight: Number(commentWeight),
+        reaction_weight: Number(reactionWeight),
+        event_weight: Number(eventWeight),
+        top_contributor_threshold: topValue,
+        moderator_promotion_threshold: modValue,
+        auto_promote_enabled: autoPromote,
+        badge_enabled: badgeEnabled,
+      });
+      showAlert(t('common.success'), t('contribution.policySaved'));
+      onSaved();
+    } catch (err) {
+      setFormError(communityErrorText(err, t('contribution.policyError')));
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    autoPromote,
+    badgeEnabled,
+    canSave,
+    commentWeight,
+    communityId,
+    eventWeight,
+    modValue,
+    onSaved,
+    postWeight,
+    reactionWeight,
+    t,
+    topValue,
+  ]);
+
+  return (
+    <View style={styles.section}>
+      <ThemedText themeColor="textSecondary" style={styles.hint}>
+        {t('contribution.policySubtitle')}
+      </ThemedText>
+
+      <View style={styles.grid2}>
+        {weightFields.map((field) => (
+          <View key={field.label} style={styles.gridItem}>
+            <ThemedText themeColor="textSecondary" style={styles.label}>
+              {field.label}
+            </ThemedText>
+            <TextInput
+              style={[styles.input, fieldStyle(theme)]}
+              value={field.value}
+              onChangeText={field.onChange}
+              keyboardType="number-pad"
+              editable={!saving}
+            />
+          </View>
+        ))}
+      </View>
+
+      <ThemedText themeColor="textSecondary" style={styles.label}>
+        {t('contribution.topThreshold')}
+      </ThemedText>
+      <TextInput
+        style={[styles.input, fieldStyle(theme)]}
+        value={topThreshold}
+        onChangeText={setTopThreshold}
+        keyboardType="number-pad"
+        editable={!saving}
+      />
+
+      <ThemedText themeColor="textSecondary" style={styles.label}>
+        {t('contribution.modThreshold')}
+      </ThemedText>
+      <TextInput
+        style={[styles.input, fieldStyle(theme)]}
+        value={modThreshold}
+        onChangeText={setModThreshold}
+        keyboardType="number-pad"
+        editable={!saving}
+      />
+      <ThemedText
+        style={[
+          styles.hint,
+          thresholdsValid && !orderValid && { color: theme.danger, fontWeight: '600' },
+        ]}>
+        {thresholdsValid && !orderValid
+          ? t('contribution.policyThresholdOrder')
+          : t('contribution.thresholdHint')}
+      </ThemedText>
+
+      <ThemedText themeColor="textSecondary" style={styles.label}>
+        {t('contribution.badgeEnabled')}
+      </ThemedText>
+      <View style={styles.toggleRow}>
+        <Switch
+          value={badgeEnabled}
+          onValueChange={setBadgeEnabled}
+          disabled={saving}
+          trackColor={{ true: theme.primary, false: theme.border }}
+          thumbColor={theme.textOnPrimary}
+        />
+        <ThemedText style={styles.toggleLabel}>
+          {badgeEnabled ? t('communities.yes') : t('communities.no')}
+        </ThemedText>
+      </View>
+
+      <ThemedText themeColor="textSecondary" style={styles.label}>
+        {t('contribution.autoPromote')}
+      </ThemedText>
+      <View style={styles.toggleRow}>
+        <Switch
+          value={autoPromote}
+          onValueChange={setAutoPromote}
+          disabled={saving}
+          trackColor={{ true: theme.primary, false: theme.border }}
+          thumbColor={theme.textOnPrimary}
+        />
+        <ThemedText style={styles.toggleLabel}>
+          {autoPromote ? t('communities.yes') : t('communities.no')}
+        </ThemedText>
+      </View>
+
+      {formError ? (
+        <ThemedText style={[styles.hint, { color: theme.danger, fontWeight: '600' }]}>
+          {formError}
+        </ThemedText>
+      ) : null}
+
+      <Pressable
+        onPress={() => void handleSave()}
+        disabled={!canSave}
+        style={({ pressed }) => [
+          styles.primaryBtn,
+          { backgroundColor: theme.primary, opacity: canSave ? 1 : 0.6 },
+          pressed && styles.pressed,
+        ]}>
+        {saving ? (
+          <ActivityIndicator size="small" color={theme.textOnPrimary} />
+        ) : (
+          <ThemedText style={[styles.primaryBtnText, { color: theme.textOnPrimary }]}>
+            {t('contribution.policySave')}
+          </ThemedText>
         )}
       </Pressable>
     </View>
@@ -757,6 +1023,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nav: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -764,6 +1033,9 @@ const styles = StyleSheet.create({
   navChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    minHeight: 34,
     gap: Spacing.xs + 2,
     borderWidth: 1,
     borderRadius: Radius.pill,
@@ -782,6 +1054,16 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.sm,
+  },
+  grid2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  gridItem: {
+    flex: 1,
+    minWidth: 140,
+    gap: 4,
   },
   label: {
     ...Typography.caption,

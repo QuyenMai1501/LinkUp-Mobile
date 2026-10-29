@@ -992,8 +992,9 @@ export default function ChatScreen() {
                     "voice",
                   )
                 }
+                disabled={isInCall}
                 hitSlop={8}
-                style={styles.headerAction}>
+                style={[styles.headerAction, isInCall && styles.headerActionDisabled]}>
                 <Icon name="call" size={18} color={chromeIcon} />
               </Pressable>
 
@@ -1008,8 +1009,9 @@ export default function ChatScreen() {
                     "video",
                   )
                 }
+                disabled={isInCall}
                 hitSlop={8}
-                style={styles.headerAction}>
+                style={[styles.headerAction, isInCall && styles.headerActionDisabled]}>
                 <Icon name="video" size={18} color={chromeIcon} />
               </Pressable>
             </>
@@ -1712,6 +1714,9 @@ const styles = StyleSheet.create({
   },
   headerAction: {
     padding: Spacing.xs,
+  },
+  headerActionDisabled: {
+    opacity: 0.35,
   },
   searchBar: {
     flexDirection: "row",

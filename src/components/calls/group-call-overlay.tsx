@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { RTCView } from 'react-native-webrtc';
 
 import { GroupCallParticipantTile } from '@/components/calls/group-call-participant-tile';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { useAuth } from '@/contexts/auth-context';
 import { useGroupCall } from '@/contexts/group-call-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { IconName } from '@/constants/icon-map';
@@ -11,11 +13,14 @@ import type { GroupCallParticipant } from '@/types/group-call';
 
 const COLORS = {
   bg: '#0C0F14',
+  miniBg: '#1A1D22',
   text: '#FFFFFF',
   subtext: 'rgba(255,255,255,0.65)',
   control: 'rgba(255,255,255,0.16)',
   red: '#EF4444',
   card: 'rgba(22,27,34,0.96)',
+  border: 'rgba(255,255,255,0.18)',
+  avatarBg: 'rgba(255,255,255,0.12)',
 };
 
 function formatDuration(seconds: number): string {
@@ -69,14 +74,45 @@ function ControlButton({
   );
 }
 
+function MiniButton({
+  icon,
+  label,
+  onPress,
+  backgroundColor = COLORS.control,
+  declineStyle,
+}: ControlButtonProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.miniBtn,
+        { backgroundColor },
+        pressed && styles.controlPressed,
+      ]}>
+      <Icon
+        name={icon}
+        size={16}
+        color={COLORS.text}
+        style={declineStyle ? styles.miniDeclineIcon : undefined}
+      />
+    </Pressable>
+  );
+}
+
 /**
  * Overlay cuộc gọi nhóm full-screen — mount tại root, chỉ hiện khi
- * phase=active. Lưới participant (1/2/3 cột), controls mic/video/end,
- * hàng chờ join-request cho host (mirror Web GroupCallOverlay).
+ * phase=active. Lưới participant (1/2/3 cột), controls mic/video/minimize/end,
+ * hàng chờ join-request cho host. Thu nhỏ về mini bar nổi mirror Web
+ * GroupCallBubble (minimized phase).
  */
 export function GroupCallOverlay() {
   const { t } = useTranslation();
   const { width: winW } = useWindowDimensions();
+  const { user } = useAuth();
+  const myUserId = user?.id ?? '';
   const {
     phase,
     call,
@@ -91,11 +127,18 @@ export function GroupCallOverlay() {
     endGroupCall,
     acceptJoinRequest,
     rejectJoinRequest,
+    minimized,
+    minimize,
+    expand,
   } = useGroupCall();
 
   if (phase !== 'active' || !call) return null;
 
-  const participants = Array.from(call.participants.values());
+  // Không tự render tile của chính mình 2 lần — mirror Web
+  // GroupCallOverlay (caller = tôi bị ẩn nếu chưa có remote stream).
+  const participants = Array.from(call.participants.values()).filter(
+    (p) => p.user_id !== myUserId || remoteStreams.has(p.user_id),
+  );
   const localParticipant: GroupCallParticipant = {
     user_id: '',
     display_name: t('groupCall.you'),
@@ -105,7 +148,72 @@ export function GroupCallOverlay() {
     is_active: true,
   };
   const allParticipants = [localParticipant, ...participants];
-  const cols = columnsFor(allParticipants.length);
+  const participantCount = allParticipants.length;
+
+  // Mini bar — mirror Web GroupCallBubble: thumbnail local (camera đang bật)
+  // hoặc stream remote đầu tiên có video.
+  const miniThumbStream = (() => {
+    if (localVideoOn && localStream) return localStream;
+    for (const p of participants) {
+      const s = remoteStreams.get(p.user_id);
+      if (s && p.video_enabled) return s;
+    }
+    return null;
+  })();
+
+  if (minimized) {
+    return (
+      <View style={styles.miniWrap} pointerEvents="box-none">
+        <View style={styles.miniCard}>
+          <Pressable
+            style={styles.miniMain}
+            onPress={expand}
+            accessibilityLabel={t('call.expand')}
+            accessibilityRole="button">
+            {miniThumbStream ? (
+              <RTCView
+                streamURL={miniThumbStream.toURL()}
+                style={styles.miniThumb}
+                mirror={miniThumbStream === localStream}
+                objectFit="cover"
+                zOrder={0}
+              />
+            ) : (
+              <View style={[styles.miniAvatar, styles.miniAvatarPh]}>
+                <Icon name="people" size={22} color={COLORS.text} />
+              </View>
+            )}
+            <View style={styles.miniTextWrap}>
+              <ThemedText style={styles.miniName} numberOfLines={1}>
+                {t('groupCall.callHistoryLabel')}
+              </ThemedText>
+              <ThemedText style={styles.miniStatus}>
+                {formatDuration(duration)} · {participantCount}
+              </ThemedText>
+            </View>
+          </Pressable>
+
+          <View style={styles.miniControls}>
+            <MiniButton
+              icon={localMuted ? 'micOff' : 'mic'}
+              label={localMuted ? t('call.unmute') : t('call.mute')}
+              onPress={toggleMute}
+            />
+            <MiniButton icon="expand" label={t('call.expand')} onPress={expand} />
+            <MiniButton
+              icon="call"
+              declineStyle
+              label={t('call.end')}
+              backgroundColor={COLORS.red}
+              onPress={endGroupCall}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const cols = columnsFor(participantCount);
   const gap = 6;
   const gridPad = 12;
   const cell = Math.floor((winW - gridPad * 2 - gap * (cols - 1)) / cols);
@@ -143,7 +251,7 @@ export function GroupCallOverlay() {
         </ThemedText>
         <ThemedText style={styles.count}>
           <Icon name="people" size={14} color={COLORS.subtext} />{' '}
-          {allParticipants.length}
+          {participantCount}
         </ThemedText>
       </View>
 
@@ -160,6 +268,11 @@ export function GroupCallOverlay() {
           label={localVideoOn ? t('call.videoOff') : t('call.videoOn')}
           onPress={toggleVideo}
           active={!localVideoOn}
+        />
+        <ControlButton
+          icon="chevronDown"
+          label={t('call.minimize')}
+          onPress={minimize}
         />
         <ControlButton
           icon="call"
@@ -271,6 +384,9 @@ const styles = StyleSheet.create({
   declineIcon: {
     transform: [{ rotate: '135deg' }],
   },
+  miniDeclineIcon: {
+    transform: [{ rotate: '135deg' }],
+  },
   pendingWrap: {
     position: 'absolute',
     top: 100,
@@ -315,6 +431,76 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Mini bar nổi — mirror Web GroupCallBubble */
+  miniWrap: {
+    position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0,
+    zIndex: 999,
+    elevation: 999,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingBottom: 96,
+    paddingRight: 12,
+  },
+  miniCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.miniBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 8,
+    maxWidth: 300,
+  },
+  miniMain: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniThumb: {
+    width: 96,
+    height: 54,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  miniAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  miniAvatarPh: {
+    backgroundColor: COLORS.avatarBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniTextWrap: {
+    flexShrink: 1,
+    gap: 2,
+  },
+  miniName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  miniStatus: {
+    color: COLORS.subtext,
+    fontSize: 11,
+  },
+  miniControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  miniBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
 import { showAlert } from '@/utils/alert';
 import { communityErrorText, joinCommunity, leaveCommunity } from '@/api/communities';
+import ReportSheet from '@/components/report-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
@@ -31,6 +33,7 @@ export default function CommunityHeader({
   const [loading, setLoading] = useState(false);
   const [coverError, setCoverError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const status = community.membership_status;
   const isPublic = community.privacy === 'public';
@@ -119,18 +122,28 @@ export default function CommunityHeader({
     }
     if (!isPublic) {
       return (
-        <Pressable
-          onPress={onRequestCode}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            { borderColor: theme.primary },
-            pressed && styles.pressed,
-          ]}>
-          <Icon name="key" size={14} color={theme.primary} />
-          <ThemedText style={[styles.actionText, { color: theme.primary }]}>
-            {t('communities.enterCode')}
-          </ThemedText>
-        </Pressable>
+        <>
+          {/* Web codeCta — chỉ khi none + invitation_only */}
+          <Pressable
+            onPress={onRequestCode}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              { borderColor: theme.primary },
+              pressed && styles.pressed,
+            ]}>
+            <Icon name="key" size={14} color={theme.primary} />
+            <ThemedText style={[styles.actionText, { color: theme.primary }]}>
+              {t('communities.enterCode')}
+            </ThemedText>
+          </Pressable>
+          {/* Web JoinButton branch: locked "Invite only" pill */}
+          <View style={[styles.pill, { borderColor: theme.border, backgroundColor: theme.bgSecondary }]}>
+            <Icon name="lock" size={14} color={theme.textSecondary} />
+            <ThemedText style={[styles.pillText, { color: theme.textSecondary }]}>
+              {t('communities.inviteOnlyShort')}
+            </ThemedText>
+          </View>
+        </>
       );
     }
     return (
@@ -155,7 +168,7 @@ export default function CommunityHeader({
 
   return (
     <View>
-      {/* Cover */}
+      {/* Cover — mirror web: image/gradient fallback + orbs + scrim tối đáy */}
       <View style={styles.coverWrap}>
         {showCover ? (
           <Image
@@ -166,13 +179,35 @@ export default function CommunityHeader({
             onError={() => setCoverError(true)}
           />
         ) : (
-          <View style={[styles.coverFallback, { backgroundColor: theme.primaryLight }]}>
-            <Icon name="globe" size={40} color={theme.primary} />
-          </View>
+          <LinearGradient
+            colors={[theme.primary, theme.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.coverFallback}>
+            <View style={[styles.orb, styles.orbA, styles.orbCommon]} />
+            <View style={[styles.orb, styles.orbB, styles.orbCommon]} />
+            <Icon name="globe" size={40} color="rgba(255,255,255,0.85)" />
+          </LinearGradient>
         )}
-        <View style={[styles.privacyBadge, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
-          <Icon name={isPublic ? 'globe' : 'lock'} size={12} color={theme.textOnPrimary} />
-          <ThemedText style={[styles.privacyBadgeText, { color: theme.textOnPrimary }]}>
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.35)']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.scrim}
+          pointerEvents="none"
+        />
+        {/* Web privacy badge: top-left, nền sáng, icon + chữ theo tone */}
+        <View style={[styles.privacyBadge, { backgroundColor: 'rgba(255,255,255,0.94)' }]}>
+          <Icon
+            name={isPublic ? 'globe' : 'lock'}
+            size={12}
+            color={isPublic ? theme.success : theme.info}
+          />
+          <ThemedText
+            style={[
+              styles.privacyBadgeText,
+              { color: isPublic ? theme.success : theme.info },
+            ]}>
             {isPublic ? t('communities.privacyPublic') : t('communities.inviteOnlyShort')}
           </ThemedText>
         </View>
@@ -200,16 +235,31 @@ export default function CommunityHeader({
             <ThemedText style={styles.name} numberOfLines={2}>
               {community.name}
             </ThemedText>
-            <View style={styles.actions}>{renderAction()}</View>
+            <View style={styles.actions}>
+              {renderAction()}
+              {/* Web: report trừ creator */}
+              {status !== 'creator' && (
+                <Pressable
+                  onPress={() => setReportOpen(true)}
+                  style={({ pressed }) => [
+                    styles.reportBtn,
+                    { borderColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon name="flag" size={16} color={theme.textSecondary} />
+                </Pressable>
+              )}
+            </View>
           </View>
         </View>
 
         {community.description ? (
-          <ThemedText themeColor="textSecondary" numberOfLines={2} style={styles.description}>
+          <ThemedText themeColor="textSecondary" numberOfLines={3} style={styles.description}>
             {community.description}
           </ThemedText>
         ) : null}
 
+        {/* Web statsRow: members pill + date pill + createdBy trong 1 hàng */}
         <View style={styles.statsRow}>
           <View style={[styles.statPill, { backgroundColor: theme.bgSecondary }]}>
             <Icon name="people" size={13} color={theme.textSecondary} />
@@ -223,21 +273,28 @@ export default function CommunityHeader({
               {new Date(community.created_at).toLocaleDateString(locale)}
             </ThemedText>
           </View>
-        </View>
-
-        <View style={styles.createdByRow}>
-          <ThemedText themeColor="textSecondary" style={styles.statText}>
-            {t('communities.createdBy')}
-          </ThemedText>
-          <Pressable
-            onPress={() => (router as any).push(`/(drawer)/profile/${community.creator_id}`)}
-            hitSlop={6}>
-            <ThemedText style={[styles.creatorLink, { color: theme.primary }]}>
-              @{community.creator_name}
+          <View style={styles.createdByItem}>
+            <ThemedText themeColor="textSecondary" style={styles.statText}>
+              {t('communities.createdBy')}
             </ThemedText>
-          </Pressable>
+            <Pressable
+              onPress={() => (router as any).push(`/(drawer)/profile/${community.creator_id}`)}
+              hitSlop={6}>
+              <ThemedText style={[styles.creatorLink, { color: theme.primary }]}>
+                @{community.creator_name}
+              </ThemedText>
+            </Pressable>
+          </View>
         </View>
       </View>
+
+      {reportOpen && (
+        <ReportSheet
+          targetType="community"
+          targetId={community.id}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -255,11 +312,38 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  scrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  orb: {
+    position: 'absolute',
+    borderRadius: 9999,
+  },
+  orbCommon: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  orbA: {
+    width: 220,
+    height: 220,
+    top: -70,
+    left: -50,
+  },
+  orbB: {
+    width: 160,
+    height: 160,
+    bottom: -50,
+    right: -30,
   },
   privacyBadge: {
     position: 'absolute',
     top: Spacing.sm,
-    right: Spacing.sm,
+    left: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -270,6 +354,14 @@ const styles = StyleSheet.create({
   privacyBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  reportBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     paddingHorizontal: Spacing.md,
@@ -367,11 +459,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  createdByRow: {
+  createdByItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexWrap: 'wrap',
   },
   creatorLink: {
     fontSize: 12,
