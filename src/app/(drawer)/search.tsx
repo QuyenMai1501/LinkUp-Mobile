@@ -196,13 +196,42 @@ export default function SearchScreen() {
     </Pressable>
   );
 
+  // Thumbnail bài post: ảnh bìa + badge video, fallback icon video/document
+  // khi không có thumbnail — mirror web renderPostThumb (search/page.tsx).
+  const renderPostThumb = (item: PostSearchResult) => {
+    const hasVideo = Number(item.video_count) > 0;
+    if (item.thumbnail_uri) {
+      return (
+        <View style={styles.thumbWrap}>
+          <Image source={{ uri: item.thumbnail_uri }} style={styles.thumbImg} contentFit="cover" />
+          {hasVideo && (
+            <View style={styles.videoBadge}>
+              <Icon name="video" size={12} color="#FFFFFF" />
+            </View>
+          )}
+        </View>
+      );
+    }
+    return (
+      <View
+        style={[
+          styles.iconBox,
+          { backgroundColor: hasVideo ? theme.primaryLight : theme.bgHover },
+        ]}>
+        <Icon
+          name={hasVideo ? 'video' : 'document'}
+          size={16}
+          color={hasVideo ? theme.primary : theme.textSecondary}
+        />
+      </View>
+    );
+  };
+
   const renderPostItem = ({ item }: { item: PostSearchResult }) => (
     <Pressable
       style={({ pressed }) => [styles.itemRow, pressed && { backgroundColor: theme.bgHover }]}
       onPress={() => navigateToPost(item.id)}>
-      <View style={[styles.iconBox, { backgroundColor: theme.bgHover }]}>
-        <Icon name="document" size={16} color={theme.textSecondary} />
-      </View>
+      {renderPostThumb(item)}
       <View style={styles.itemMeta}>
         <ThemedText style={styles.itemName} numberOfLines={1}>
           {item.title}
@@ -548,6 +577,25 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  thumbImg: { width: '100%', height: '100%' },
+  videoBadge: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
   },

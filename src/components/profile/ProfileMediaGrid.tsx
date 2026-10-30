@@ -3,11 +3,16 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-nat
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import VideoPlayer from '@/components/video-player';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getUserMedia } from '@/api/profile';
 import type { MediaItem } from '@/types/profile';
 import { MediaLightbox } from './MediaLightbox';
+
+function isVideo(fileType: string): boolean {
+  return fileType.startsWith('video/');
+}
 
 interface ProfileMediaGridProps {
   userId: string;
@@ -69,8 +74,16 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
     <View style={styles.container}>
       <View style={styles.grid}>
         {media.map((item, index) => (
-          <Pressable key={item.id} onPress={() => setLightboxIndex(index)}>
-            <Image source={{ uri: item.file_uri }} style={styles.gridItem} />
+          <Pressable
+            key={item.id}
+            onPress={() => setLightboxIndex(index)}
+            style={styles.gridItem}>
+            {/* Video URL không render được qua Image → frame đầu bằng expo-video (mirror web <video muted>). */}
+            {isVideo(item.file_type) ? (
+              <VideoPlayer uri={item.file_uri} interactive={false} />
+            ) : (
+              <Image source={{ uri: item.file_uri }} style={styles.gridFill} />
+            )}
           </Pressable>
         ))}
       </View>
@@ -93,7 +106,8 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
 const styles = StyleSheet.create({
   container: { padding: Spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
-  gridItem: { width: '33.33%', aspectRatio: 1, borderRadius: 2 },
+  gridItem: { width: '33.33%', aspectRatio: 1, borderRadius: 2, overflow: 'hidden' },
+  gridFill: { width: '100%', height: '100%' },
   loadMore: { paddingVertical: Spacing.md, alignItems: 'center' },
   loadMoreText: { ...Typography.body, fontWeight: 600 },
   center: {
