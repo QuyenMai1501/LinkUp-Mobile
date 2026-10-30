@@ -159,7 +159,15 @@
     "tabExplore": "Explore",
     "tabFollowing": "Following",
     "emptyFollowing": "No posts from people you follow.",
-    "exploreLink": "Explore posts"
+    "exploreLink": "Explore posts",
+    "tabTrending": "Trending",
+    "trendingEmpty": "No trending hashtags yet.",
+    "trendingError": "Could not load trending hashtags"
+  },
+  "hashtag": {
+    "posts": "posts",
+    "empty": "No posts with this hashtag yet.",
+    "error": "Could not load posts"
   },
   "post": {
     "readMore": "Read more",

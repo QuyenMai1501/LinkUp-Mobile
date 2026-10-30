@@ -161,8 +161,7 @@ export default function SearchScreen() {
   };
 
   const handleHashtagPress = (name: string) => {
-    setQuery(`#${name}`);
-    executeSearch(`#${name}`, activeTab);
+    (router as any).push(`/(drawer)/hashtag/${encodeURIComponent(name)}`);
   };
 
   const navigateToCommunity = (communityId: string) => {
