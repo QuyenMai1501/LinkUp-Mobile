@@ -26,7 +26,8 @@ import { getFeedStories, toggleMuteStoryUser } from '../api/story';
 import { getMyProfile } from '../api/profile';
 import { followUser } from '../api/follow';
 import { useAuth } from '@/contexts/auth-context';
-import type { FeedPost, EmojiItem } from '../types/post';
+import { onMediaReady } from '@/utils/media-ready';
+import type { FeedMedia, FeedPost, EmojiItem, MediaReadyEvent } from '../types/post';
 import type { FeedAd } from '../types/partner';
 import type { StoryFeedItem, StoryItem } from '../types/story';
 import SponsoredAdCard from './sponsored-ad-card';
@@ -57,6 +58,28 @@ async function ensureLikeEmojiId(): Promise<string | undefined> {
     /* ignore */
   }
   return undefined;
+}
+
+// Video xử lý xong Cloudinary (WS media:ready): thay URL staging bằng URL thật
+// ngay trong post đang hiển thị — mirror web Feed.tsx (setPosts patch media).
+function applyMediaReady(post: FeedPost, detail: MediaReadyEvent): FeedPost {
+  if (post.id !== detail.post_id) return post;
+  const media = [...(post.media ?? [])];
+  const idx = media.findIndex((m) => m.id === detail.media_id);
+  const updated: FeedMedia =
+    idx >= 0
+      ? { ...media[idx], file_uri: detail.file_uri, status: 'approved' }
+      : {
+          id: detail.media_id,
+          user_id: post.user_id,
+          post_id: post.id,
+          file_uri: detail.file_uri,
+          file_type: 'video/mp4',
+          status: 'approved',
+        };
+  if (idx >= 0) media[idx] = updated;
+  else media.push(updated);
+  return { ...post, media };
 }
 
 function SkeletonCard() {
@@ -244,6 +267,20 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   useEffect(() => {
     fetchNext();
   }, [fetchNext]);
+
+  // Video upload Cloudinary xong → thay URL staging ngay, không cần refresh.
+  useEffect(() => {
+    const unsubscribe = onMediaReady((detail) => {
+      if (!detail?.post_id) return;
+      setPosts((prev) => prev.map((p) => applyMediaReady(p, detail)));
+      // Cache cho detail screen cũng giữ post cũ → patch luôn.
+      for (const [id, p] of feedPostCache) {
+        const updated = applyMediaReady(p, detail);
+        if (updated !== p) feedPostCache.set(id, updated);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     cursorRef.current = null;
