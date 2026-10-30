@@ -25,7 +25,9 @@ export function useProfilePosts(userId: string | null) {
       const res = await getUserPosts(userId, cursor);
       cursorRef.current = res.next_cursor;
       setHasMore(res.next_cursor !== null);
-      setPosts((prev) => (reset ? res.data : [...prev, ...res.data]));
+      // Server cũ trả data:null khi list rỗng → guard để không crash.
+      const data = res.data ?? [];
+      setPosts((prev) => (reset ? data : [...prev, ...data]));
     } catch (err: any) {
       setPostsError(err?.message || 'Failed to load posts');
     } finally {

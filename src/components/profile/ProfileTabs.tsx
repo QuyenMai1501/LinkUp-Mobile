@@ -52,7 +52,9 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
       const res = await getSavedPosts(cursor);
       savedCursorRef.current = res.next_cursor;
       setSavedHasMore(res.next_cursor !== null);
-      setSavedPosts((prev) => (reset ? res.data : [...prev, ...res.data]));
+      // Server cũ trả data:null khi list rỗng → guard để không crash.
+      const data = res.data ?? [];
+      setSavedPosts((prev) => (reset ? data : [...prev, ...data]));
     } catch {
     } finally {
       setSavedLoading(false);
