@@ -79,6 +79,16 @@ export const getSavedPosts = (cursor: string | null, pageSize = 10) => {
   return request<FeedResponse>(`/posts/saved?${params.toString()}`);
 };
 
+// Phân trang page-based (khác feed cursor-based) — mirror web api/posts.ts getPostsByHashtag.
+export const getPostsByHashtag = (name: string, page = 1, pageSize = 10) => {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return request<{ hashtag: string; page: number; page_size: number; data: FeedPost[] }>(
+    `/posts/hashtag/${encodeURIComponent(name)}?${params.toString()}`,
+  );
+};
+
 export const pinPost = (postId: string) =>
   request<{ message: string }>(`/posts/${postId}/pin`, {
     method: 'POST',

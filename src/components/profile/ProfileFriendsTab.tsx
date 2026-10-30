@@ -31,7 +31,9 @@ export function ProfileFriendsTab({ userId }: ProfileFriendsTabProps) {
 
     try {
       const res = await getFriends(p, 12);
-      setFriends((prev) => (p === 1 ? res.data : [...prev, ...res.data]));
+      // Server cũ trả data:null khi list rỗng → guard để không crash.
+      const data = res.data ?? [];
+      setFriends((prev) => (p === 1 ? data : [...prev, ...data]));
       setHasMore(res.has_more);
       setPage(p);
     } catch {

@@ -123,15 +123,17 @@ export default function CommunityFeed({ communityId, header }: CommunityFeedProp
           reset ? undefined : cursorRef.current ?? undefined,
           PAGE_SIZE,
         );
+        // Server cũ trả posts:null khi community chưa có bài → guard để không crash.
+        const postsPage = res.posts ?? [];
         setPosts((prev) => {
-          const base = reset ? res.posts : [...prev, ...res.posts];
+          const base = reset ? postsPage : [...prev, ...postsPage];
           const seen = new Set<string>();
           return base.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
         });
-        const last = res.posts[res.posts.length - 1];
+        const last = postsPage[postsPage.length - 1];
         cursorRef.current = last ? `${last.created_at},${last.id}` : null;
-        setHasMore(res.posts.length === PAGE_SIZE && last !== undefined);
-        for (const p of res.posts) {
+        setHasMore(postsPage.length === PAGE_SIZE && last !== undefined);
+        for (const p of postsPage) {
           feedPostCache.set(p.id, p);
         }
       } catch (err) {

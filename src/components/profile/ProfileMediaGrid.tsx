@@ -26,7 +26,8 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
     getUserMedia(userId, 1, 18)
       .then((res) => {
         if (!cancelled) {
-          setMedia(res.data);
+          // Server cũ trả data:null khi list rỗng → guard để không crash.
+          setMedia(res.data ?? []);
           setHasMore(res.has_more);
         }
       })
@@ -40,7 +41,7 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
     const nextPage = page + 1;
     getUserMedia(userId, nextPage, 18)
       .then((res) => {
-        setMedia((prev) => [...prev, ...res.data]);
+        setMedia((prev) => [...prev, ...(res.data ?? [])]);
         setHasMore(res.has_more);
         setPage(nextPage);
       })

@@ -111,13 +111,15 @@ export default function SavedScreen() {
     const isFirst = cursorRef.current === null;
     try {
       const res = await getSavedPosts(cursorRef.current, PAGE_SIZE);
+      // Server cũ trả data:null khi list rỗng → guard để không crash.
+      const data = res.data ?? [];
       setPosts((prev) => {
-        const list = isFirst ? res.data : [...prev, ...res.data];
+        const list = isFirst ? data : [...prev, ...data];
         const seen = new Set<string>();
         return list.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
       });
       // Populate cache so post detail screen can render immediately
-      for (const p of res.data) {
+      for (const p of data) {
         feedPostCache.set(p.id, p);
       }
       cursorRef.current = res.next_cursor;

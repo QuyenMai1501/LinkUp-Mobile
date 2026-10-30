@@ -240,10 +240,21 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
+      allowsMultipleSelection: true,
+      orderedSelection: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setMedia((prev) => [...prev, { uri: asset.uri, type: asset.mimeType || 'image/jpeg', name: asset.fileName || `image_${Date.now()}.jpg` }]);
+    if (!result.canceled && result.assets.length > 0) {
+      setMedia((prev) => {
+        const existing = new Set(prev.map((m) => m.uri));
+        const added = result.assets
+          .filter((asset) => !existing.has(asset.uri))
+          .map((asset, index) => ({
+            uri: asset.uri,
+            type: asset.mimeType || 'image/jpeg',
+            name: asset.fileName || `image_${Date.now()}_${index}.jpg`,
+          }));
+        return [...prev, ...added];
+      });
       setError(null);
     }
   };

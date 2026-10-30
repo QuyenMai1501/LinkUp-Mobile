@@ -107,7 +107,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const currentUserId = user?.id ?? null;
 
   const openHashtag = (tag: string) => {
-    (router as any).push(`/(drawer)/search?q=${encodeURIComponent('#' + tag)}`);
+    (router as any).push(`/(drawer)/hashtag/${encodeURIComponent(tag)}`);
   };
 
   const [post, setPost] = useState<FeedPost | null>(postData ?? null);

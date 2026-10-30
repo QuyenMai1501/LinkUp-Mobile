@@ -159,7 +159,15 @@
     "tabExplore": "Khám phá",
     "tabFollowing": "Đang theo dõi",
     "emptyFollowing": "Chưa có bài đăng nào từ người bạn theo dõi.",
-    "exploreLink": "Khám phá bài viết"
+    "exploreLink": "Khám phá bài viết",
+    "tabTrending": "Thịnh hành",
+    "trendingEmpty": "Chưa có hashtag thịnh hành nào.",
+    "trendingError": "Không thể tải hashtag thịnh hành"
+  },
+  "hashtag": {
+    "posts": "bài viết",
+    "empty": "Chưa có bài viết với hashtag này.",
+    "error": "Không thể tải bài viết"
   },
   "post": {
     "readMore": "Xem thêm",

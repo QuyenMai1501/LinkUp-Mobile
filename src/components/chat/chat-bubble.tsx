@@ -502,11 +502,16 @@ function MessageText({
   /** busyBg armor (Web .busyBg .mine .msgText): text-shadow nhẹ trên ảnh nền. */
   textShadow?: boolean;
 }) {
+  const router = useRouter();
   return (
     <RichContent
       content={content}
       emojiMap={emojiMap}
       size={18}
+      onHashtagPress={(tag) =>
+        (router as any).push(`/(drawer)/hashtag/${encodeURIComponent(tag)}`)
+      }
+      hashtagStyle={styles.hashtag}
       style={[
         styles.content,
         { color },
@@ -584,6 +589,9 @@ const styles = StyleSheet.create({
   content: {
     ...Typography.body,
     fontSize: 15,
+  },
+  hashtag: {
+    fontWeight: "600",
   },
   singleGiphy: {
     width: 64,

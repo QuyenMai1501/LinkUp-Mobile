@@ -173,7 +173,7 @@ export default function PostCard({
   }, []);
 
   const openHashtag = (tag: string) => {
-    (router as any).push(`/(drawer)/search?q=${encodeURIComponent('#' + tag)}`);
+    (router as any).push(`/(drawer)/hashtag/${encodeURIComponent(tag)}`);
   };
 
   const triggerBurst = () => {
