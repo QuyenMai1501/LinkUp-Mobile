@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -104,6 +105,9 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
   const { t } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  // Carousel media cố định square full-bleed — Yoga không resolve nổi
+  // item `width: undefined + aspectRatio` trong FlatList horizontal (section collapse 0).
+  const { width: winWidth } = useWindowDimensions();
   const currentUserId = user?.id ?? null;
 
   const openHashtag = (tag: string) => {
@@ -556,7 +560,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
 
               {/* Media carousel */}
               {hasMedia && (
-                <View style={styles.mediaSection}>
+                <View style={[styles.mediaSection, { height: winWidth }]}>
                   <FlatList
                     data={mediaList}
                     horizontal
@@ -568,7 +572,7 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     }}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item: m }) => (
-                      <View style={styles.mediaItem}>
+                      <View style={[styles.mediaItem, { width: winWidth, height: winWidth }]}>
                         {isVideo(m.file_type) ? (
                           <VideoPlayer
                             uri={m.file_uri}
@@ -899,8 +903,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   mediaItem: {
-    width: undefined,
-    aspectRatio: 1,
+    backgroundColor: '#000',
   },
   mediaImage: {
     width: '100%',
