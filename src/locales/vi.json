@@ -483,6 +483,9 @@
       "unlockFailed": "Không thể mở khóa tin nhắn"
     },
     "mediaMessage": "Media",
+    "mediaImage": "[Hình ảnh]",
+    "mediaVideo": "[Video]",
+    "mediaGif": "[GIF]",
     "mediaFailed": "Không thể tải media",
     "uploadFailed": "Tải lên thất bại",
     "uploadFailedCount": "{count}/{total} tệp đính kèm tải lên thất bại. Chạm bong bóng để thử lại.",

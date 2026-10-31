@@ -110,6 +110,22 @@ export default function VideoPlayer({
   );
 }
 
+/**
+ * Thumbnail frame đầu của video (paused, không controls) — dùng cho preview
+ * trong composer/ad-form (mirror web `<video muted preload="metadata">`).
+ */
+export function VideoThumb({ uri, style }: { uri: string; style?: object }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.muted = true;
+    p.loop = false;
+  });
+  return (
+    <View style={[styles.container, style]}>
+      <VideoView player={player} style={styles.video} contentFit="cover" nativeControls={false} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     width: '100%',

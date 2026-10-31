@@ -483,6 +483,9 @@
       "unlockFailed": "Could not unlock messages"
     },
     "mediaMessage": "Media",
+    "mediaImage": "[Image]",
+    "mediaVideo": "[Video]",
+    "mediaGif": "[GIF]",
     "mediaFailed": "Failed to load media",
     "uploadFailed": "Upload failed",
     "uploadFailedCount": "{count}/{total} attachments failed to upload. Tap a bubble to retry.",

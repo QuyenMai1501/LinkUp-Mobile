@@ -8,6 +8,7 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
+import { mediaPreviewKey } from '@/utils/chat-media-preview';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ChatConversation } from '@/types/chat';
 
@@ -33,16 +34,26 @@ export function ConversationListItem({
   const { partner, last_message, is_encrypted } = conversation;
 
   // Preview tin cuối: E2E chưa hydrate được (không có khóa / decrypt fail) →
-  // server chỉ giữ ciphertext, client nhận content rỗng → hiện placeholder khóa
+  // server chỉ giữ ciphertext, client nhận content rỗng → hiển thị placeholder khóa
   // thay vì "tệp đính kèm" hay lộ ciphertext.
-  // Lời mời nhóm (type=group_invite) có content là JSON payload (request_id…) —
-  // không render raw, hiện nhãn localized.
+  // Lời mời nhóm (type=group_invite) cả content là JSON payload (request_id…) →
+  // không render raw, hiển thị localized.
+  // Media phân biệt [Video]/[GIF]/[Image] (mirror web chatMediaPreview);
+  // audio (voice) giữ nhãn riêng.
+  const mediaKey = last_message?.media_id
+    ? last_message.media_type?.startsWith('audio/')
+      ? 'chat.voiceMessage'
+      : mediaPreviewKey({
+          media_type: last_message.media_type,
+          content: last_message.content,
+        })
+    : null;
   const previewText = !last_message
     ? t('chat.newChat')
-    : last_message.media_id
-      ? last_message.media_type?.startsWith('audio/')
-        ? t('chat.voiceMessage')
-        : t('chat.mediaMessage')
+    : mediaKey
+      ? t(mediaKey)
+      : last_message.media_id
+        ? t('chat.mediaMessage')
       : last_message.emoji_id
         ? t('chat.emojiMessage')
         : last_message.type === 'group_invite'
