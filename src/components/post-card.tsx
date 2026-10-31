@@ -79,13 +79,17 @@ interface MediaGridProps {
   media: FeedMedia[];
   onPress?: (index: number) => void;
   embedded?: boolean;
+  /** Autoplay muted ô video ĐẦU TIÊN (feed chỉ phát 1 video/lúc). */
+  videoAutoplay?: boolean;
 }
 
-function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
+function MediaGrid({ media, onPress, embedded, videoAutoplay }: MediaGridProps) {
   const theme = useTheme();
   if (!media || media.length === 0) return null;
 
   const count = Math.min(media.length, 4);
+  // Chỉ ô video đầu tiên được autoplay — post nhiều video không chạy song song.
+  const firstVideoId = media.find((m) => isVideo(m.file_type))?.id;
 
   return (
     <View style={[styles.mediaGrid, embedded && styles.mediaGridEmbedded]}>
@@ -102,7 +106,11 @@ function MediaGrid({ media, onPress, embedded }: MediaGridProps) {
             count === 4 && styles.mediaQuarter,
           ]}>
           {isVideo(m.file_type) ? (
-            <VideoPlayer uri={m.file_uri} interactive={false} />
+            <VideoPlayer
+              uri={m.file_uri}
+              interactive={false}
+              autoplay={videoAutoplay && m.id === firstVideoId}
+            />
           ) : (
             <Image
               source={{ uri: m.file_uri }}
@@ -132,6 +140,8 @@ interface PostCardProps {
   onFollow?: (userId: string) => void;
   onCommentPress?: () => void;
   onSharePress?: () => void;
+  /** Feed truyền true khi post này đang ≥50% visible nhất → autoplay muted video. */
+  videoAutoplay?: boolean;
 }
 
 export default function PostCard({
@@ -144,6 +154,7 @@ export default function PostCard({
   onFollow,
   onCommentPress,
   onSharePress,
+  videoAutoplay,
 }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -352,6 +363,7 @@ export default function PostCard({
               <MediaGrid
                 media={sharedPost.media}
                 embedded
+                videoAutoplay={videoAutoplay}
                 onPress={(index) => onMediaPress?.(index, sharedPost)}
               />
             </View>
@@ -381,7 +393,7 @@ export default function PostCard({
       {/* Zone 3: Media — outer media only for non-reposts (repost media is embedded above) */}
       {!isRepost && (
         <View>
-          <MediaGrid media={post.media} onPress={handleMediaPress} />
+          <MediaGrid media={post.media} videoAutoplay={videoAutoplay} onPress={handleMediaPress} />
           {burst && (
             <Animated.View
               style={[

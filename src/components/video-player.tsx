@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 
@@ -12,6 +12,11 @@ interface VideoPlayerProps {
   loop?: boolean;
   /** Dùng điều khiển video gốc của expo-video (bỏ overlay play custom). */
   nativeControls?: boolean;
+  /**
+   * Phát tự động (muted theo prop) khi true, pause khi false — feed dùng cho
+   * autoplay 1 video/lúc. User tap pause thủ công sẽ không bị autoplay đè.
+   */
+  autoplay?: boolean;
 }
 
 export default function VideoPlayer({
@@ -21,25 +26,45 @@ export default function VideoPlayer({
   muted = true,
   loop = true,
   nativeControls = false,
+  autoplay = false,
 }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(true);
+  // User tap pause thủ công → autoplay effect không đè (mirror web userPausedRef).
+  const userPausedRef = useRef(false);
 
   const player = useVideoPlayer(uri, (p) => {
     p.muted = muted;
     p.loop = loop;
   });
 
+  // Sync overlay theo trạng thái thật của player (autoplay + tap + nativeControls).
+  useEffect(() => {
+    const sub = player.addListener('playingChange', (e: { isPlaying: boolean }) => {
+      setPlaying(e.isPlaying);
+      setShowPlayButton(!e.isPlaying);
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  // Feed autoplay: phát khi autoplay=true (trừ khi user đã tap pause), pause khi false.
+  // pause() trên player đang paused là no-op — an toàn cho mọi call site không autoplay.
+  useEffect(() => {
+    if (autoplay && !userPausedRef.current) {
+      player.play();
+    } else if (!autoplay) {
+      userPausedRef.current = false;
+      player.pause();
+    }
+  }, [autoplay, player]);
+
   const togglePlay = useCallback(() => {
     if (playing) {
+      userPausedRef.current = true;
       player.pause();
-      setPlaying(false);
-      setShowPlayButton(true);
     } else {
+      userPausedRef.current = false;
       player.play();
-      setPlaying(true);
-      setShowPlayButton(false);
-      setTimeout(() => setShowPlayButton(false), 2000);
     }
   }, [playing, player]);
 

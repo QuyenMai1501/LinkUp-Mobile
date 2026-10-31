@@ -42,6 +42,12 @@ const VIEWABILITY_CONFIG = {
   minimumViewTime: 2000,
 };
 
+// Config riêng cho video autoplay: ≥50% visible là phát ngay (không đợi 2s).
+const VIDEO_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 50,
+  minimumViewTime: 0,
+};
+
 // Module-level cache: feed posts keyed by ID, for passing to detail screen
 export const feedPostCache = new Map<string, FeedPost>();
 
@@ -127,6 +133,8 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedAds, setFeedAds] = useState<FeedAd[]>([]);
   const trackedAdsRef = useRef(new Set<string>());
+  // Post đang hiển thị nhiều nhất có video → autoplay muted 1 video/lúc (mirror web).
+  const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -372,8 +380,8 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
 
   // Impressions: bài + ads cùng chung ngưỡng viewability (≥50% trong 2s);
   // ads dedupe theo session qua trackedAdsRef (trackAdAction không tự dedupe).
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: FeedRow }> }) => {
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: FeedRow }[] }) => {
       for (const { item } of viewableItems) {
         if (item.kind === 'ad') {
           if (!trackedAdsRef.current.has(item.ad.id)) {
@@ -385,6 +393,41 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
         }
       }
     },
+    [],
+  );
+
+  // Video autoplay: chọn post đầu tiên (trên cùng) đang ≥50% visible có video
+  // → 1 video muted phát/lúc (mirror web nhưng giới hạn 1 video để tiết kiệm pin).
+  const handleVideoViewableChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: FeedRow }[] }) => {
+      let activeId: string | null = null;
+      for (const { item } of viewableItems) {
+        if (
+          item.kind === 'post' &&
+          item.post.media?.some((m) => m.file_type?.startsWith('video/'))
+        ) {
+          activeId = item.post.id;
+          break;
+        }
+      }
+      setActiveVideoPostId(activeId);
+    },
+    [],
+  );
+
+  // Pairs phải stable qua các render (RN init ViewabilityHelper 1 lần).
+  const viewabilityPairs = useMemo(
+    () => [
+      {
+        viewabilityConfig: VIEWABILITY_CONFIG,
+        onViewableItemsChanged: handleViewableItemsChanged,
+      },
+      {
+        viewabilityConfig: VIDEO_VIEWABILITY_CONFIG,
+        onViewableItemsChanged: handleVideoViewableChanged,
+      },
+    ],
+    [handleViewableItemsChanged, handleVideoViewableChanged],
   );
 
   // Media modal handlers
@@ -501,6 +544,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
           ) : (
             <PostCard
               post={row.post}
+              videoAutoplay={row.post.id === activeVideoPostId}
               onPress={onPostPress}
               onLike={handleLike}
               onSave={handleSave}
@@ -535,8 +579,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
         }
         onEndReached={commentSheetVisible ? undefined : handleEndReached}
         onEndReachedThreshold={1}
-        viewabilityConfig={VIEWABILITY_CONFIG}
-        onViewableItemsChanged={onViewableItemsChanged.current}
+        viewabilityConfigCallbackPairs={viewabilityPairs}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={5}

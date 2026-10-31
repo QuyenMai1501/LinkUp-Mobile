@@ -570,7 +570,12 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                     renderItem={({ item: m }) => (
                       <View style={styles.mediaItem}>
                         {isVideo(m.file_type) ? (
-                          <VideoPlayer uri={m.file_uri} />
+                          <VideoPlayer
+                            uri={m.file_uri}
+                            muted={false}
+                            loop={false}
+                            nativeControls
+                          />
                         ) : (
                           <Image
                             source={{ uri: m.file_uri }}
