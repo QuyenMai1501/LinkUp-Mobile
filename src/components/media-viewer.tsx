@@ -326,13 +326,12 @@ export default function MediaViewer({
                       },
                     ]}>
                     {isVideo(item.file_type) ? (
-                      // nativeControls: seek/speed/mute/fullscreen của expo-video
-                      // (mirror chat media-lightbox; bỏ overlay play/pause cũ).
+                      // Custom controls ported từ web VideoPlayer (seek/speed/
+                      // mute/fullscreen, auto-hide) — tap video toggle play.
                       <VideoPlayer
                         uri={item.file_uri}
-                        muted={false}
+                        autoplay
                         loop={false}
-                        nativeControls
                       />
                     ) : (
                       <Image

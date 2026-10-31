@@ -96,6 +96,8 @@ export const icons = {
   play: 'play-outline' as const,
   pause: 'pause' as const,
   stop: 'stop' as const,
+  rewind: 'play-back-outline' as const,
+  forward: 'play-forward-outline' as const,
   expand: 'expand-outline' as const,
   compass: 'compass-outline' as const,
   compassFilled: 'compass' as const,

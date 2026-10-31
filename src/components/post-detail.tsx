@@ -576,9 +576,8 @@ export default function PostDetail({ postId, postData, onBack, onDeleted }: Post
                         {isVideo(m.file_type) ? (
                           <VideoPlayer
                             uri={m.file_uri}
-                            muted={false}
+                            autoplay
                             loop={false}
-                            nativeControls
                           />
                         ) : (
                           <Image
