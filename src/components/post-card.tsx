@@ -110,6 +110,9 @@ function MediaGrid({ media, onPress, embedded, videoAutoplay }: MediaGridProps) 
               uri={m.file_uri}
               interactive={false}
               autoplay={videoAutoplay && m.id === firstVideoId}
+              // Native VideoView nuốt touch → catcher trong VideoPlayer gọi
+              // thẳng onTap (giữ double-tap like + 280ms mở viewer của cell).
+              onTap={() => onPress?.(idx)}
             />
           ) : (
             <Image

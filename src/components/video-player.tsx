@@ -17,6 +17,13 @@ interface VideoPlayerProps {
    * autoplay 1 video/lúc. User tap pause thủ công sẽ không bị autoplay đè.
    */
   autoplay?: boolean;
+  /**
+   * Bắt tap toàn vùng video (trừ các nút controls phía trên).
+   * Native VideoView nuốt touch (expo-video Android `onTouchEvent` luôn
+   * return true, iOS AVPlayerViewController gesture) → cần catcher Pressable
+   * đặt TRÊN VideoView để tap đi vào RN. Không truyền → tự togglePlay.
+   */
+  onTap?: () => void;
 }
 
 export default function VideoPlayer({
@@ -27,6 +34,7 @@ export default function VideoPlayer({
   loop = true,
   nativeControls = false,
   autoplay = false,
+  onTap,
 }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(true);
@@ -68,6 +76,9 @@ export default function VideoPlayer({
     }
   }, [playing, player]);
 
+  // Catcher đặt SAU VideoView (chặn native nuốt touch) và TRƯỚC overlay
+  // controls (commit sau) để nút controls bắt trước catcher.
+
   if (nativeControls) {
     return (
       <View style={[styles.container, style]}>
@@ -89,8 +100,14 @@ export default function VideoPlayer({
         contentFit="contain"
         nativeControls={false}
       />
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onTap ?? (interactive ? togglePlay : undefined)}
+        accessibilityRole="button"
+        accessibilityLabel="video"
+      />
       {showPlayButton && (
-        <View style={styles.playOverlay}>
+        <View style={styles.playOverlay} pointerEvents="none">
           <View style={styles.playButton}>
             <View style={styles.playIcon} />
           </View>
@@ -99,15 +116,7 @@ export default function VideoPlayer({
     </>
   );
 
-  if (!interactive) {
-    return <View style={[styles.container, style]}>{content}</View>;
-  }
-
-  return (
-    <Pressable style={[styles.container, style]} onPress={togglePlay}>
-      {content}
-    </Pressable>
-  );
+  return <View style={[styles.container, style]}>{content}</View>;
 }
 
 /**
