@@ -437,10 +437,10 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
     setMediaModalVisible(true);
   }, []);
 
+  // Chỉ ẩn Modal — KHÔNG clear mediaModalPost ngay (giữ component mount
+  // để Modal dismiss sạch, tránh đá màn hình khi đóng từ ngoài feed).
   const handleCloseMedia = useCallback(() => {
     setMediaModalVisible(false);
-    setMediaModalPost(null);
-    setMediaModalIndex(0);
   }, []);
 
   // Comment sheet handlers

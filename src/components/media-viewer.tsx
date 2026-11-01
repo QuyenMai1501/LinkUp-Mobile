@@ -122,6 +122,7 @@ export default function MediaViewer({
 
   const [currentIndex, setCurrentIndex] = useState(initialSafeIndex);
   const [infoExpanded, setInfoExpanded] = useState(false);
+  const [infoBarHeight, setInfoBarHeight] = useState(0);
 
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -248,7 +249,7 @@ export default function MediaViewer({
     setInfoExpanded((previous) => !previous);
   }, []);
 
-  if (!visible || media.length === 0) {
+  if (media.length === 0) {
     return null;
   }
 
@@ -263,7 +264,7 @@ export default function MediaViewer({
       statusBarTranslucent
       onRequestClose={handleClose}>
       <GestureHandlerRootView style={styles.root}>
-        <StatusBar hidden />
+        {visible ? <StatusBar hidden /> : null}
 
         <Animated.View
           pointerEvents="none"
@@ -332,6 +333,7 @@ export default function MediaViewer({
                         uri={item.file_uri}
                         autoplay
                         loop={false}
+                        controlsBottomInset={infoBarHeight}
                       />
                     ) : (
                       <Image
@@ -348,6 +350,7 @@ export default function MediaViewer({
             </GestureDetector>
 
             <View
+              onLayout={(e) => setInfoBarHeight(e.nativeEvent.layout.height)}
               style={[
                 styles.infoContainer,
                 infoExpanded && styles.infoContainerExpanded,

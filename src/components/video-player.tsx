@@ -36,6 +36,11 @@ interface VideoPlayerProps {
    * đặt TRÊN VideoView để tap đi vào RN. Không truyền → tự togglePlay.
    */
   onTap?: () => void;
+  /**
+   * Nâng controls lên trên overlay phía dưới (vd: info bar trong media-viewer)
+   * để không bị che. Đơn vị px, cộng vào paddingBottom của overlay.
+   */
+  controlsBottomInset?: number;
 }
 
 export default function VideoPlayer({
@@ -47,6 +52,7 @@ export default function VideoPlayer({
   nativeControls = false,
   autoplay = false,
   onTap,
+  controlsBottomInset = 0,
 }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -263,7 +269,9 @@ export default function VideoPlayer({
         accessibilityLabel="video"
       />
       {showControls && (
-        <View style={styles.overlay} pointerEvents="box-none">
+        <View
+          style={[styles.overlay, { paddingBottom: 6 + controlsBottomInset }]}
+          pointerEvents="box-none">
           {!playing && (
             <View style={styles.bigPlay} pointerEvents="none">
               <Icon name="play" size={56} color="#fff" />

@@ -204,10 +204,12 @@ export default function SavedScreen() {
     setMediaModalVisible(true);
   }, []);
 
+  // Chỉ ẩn Modal — KHÔNG clear mediaModalPost ngay. Nếu unmount MediaViewer
+  // khi Modal còn "visible", Dialog dismiss trên Android gây mất focus drawer
+  // → đá về màn index (feed). Component vẫn mount, Modal nhận visible=false
+  // rồi dismiss sạch; post được ghi đè ở lần mở sau.
   const handleCloseMedia = useCallback(() => {
     setMediaModalVisible(false);
-    setMediaModalPost(null);
-    setMediaModalIndex(0);
   }, []);
 
   // Comment sheet handlers

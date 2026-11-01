@@ -241,10 +241,10 @@ export default function HashtagScreen() {
     setMediaModalVisible(true);
   }, []);
 
+  // Chỉ ẩn Modal — KHÔNG clear mediaModalPost ngay (giữ component mount
+  // để Modal dismiss sạch, tránh đá màn hình khi đóng).
   const handleCloseMedia = useCallback(() => {
     setMediaModalVisible(false);
-    setMediaModalPost(null);
-    setMediaModalIndex(0);
   }, []);
 
   // Comment sheet handlers
