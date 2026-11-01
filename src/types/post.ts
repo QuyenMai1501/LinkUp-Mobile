@@ -10,6 +10,13 @@ export interface FeedMedia {
   created_at?: string;
 }
 
+/** WS media:ready — video đã upload Cloudinary xong, thay URL staging (mirror web types/index.ts). */
+export interface MediaReadyEvent {
+  post_id: string;
+  media_id: string;
+  file_uri: string;
+}
+
 export interface FeedPost {
   id: string;
   user_id: string;

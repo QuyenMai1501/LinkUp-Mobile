@@ -24,6 +24,7 @@ import { Icon } from '@/components/ui/icon';
 import { type IconName } from '@/constants/icon-map';
 import { EmojiPicker } from '@/components/emoji-picker';
 import { GiphyGifPicker } from '@/components/giphy-gif-picker';
+import { VideoThumb } from '@/components/video-player';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
@@ -520,9 +521,8 @@ export default function PostComposer({ visible, onClose, onPosted, communityId }
                   {media.map((m, i) => (
                     <View key={m.uri} style={styles.mediaPreview}>
                       {m.type.startsWith('video/') ? (
-                        <View style={[styles.mediaThumb, { backgroundColor: theme.bgSecondary }]}>
-                          <Icon name="video" size={32} />
-                        </View>
+                        // Frame đầu video thay icon placeholder (mirror web <video preload="metadata">).
+                        <VideoThumb uri={m.uri} style={styles.mediaThumb} />
                       ) : (
                         <Image source={{ uri: m.uri }} style={styles.mediaThumb} contentFit="cover" />
                       )}

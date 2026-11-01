@@ -26,7 +26,8 @@ import { getFeedStories, toggleMuteStoryUser } from '../api/story';
 import { getMyProfile } from '../api/profile';
 import { followUser } from '../api/follow';
 import { useAuth } from '@/contexts/auth-context';
-import type { FeedPost, EmojiItem } from '../types/post';
+import { onMediaReady } from '@/utils/media-ready';
+import type { FeedMedia, FeedPost, EmojiItem, MediaReadyEvent } from '../types/post';
 import type { FeedAd } from '../types/partner';
 import type { StoryFeedItem, StoryItem } from '../types/story';
 import SponsoredAdCard from './sponsored-ad-card';
@@ -39,6 +40,12 @@ const PAGE_SIZE = 10;
 const VIEWABILITY_CONFIG = {
   itemVisiblePercentThreshold: 50,
   minimumViewTime: 2000,
+};
+
+// Config riêng cho video autoplay: ≥50% visible là phát ngay (không đợi 2s).
+const VIDEO_VIEWABILITY_CONFIG = {
+  itemVisiblePercentThreshold: 50,
+  minimumViewTime: 0,
 };
 
 // Module-level cache: feed posts keyed by ID, for passing to detail screen
@@ -57,6 +64,28 @@ async function ensureLikeEmojiId(): Promise<string | undefined> {
     /* ignore */
   }
   return undefined;
+}
+
+// Video xử lý xong Cloudinary (WS media:ready): thay URL staging bằng URL thật
+// ngay trong post đang hiển thị — mirror web Feed.tsx (setPosts patch media).
+function applyMediaReady(post: FeedPost, detail: MediaReadyEvent): FeedPost {
+  if (post.id !== detail.post_id) return post;
+  const media = [...(post.media ?? [])];
+  const idx = media.findIndex((m) => m.id === detail.media_id);
+  const updated: FeedMedia =
+    idx >= 0
+      ? { ...media[idx], file_uri: detail.file_uri, status: 'approved' }
+      : {
+          id: detail.media_id,
+          user_id: post.user_id,
+          post_id: post.id,
+          file_uri: detail.file_uri,
+          file_type: 'video/mp4',
+          status: 'approved',
+        };
+  if (idx >= 0) media[idx] = updated;
+  else media.push(updated);
+  return { ...post, media };
 }
 
 function SkeletonCard() {
@@ -104,6 +133,8 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedAds, setFeedAds] = useState<FeedAd[]>([]);
   const trackedAdsRef = useRef(new Set<string>());
+  // Post đang hiển thị nhiều nhất có video → autoplay muted 1 video/lúc (mirror web).
+  const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -245,6 +276,20 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
     fetchNext();
   }, [fetchNext]);
 
+  // Video upload Cloudinary xong → thay URL staging ngay, không cần refresh.
+  useEffect(() => {
+    const unsubscribe = onMediaReady((detail) => {
+      if (!detail?.post_id) return;
+      setPosts((prev) => prev.map((p) => applyMediaReady(p, detail)));
+      // Cache cho detail screen cũng giữ post cũ → patch luôn.
+      for (const [id, p] of feedPostCache) {
+        const updated = applyMediaReady(p, detail);
+        if (updated !== p) feedPostCache.set(id, updated);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     cursorRef.current = null;
     setError(null);
@@ -335,8 +380,8 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
 
   // Impressions: bài + ads cùng chung ngưỡng viewability (≥50% trong 2s);
   // ads dedupe theo session qua trackedAdsRef (trackAdAction không tự dedupe).
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: FeedRow }> }) => {
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: FeedRow }[] }) => {
       for (const { item } of viewableItems) {
         if (item.kind === 'ad') {
           if (!trackedAdsRef.current.has(item.ad.id)) {
@@ -348,6 +393,41 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
         }
       }
     },
+    [],
+  );
+
+  // Video autoplay: chọn post đầu tiên (trên cùng) đang ≥50% visible có video
+  // → 1 video muted phát/lúc (mirror web nhưng giới hạn 1 video để tiết kiệm pin).
+  const handleVideoViewableChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: FeedRow }[] }) => {
+      let activeId: string | null = null;
+      for (const { item } of viewableItems) {
+        if (
+          item.kind === 'post' &&
+          item.post.media?.some((m) => m.file_type?.startsWith('video/'))
+        ) {
+          activeId = item.post.id;
+          break;
+        }
+      }
+      setActiveVideoPostId(activeId);
+    },
+    [],
+  );
+
+  // Pairs phải stable qua các render (RN init ViewabilityHelper 1 lần).
+  const viewabilityPairs = useMemo(
+    () => [
+      {
+        viewabilityConfig: VIEWABILITY_CONFIG,
+        onViewableItemsChanged: handleViewableItemsChanged,
+      },
+      {
+        viewabilityConfig: VIDEO_VIEWABILITY_CONFIG,
+        onViewableItemsChanged: handleVideoViewableChanged,
+      },
+    ],
+    [handleViewableItemsChanged, handleVideoViewableChanged],
   );
 
   // Media modal handlers
@@ -357,10 +437,10 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
     setMediaModalVisible(true);
   }, []);
 
+  // Chỉ ẩn Modal — KHÔNG clear mediaModalPost ngay (giữ component mount
+  // để Modal dismiss sạch, tránh đá màn hình khi đóng từ ngoài feed).
   const handleCloseMedia = useCallback(() => {
     setMediaModalVisible(false);
-    setMediaModalPost(null);
-    setMediaModalIndex(0);
   }, []);
 
   // Comment sheet handlers
@@ -464,6 +544,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
           ) : (
             <PostCard
               post={row.post}
+              videoAutoplay={row.post.id === activeVideoPostId}
               onPress={onPostPress}
               onLike={handleLike}
               onSave={handleSave}
@@ -498,8 +579,7 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
         }
         onEndReached={commentSheetVisible ? undefined : handleEndReached}
         onEndReachedThreshold={1}
-        viewabilityConfig={VIEWABILITY_CONFIG}
-        onViewableItemsChanged={onViewableItemsChanged.current}
+        viewabilityConfigCallbackPairs={viewabilityPairs}
         removeClippedSubviews={true}
         maxToRenderPerBatch={5}
         windowSize={5}

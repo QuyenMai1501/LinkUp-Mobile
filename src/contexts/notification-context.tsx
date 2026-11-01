@@ -19,6 +19,8 @@ import {
 } from '@/api/notifications';
 import { tokenStorage } from '@/api/token-storage';
 import { notifyChatListDirty } from '@/utils/chat-list-dirty';
+import { notifyMediaReady } from '@/utils/media-ready';
+import type { MediaReadyEvent } from '@/types/post';
 import { refreshFriendRequestCount } from '@/hooks/use-friend-request-count';
 import {
   groupNotifications,
@@ -244,6 +246,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               if (newNotif.type === 'message') notifyChatListDirty();
               // Badge sidebar "Bạn bè" — đồng bộ khi có lời mời kết bạn mới.
               if (newNotif.type === 'friend_request') void refreshFriendRequestCount();
+            } else if (message.type === 'media:ready') {
+              // Video xử lý xong Cloudinary → thay URL staging trong feed đang hiển thị.
+              notifyMediaReady(message.data as MediaReadyEvent);
             }
           } catch (err) {
             console.error('Error parsing WS message:', err);

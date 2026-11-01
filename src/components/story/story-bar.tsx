@@ -1,10 +1,10 @@
 import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
-import { Icon } from '@/components/ui/icon';
 import { StoryAvatarRing } from '@/components/story/story-avatar-ring';
 import { Radius, Spacing } from '@/constants/spacing';
 import { Typography } from '@/constants/typography';
@@ -29,18 +29,33 @@ interface StoryBarProps {
   onMuteUser: (userId: string) => void;
 }
 
+/** Loop muted video nhỏ trong bubble story — mirror web StoryBar. */
+function StoryVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.muted = true;
+    p.loop = true;
+    p.play();
+  });
+  return (
+    <View style={[styles.previewMedia, styles.previewCenter, { backgroundColor: '#000' }]}>
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
+    </View>
+  );
+}
+
 function StoryPreview({ story }: { story: StoryItem }) {
-  // Tin chữ (không media) → gradient seed theo id; tin video → gradient + icon
-  // (Image không phát được video, Web thì loop muted — mobile hiển thị placeholder).
-  if (!story.media_uri || story.media_type === 'video') {
+  // Tin video → loop muted (mirror web); tin chữ (không media) → gradient seed theo id.
+  if (story.media_type === 'video' && story.media_uri) {
+    return <StoryVideoPreview uri={story.media_uri} />;
+  }
+  if (!story.media_uri) {
     return (
       <LinearGradient
         colors={pickTextGradient(story.id)}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.previewMedia, styles.previewCenter]}>
-        {story.media_type === 'video' && <Icon name="video" size={22} color="rgba(255,255,255,0.9)" />}
-      </LinearGradient>
+        style={[styles.previewMedia, styles.previewCenter]}
+      />
     );
   }
   return (

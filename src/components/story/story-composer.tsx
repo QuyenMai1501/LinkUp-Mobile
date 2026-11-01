@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -30,9 +31,29 @@ import { Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createStories } from '@/api/story';
+import { VideoThumb } from '@/components/video-player';
 import { TEXT_GRADIENTS } from '@/utils/story-gradient';
 
 const MAX_PHOTOS = 10;
+
+const isVideoAsset = (a: PickedAsset) => a.mimeType.startsWith('video/');
+
+/** Preview video phát muted lặp trong bước pick/post (mirror story-bar StoryVideoPreview). */
+function ComposerVideoPreview({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.muted = true;
+    p.loop = true;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="contain"
+      nativeControls={false}
+    />
+  );
+}
 
 type Step = 'pick' | 'edit' | 'post';
 
@@ -122,7 +143,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       selectionLimit: MAX_PHOTOS,
       quality: 0.9,
@@ -137,6 +158,14 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
     if (picked.length > MAX_PHOTOS) {
       showAlert(t('common.error'), t('story.multiErrorMax'));
+      return;
+    }
+
+    // Mirror web (StoryEditorModal handleFileChange): video chỉ đăng 1 file/lần
+    // và không trộn với ảnh đã chọn.
+    const hasVideo = picked.some(isVideoAsset);
+    if (hasVideo && (picked.length > 1 || assets.length > 0)) {
+      showAlert(t('common.error'), t('story.multiErrorVideo'));
       return;
     }
 
@@ -159,6 +188,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       while (arr.length < next.length) arr.push(null);
       return arr.slice(0, next.length);
     });
+    // Video bỏ qua bước edit (Skia) — vào thẳng bước caption/post.
+    if (hasVideo) setStep('post');
   }, [assets, t]);
 
   const removeAsset = useCallback(
@@ -229,6 +260,15 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
         }
         await createStories(
           assets.map((a, i) => {
+            // Video bỏ qua editor → không có exported jpg, upload file gốc.
+            if (isVideoAsset(a)) {
+              return {
+                fileUri: a.uri,
+                fileName: a.fileName,
+                mimeType: a.mimeType,
+                caption: (captions[i] ?? '').trim(),
+              };
+            }
             const exported = finalUris[i];
             return {
               fileUri: exported ?? a.uri,
@@ -259,6 +299,7 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
   }, [assets, captions, finalUris, mode, onClose, onCreated, posting, reset, t, textContent]);
 
   const currentAsset = assets[activeIndex];
+  const isVideoStory = !!currentAsset && isVideoAsset(currentAsset);
   const isText = mode === 'text';
   const showTabs = isText || step === 'pick';
   const canAdvance = assets.length > 0;
@@ -270,7 +311,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('story.editor.back')}
-          onPress={() => setStep(step === 'post' ? 'edit' : 'pick')}>
+          // Video bỏ qua edit → từ post quay thẳng về pick.
+          onPress={() => setStep(step === 'post' && !isVideoStory ? 'edit' : 'pick')}>
           <Icon name="chevronLeft" size={26} />
         </Pressable>
       );
@@ -300,7 +342,8 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
         disabled={!canAdvance}
         onPress={() => {
           if (step === 'pick') {
-            setStep('edit');
+            // Video bỏ qua edit → vào thẳng post.
+            setStep(isVideoStory ? 'post' : 'edit');
             return;
           }
           flushCurrent().then(() => setStep('post'));
@@ -319,15 +362,25 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
 
   const renderThumbs = (withAdd: boolean) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
-      {assets.map((a, i) => (
-        <Pressable key={`${a.uri}-${i}`} onPress={() => onThumbPress(i)}>
-          <Image
-            source={{ uri: finalUris[i] ?? a.uri }}
-            style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
-            contentFit="cover"
-          />
-        </Pressable>
-      ))}
+      {assets.map((a, i) => {
+        const thumbSource = finalUris[i] ?? a.uri;
+        return (
+          <Pressable key={`${a.uri}-${i}`} onPress={() => onThumbPress(i)}>
+            {isVideoAsset(a) && !finalUris[i] ? (
+              <VideoThumb
+                uri={thumbSource}
+                style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
+              />
+            ) : (
+              <Image
+                source={{ uri: thumbSource }}
+                style={[styles.thumb, i === activeIndex && { borderColor: theme.primary, borderWidth: 2 }]}
+                contentFit="cover"
+              />
+            )}
+          </Pressable>
+        );
+      })}
       {withAdd && assets.length < MAX_PHOTOS && (
         <Pressable style={styles.addThumb} onPress={pickPhotos} accessibilityLabel={t('story.editor.addMore')}>
           <Icon name="add" size={22} />
@@ -354,9 +407,12 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
       return (
         <ScrollView contentContainerStyle={[styles.body, styles.bodyGrow]} showsVerticalScrollIndicator={false}>
           <View style={[styles.previewWrap, { maxHeight: previewMaxH }]}>
-            {currentAsset && (
-              <Image source={{ uri: currentAsset.uri }} style={styles.previewImg} contentFit="cover" />
-            )}
+            {currentAsset &&
+              (isVideoAsset(currentAsset) ? (
+                <ComposerVideoPreview uri={currentAsset.uri} />
+              ) : (
+                <Image source={{ uri: currentAsset.uri }} style={styles.previewImg} contentFit="cover" />
+              ))}
             <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
               <Icon name="close" size={18} color={theme.textOnPrimary} />
             </Pressable>
@@ -398,13 +454,16 @@ export default function StoryComposer({ visible, onClose, onCreated }: StoryComp
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View style={[styles.postPreview, { width: frameW, height: frameH }]}>
-          {currentAsset && (
-            <Image
-              source={{ uri: finalUris[activeIndex] ?? currentAsset.uri }}
-              style={styles.previewImg}
-              contentFit="cover"
-            />
-          )}
+          {currentAsset &&
+            (isVideoAsset(currentAsset) ? (
+              <ComposerVideoPreview uri={currentAsset.uri} />
+            ) : (
+              <Image
+                source={{ uri: finalUris[activeIndex] ?? currentAsset.uri }}
+                style={styles.previewImg}
+                contentFit="cover"
+              />
+            ))}
           <Pressable style={styles.removeBtn} hitSlop={8} onPress={() => removeAsset(activeIndex)}>
             <Icon name="close" size={18} color={theme.textOnPrimary} />
           </Pressable>

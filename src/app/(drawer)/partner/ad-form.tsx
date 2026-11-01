@@ -25,6 +25,7 @@ import { getMySubscription, getPackages } from '@/api/package';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
+import VideoPlayer from '@/components/video-player';
 import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -66,6 +67,11 @@ function FieldLabel({
       )}
     </View>
   );
+}
+
+function isVideoUrl(url: string): boolean {
+  const path = url.replace(/[?#].*$/, '').toLowerCase();
+  return /\.(mp4|webm|mov|m4v|avi|mkv)$/.test(path);
 }
 
 export default function AdFormScreen() {
@@ -328,14 +334,14 @@ export default function AdFormScreen() {
                 {media ? (
                   <View style={styles.previewWrap}>
                     {media.type.startsWith('video') ? (
-                      <View
-                        style={[
-                          styles.preview,
-                          styles.previewFallback,
-                          { backgroundColor: colors.primaryLight },
-                        ]}>
-                        <Icon name="video" size={28} color={colors.primary} />
-                      </View>
+                      // Video preview có controls (seek/mute) — mirror web <video controls>.
+                      <VideoPlayer
+                        uri={media.uri}
+                        style={styles.preview}
+                        muted
+                        loop={false}
+                        nativeControls
+                      />
                     ) : (
                       <Image
                         source={{ uri: media.uri }}
@@ -367,11 +373,21 @@ export default function AdFormScreen() {
           ) : meta?.media_uri ? (
             <View style={styles.section}>
               <FieldLabel text={t('partner.form.uploadMedia')} />
-              <Image
-                source={{ uri: meta.media_uri }}
-                style={[styles.preview, styles.editPreview]}
-                contentFit="cover"
-              />
+              {isVideoUrl(meta.media_uri) ? (
+                <VideoPlayer
+                  uri={meta.media_uri}
+                  style={[styles.preview, styles.editPreview]}
+                  muted
+                  loop={false}
+                  nativeControls
+                />
+              ) : (
+                <Image
+                  source={{ uri: meta.media_uri }}
+                  style={[styles.preview, styles.editPreview]}
+                  contentFit="cover"
+                />
+              )}
             </View>
           ) : null}
 

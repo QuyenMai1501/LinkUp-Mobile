@@ -3,8 +3,13 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import VideoPlayer from '@/components/video-player';
 import { Spacing, Typography } from '@/constants/theme';
 import type { MediaItem } from '@/types/profile';
+
+function isVideo(fileType: string): boolean {
+  return fileType.startsWith('video/');
+}
 
 interface MediaLightboxProps {
   items: MediaItem[];
@@ -25,7 +30,18 @@ export function MediaLightbox({ items, initialIndex, onClose, onNavigate }: Medi
           <Icon name="close" size={20} color="#FFFFFF" />
         </Pressable>
 
-        <Image source={{ uri: item.file_uri }} style={styles.media} resizeMode="contain" />
+        {/* Video: nativeControls expo-video (seek/mute/fullscreen) — mirror web <video controls>. */}
+        {isVideo(item.file_type) ? (
+          <VideoPlayer
+            uri={item.file_uri}
+            style={styles.media}
+            muted={false}
+            loop={false}
+            nativeControls
+          />
+        ) : (
+          <Image source={{ uri: item.file_uri }} style={styles.media} resizeMode="contain" />
+        )}
 
         <View style={styles.footer}>
           <ThemedText style={styles.counter}>
