@@ -175,31 +175,6 @@ export default function GroupChatScreen() {
   const [newMessagesCount, setNewMessagesCount] = useState(0);
   const prevMsgCountRef = useRef(0);
 
-  // Load thông tin nhóm (tên, avatar, số thành viên). Dùng useFocusEffect để
-  // reload khi quay về từ màn settings (HTTP rename không broadcast WS).
-  useFocusEffect(
-    useCallback(() => {
-      if (!chatId) return;
-      let cancelled = false;
-      getGroupSettings(chatId)
-        .then((res) => {
-          if (cancelled) return;
-          const s = res.data;
-          setGroup({
-            chat_id: s.chat_id,
-            name: s.name,
-            avatar_uri: s.avatar_uri,
-            member_count: s.members?.length ?? 0,
-            updated_at: new Date().toISOString(),
-          });
-        })
-        .catch(() => {});
-      return () => {
-        cancelled = true;
-      };
-    }, [chatId]),
-  );
-
   // Realtime: nhóm đổi tên/ảnh → cập nhật header ngay.
   useEffect(() => {
     const unsub = socket.subscribe('group:settings:updated', (payload: any) => {
@@ -270,6 +245,36 @@ export default function GroupChatScreen() {
     myUserId,
     socket,
   });
+
+  // Load thông tin nhóm (tên, avatar, số thành viên) + seed tên/avatar member
+  // từ danh sách — member chưa từng nhắn tin vẫn resolve tên cho bubble gọi
+  // và tin hệ thống (mirror Web memberMap). useFocusEffect để reload khi quay
+  // về từ màn settings (HTTP rename không broadcast WS). seedMemberProfiles
+  // stable (useCallback []) → deps không đổi theo render, không refetch loop.
+  const { seedMemberProfiles } = room;
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      let cancelled = false;
+      getGroupSettings(chatId)
+        .then((res) => {
+          if (cancelled) return;
+          const s = res.data;
+          setGroup({
+            chat_id: s.chat_id,
+            name: s.name,
+            avatar_uri: s.avatar_uri,
+            member_count: s.members?.length ?? 0,
+            updated_at: new Date().toISOString(),
+          });
+          seedMemberProfiles(s.members ?? []);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [chatId, seedMemberProfiles]),
+  );
 
   // --- Đồng bộ lịch sử call nhóm với call socket ---
   // group:call:* chỉ nằm trên /api/group-calls/ws (không sang chat socket).

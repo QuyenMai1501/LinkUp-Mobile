@@ -14,6 +14,7 @@ import type {
 import type { GroupChatSocket } from './useGroupChatSocket';
 import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { GroupCallHistoryItem } from '@/types/group-call';
+import type { GroupChatMember } from '@/types/group-chat';
 import { isSystemMessage } from '@/components/chat/system-message';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
@@ -67,6 +68,12 @@ export interface GroupChatRoom {
   memberNames: Record<string, string>;
   // Avatar theo user_id — cho bubble lịch sử cuộc gọi nhóm.
   memberAvatars: Record<string, string>;
+  /**
+   * Seed tên/avatar từ danh sách thành viên (GET group settings) — member
+   * chưa từng nhắn tin vẫn resolve được tên cho bubble gọi / tin hệ thống
+   * (mirror Web memberMap ở messages/page.tsx). Chỉ điền entry thiếu.
+   */
+  seedMemberProfiles: (members: GroupChatMember[]) => void;
   // Tìm kiếm server-side (group:message:search).
   searchResults: ChatMessage[] | null;
   searchKeyword: string;
@@ -179,6 +186,35 @@ export function useGroupChatRoom({
       }
       if (m.sender_avatar && !nextAvatars[m.sender_id]) {
         nextAvatars[m.sender_id] = m.sender_avatar;
+        avatarsChanged = true;
+      }
+    }
+    if (namesChanged) {
+      memberNamesRef.current = nextNames;
+      setMemberNames(nextNames);
+    }
+    if (avatarsChanged) {
+      memberAvatarsRef.current = nextAvatars;
+      setMemberAvatars(nextAvatars);
+    }
+  }, []);
+
+  // Seed từ GET /group-chats/:id/settings (members) — mirror Web
+  // messages/page memberMap: member chưa nhắn tin vẫn có tên cho call bubble
+  // và tin hệ thống. First-write-wins như rememberNames (không override).
+  const seedMemberProfiles = useCallback((members: GroupChatMember[]) => {
+    if (members.length === 0) return;
+    let namesChanged = false;
+    let avatarsChanged = false;
+    const nextNames = { ...memberNamesRef.current };
+    const nextAvatars = { ...memberAvatarsRef.current };
+    for (const m of members) {
+      if (m.display_name && !nextNames[m.user_id]) {
+        nextNames[m.user_id] = m.display_name;
+        namesChanged = true;
+      }
+      if (m.avatar_uri && !nextAvatars[m.user_id]) {
+        nextAvatars[m.user_id] = m.avatar_uri;
         avatarsChanged = true;
       }
     }
@@ -880,6 +916,7 @@ export function useGroupChatRoom({
       typingUsers,
       memberNames,
       memberAvatars,
+      seedMemberProfiles,
       searchResults,
       searchKeyword,
       searchMessages,
@@ -907,6 +944,7 @@ export function useGroupChatRoom({
       typingUsers,
       memberNames,
       memberAvatars,
+      seedMemberProfiles,
       searchResults,
       searchKeyword,
       searchMessages,
