@@ -515,6 +515,8 @@
     "systemMemberLeft": "{name} left the group",
     "systemMemberJoined": "{name} joined the group",
     "systemMemberInvited": "{name} was invited to the group",
+    "systemMemberAddedByYou": "{name} was added by you",
+    "systemMemberAdded": "{name} was added by {by}",
     "systemAdminTransferred": "{name} is now the group leader",
     "systemGroupNameChanged": "{name} changed group name to \"{groupName}\"",
     "systemGroupAvatarChanged": "{name} changed the group photo",

@@ -460,6 +460,7 @@ export function useGroupChatRoom({
       user_id?: string;
       user_name?: string;
       member_name?: string;
+      by?: string;
     };
     if (!data || data.chat_id !== chatIdRef.current) return;
     const name = data.user_name || data.member_name;
@@ -467,13 +468,21 @@ export function useGroupChatRoom({
       memberNamesRef.current = { ...memberNamesRef.current, [data.user_id]: name };
       setMemberNames(memberNamesRef.current);
     }
+    // Optimistic "đã được thêm" — server chỉ broadcast group:member:added lúc
+    // accept (lúc mời là group:member:invited, mình không subscribe). Content
+    // 3 phần key|invitee|inviter khớp server row để render cùng template.
+    const by = data.by || '';
+    const content = `member_invited|${data.user_id || ''}|${by}`;
     setMessages((prev) =>
-      sortByCreatedAt(
-        dedupeByID([
-          ...prev,
-          makeSystemMessage(data.chat_id!, 'member_joined', data.user_id || ''),
-        ]),
-      ),
+      // Chống trùng: server row đã vào history (race merge vs broadcast).
+      prev.some((m) => m.content === content)
+        ? prev
+        : sortByCreatedAt(
+            dedupeByID([
+              ...prev,
+              makeSystemMessage(data.chat_id!, 'member_invited', data.user_id || '', by),
+            ]),
+          ),
     );
   }, []);
 

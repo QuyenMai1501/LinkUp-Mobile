@@ -515,6 +515,8 @@
     "systemMemberLeft": "{name} đã rời nhóm",
     "systemMemberJoined": "{name} đã tham gia nhóm",
     "systemMemberInvited": "{name} đã được mời vào nhóm",
+    "systemMemberAddedByYou": "{name} đã được bạn thêm vào nhóm",
+    "systemMemberAdded": "{name} đã được {by} thêm vào nhóm",
     "systemAdminTransferred": "{name} đã trở thành nhóm trưởng",
     "systemGroupNameChanged": "{name} đã đổi tên nhóm thành \"{groupName}\"",
     "systemGroupAvatarChanged": "{name} đã đổi ảnh nhóm",

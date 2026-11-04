@@ -93,6 +93,19 @@ function getSystemMessageText(
     case 'member_joined':
       return t('chat.systemMemberJoined', { name: actorName });
     case 'member_invited':
+      // Format mới (3 phần): parts[2] = inviter → "[invitee] đã được [by] thêm
+      // vào nhóm". Row cũ (2 phần, parts[1] = inviter) giữ template cũ.
+      if (extraParam) {
+        return extraParam === ctx.myUserId
+          ? t('chat.systemMemberAddedByYou', { name: actorName })
+          : t('chat.systemMemberAdded', {
+              name: actorName,
+              by:
+                ctx.memberNames?.[extraParam] ||
+                (extraParam === ctx.partnerUserId ? ctx.partnerName : undefined) ||
+                t('chat.unknown'),
+            });
+      }
       return t('chat.systemMemberInvited', { name: actorName });
     case 'admin_transferred':
       return t('chat.systemAdminTransferred', { name: actorName });
