@@ -1,5 +1,11 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { RTCView } from 'react-native-webrtc';
 
 import { GroupCallParticipantTile } from '@/components/calls/group-call-participant-tile';
@@ -131,6 +137,27 @@ export function GroupCallOverlay() {
     minimize,
     expand,
   } = useGroupCall();
+
+  if (phase === 'connecting' && call) {
+    return (
+      <View style={styles.fullscreen} pointerEvents="auto">
+        <ActivityIndicator size="large" color="#fff" />
+        <ThemedText style={styles.connectingText}>
+          {t('groupCall.connecting')}
+        </ThemedText>
+      </View>
+    );
+  }
+
+  if (phase === 'ended' && call) {
+    return (
+      <View style={styles.fullscreen} pointerEvents="auto">
+        <ThemedText style={styles.connectingText}>
+          {t('groupCall.ended')}
+        </ThemedText>
+      </View>
+    );
+  }
 
   if (phase !== 'active' || !call) return null;
 
@@ -291,7 +318,7 @@ export function GroupCallOverlay() {
           </ThemedText>
           {call.pendingRequests.map((uid) => {
             const p = call.participants.get(uid);
-            const name = p?.display_name || uid;
+            const name = p?.display_name || t('call.unknown');
             return (
               <View key={uid} style={styles.pendingItem}>
                 {p?.avatar_uri ? (
@@ -503,5 +530,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fullscreen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  connectingText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

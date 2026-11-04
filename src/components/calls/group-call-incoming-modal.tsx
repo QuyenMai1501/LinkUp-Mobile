@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +23,8 @@ const COLORS = {
 export function GroupCallIncomingModal() {
   const { t } = useTranslation();
   const { phase, call, joinGroupCall, declineGroupCall } = useGroupCall();
+  // Chống double-tap Accept — getUserMedia có await giữa chừng.
+  const [joining, setJoining] = useState(false);
 
   if (phase !== 'ringing' || !call) return null;
 
@@ -63,8 +66,16 @@ export function GroupCallIncomingModal() {
               <Icon name="call" size={26} color={COLORS.text} style={styles.declineIcon} />
             </Pressable>
             <Pressable
-              onPress={() => void joinGroupCall(call.callId)}
-              style={[styles.actionBtn, { backgroundColor: COLORS.green }]}>
+              onPress={() => {
+                if (joining) return;
+                setJoining(true);
+                void joinGroupCall(call.callId).finally(() => setJoining(false));
+              }}
+              disabled={joining}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: COLORS.green, opacity: joining ? 0.6 : 1 },
+              ]}>
               <Icon name="call" size={26} color={COLORS.text} />
             </Pressable>
           </View>

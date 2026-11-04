@@ -123,6 +123,10 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
   >(new Map());
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Timeout khi kẹt connecting (request-join im lặng / server không trả joined).
+  const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Chống double-tap Accept — getUserMedia + permissions có await giữa chừng.
+  const joinInFlightRef = useRef(false);
   const participantsRef = useRef<Map<string, GroupCallParticipant>>(new Map());
 
   const setPhaseBoth = (p: GroupCallPhase) => {
@@ -159,7 +163,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       const profile = await getProfileByUserID(userId);
       const p = participantsRef.current.get(userId);
       if (p && profile) {
-        p.display_name = profile.display_name || userId;
+        p.display_name = profile.display_name || '';
         p.avatar_uri = profile.avatar_uri || '';
         participantsRef.current.set(userId, { ...p });
         setCallState(
@@ -177,6 +181,13 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
+    }
+  };
+
+  const clearConnectingTimeout = () => {
+    if (connectingTimerRef.current) {
+      clearTimeout(connectingTimerRef.current);
+      connectingTimerRef.current = null;
     }
   };
 
@@ -216,6 +227,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     participantsRef.current.clear();
     callIdRef.current = null;
     clearDuration();
+    clearConnectingTimeout();
     if (endedTimerRef.current) {
       clearTimeout(endedTimerRef.current);
       endedTimerRef.current = null;
@@ -228,6 +240,19 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     setRemoteStreams(new Map());
   }, [setCallState]);
 
+  // Arm timeout 12s khi vào connecting — nếu không nhận joined/created → abort.
+  // Khai báo SAU resetToIdle để dependency đúng.
+  const armConnectingTimeout = useCallback(() => {
+    clearConnectingTimeout();
+    connectingTimerRef.current = setTimeout(() => {
+      connectingTimerRef.current = null;
+      if (phaseRef.current === 'connecting') {
+        showAlert(t('groupCall.connectTimeout'));
+        resetToIdle();
+      }
+    }, 12000);
+  }, [resetToIdle, t]);
+
   const showEnded = useCallback(
     (extraMs = 3000) => {
       stopRingtone();
@@ -236,6 +261,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       pendingSignalsRef.current.clear();
       callIdRef.current = null;
       clearDuration();
+      clearConnectingTimeout();
       setPhaseBoth('ended');
       setRemoteStreams(new Map());
       if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
@@ -439,7 +465,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         if (participants.has(uid)) return;
         participants.set(uid, {
           user_id: uid,
-          display_name: uid === myUserIdRef.current ? t('groupCall.you') : uid,
+          display_name: uid === myUserIdRef.current ? t('groupCall.you') : '',
           avatar_uri: '',
           muted: false,
           video_enabled: true,
@@ -480,7 +506,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       for (const uid of payload.participants) {
         participants.set(uid, {
           user_id: uid,
-          display_name: uid === myUserIdRef.current ? t('groupCall.you') : uid,
+          display_name: uid === myUserIdRef.current ? t('groupCall.you') : '',
           avatar_uri: '',
           muted: false,
           video_enabled: true,
@@ -498,6 +524,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       });
       participantsRef.current = participants;
 
+      clearConnectingTimeout();
       setPhaseBoth('active');
       startDuration();
 
@@ -520,6 +547,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       if (callIdRef.current !== payload.call_id) return;
 
       if (payload.user_id === myUserIdRef.current) {
+        clearConnectingTimeout();
         if (phaseRef.current === 'connecting') {
           setPhaseBoth('active');
           startDuration();
@@ -559,7 +587,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       // Người mới join — thêm participant + offer cho họ (existing offer).
       participantsRef.current.set(payload.user_id, {
         user_id: payload.user_id,
-        display_name: payload.user_id,
+        display_name: '',
         avatar_uri: '',
         muted: false,
         video_enabled: true,
@@ -609,9 +637,15 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
   const handleEnded = useCallback(
     (payload: GroupCallEndedPayload) => {
       if (callIdRef.current !== payload.call_id) return;
+      // Đang ringing (chưa join) → caller hủy / expire → dismiss modal + idle.
+      if (phaseRef.current === 'ringing') {
+        stopRingtone();
+        resetToIdle();
+        return;
+      }
       showEnded();
     },
-    [showEnded],
+    [showEnded, resetToIdle],
   );
 
   const handleLeft = useCallback(
@@ -683,7 +717,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         if (!participantsRef.current.has(uid)) {
           participantsRef.current.set(uid, {
             user_id: uid,
-            display_name: uid,
+            display_name: '',
             avatar_uri: '',
             muted: false,
             video_enabled: true,
@@ -716,9 +750,24 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
     (payload: { call_id: string; chat_id: string }) => {
       if (phaseRef.current !== 'connecting') return;
       callIdRef.current = payload.call_id;
+      clearConnectingTimeout();
       socket.send('group:call:list-participants', { call_id: payload.call_id });
     },
     [socket],
+  );
+
+  // Server trả {"type":"error"} khi request-join/create fail (call không tồn tại,
+  // socket sai endpoint, …). Không handle → kẹt connecting + mất call UI.
+  const handleError = useCallback(
+    (payload: { message?: string } | undefined) => {
+      const ph = phaseRef.current;
+      if (ph !== 'connecting' && ph !== 'ringing') return;
+      stopRingtone();
+      clearConnectingTimeout();
+      showAlert(payload?.message || t('groupCall.noConnection'));
+      resetToIdle();
+    },
+    [resetToIdle, t],
   );
 
   // Đăng ký WS handlers — ghi ref sau mỗi render (react-hooks/refs cấm ghi
@@ -738,13 +787,33 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       'group:call:mic': handleMic as (p: unknown) => void,
       'group:call:video': handleVideo as (p: unknown) => void,
       'group:call:participants': handleParticipants as (p: unknown) => void,
+      // Server gửi type="error" (client.go sendError) — subscribe để abort connecting.
+      error: handleError as (p: unknown) => void,
     };
   });
 
   useEffect(() => {
-    const unsubscribers = Object.entries(handlersRef.current).map(
-      ([type, handler]) =>
-        socket.subscribe(type, (payload) => handler(payload)),
+    // Luôn đọc handlersRef.current trong callback — handler identity đổi mỗi
+    // render (useCallback deps); capture entry tại subscribe time sẽ stale.
+    const types = [
+      'group:call:incoming',
+      'group:call:created',
+      'group:call:joined',
+      'group:call:joined_ack',
+      'group:call:join-request',
+      'group:call:join-rejected',
+      'group:call:signal',
+      'group:call:ended',
+      'group:call:left',
+      'group:call:mic',
+      'group:call:video',
+      'group:call:participants',
+      'error',
+    ];
+    const unsubscribers = types.map((type) =>
+      socket.subscribe(type, (payload) => {
+        handlersRef.current[type]?.(payload);
+      }),
     );
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [socket]);
@@ -804,6 +873,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       participantsRef.current = participants;
       setPhaseBoth('connecting');
       setDuration(0);
+      armConnectingTimeout();
 
       const ok = socket.send('group:call:create', {
         chat_id: chatId,
@@ -815,11 +885,13 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         resetToIdle();
       }
     },
-    [socket, setCallState, resetToIdle, t],
+    [socket, setCallState, resetToIdle, t, armConnectingTimeout],
   );
 
   const joinGroupCall = useCallback(
     async (callId: string) => {
+      // Chống double-tap — permissions + getUserMedia có await giữa chừng.
+      if (joinInFlightRef.current) return;
       if (phaseRef.current !== 'idle' && phaseRef.current !== 'ringing') return;
       if (socket.status !== 'open') {
         showAlert(t('groupCall.noConnection'));
@@ -839,17 +911,27 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      stopRingtone();
-      callIdRef.current = callId;
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-      setLocalMuted(false);
-      setLocalVideoOn(true);
-      setPhaseBoth('connecting');
+      joinInFlightRef.current = true;
+      try {
+        stopRingtone();
+        callIdRef.current = callId;
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        setLocalMuted(false);
+        setLocalVideoOn(true);
+        setPhaseBoth('connecting');
+        armConnectingTimeout();
 
-      socket.send('group:call:request-join', { call_id: callId });
+        const ok = socket.send('group:call:request-join', { call_id: callId });
+        if (!ok) {
+          showAlert(t('groupCall.noConnection'));
+          resetToIdle();
+        }
+      } finally {
+        joinInFlightRef.current = false;
+      }
     },
-    [socket, t],
+    [socket, t, resetToIdle, armConnectingTimeout],
   );
 
   const declineGroupCall = useCallback(() => {

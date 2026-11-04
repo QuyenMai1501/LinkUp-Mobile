@@ -6,6 +6,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import {
+  isCallPreviewMessage,
+  isSystemPreviewMessage,
+} from '@/utils/chat-preview';
 import { formatChatTime } from '@/utils/chat';
 import type { GroupChatConversation } from '@/types/group-chat';
 
@@ -20,15 +24,22 @@ export function GroupConversationListItem({ group, myUserId, onPress }: Props) {
   const { t } = useTranslation();
   const { last_message } = group;
 
+  // List payload trimmed (không type/message_category) — detect bằng
+  // content-sniff: call_* → "Cuộc gọi nhóm", system khác → label chung.
+  // Không bao giờ render content thô (chứa uuid actor/call id).
   const previewText = !last_message
     ? t('chat.noMessages')
-    : last_message.media_id
-      ? last_message.media_type?.startsWith('audio/')
-        ? t('chat.voiceMessage')
-        : t('chat.mediaMessage')
-      : last_message.emoji_id
-        ? t('chat.emojiMessage')
-        : last_message.content || t('chat.mediaMessage');
+    : isCallPreviewMessage(last_message)
+      ? t('chat.groupCallMessage')
+      : isSystemPreviewMessage(last_message)
+        ? t('chat.systemMessage')
+        : last_message.media_id
+          ? last_message.media_type?.startsWith('audio/')
+            ? t('chat.voiceMessage')
+            : t('chat.mediaMessage')
+          : last_message.emoji_id
+            ? t('chat.emojiMessage')
+            : last_message.content || t('chat.mediaMessage');
   const preview =
     last_message && last_message.sender_id === myUserId
       ? `${t('chat.youPrefix')}${previewText}`
