@@ -271,6 +271,74 @@ export default function GroupChatScreen() {
     socket,
   });
 
+  // --- Đồng bộ lịch sử call nhóm với call socket ---
+  // group:call:* chỉ nằm trên /api/group-calls/ws (không sang chat socket).
+  // Khi call start/end trên context, re-join group:history để bubble lịch sử
+  // cập nhật ngay — không phải đợi mở lại màn / reconnect.
+  const groupCallPhaseRef = useRef(groupCallPhase);
+  // Bắt callId khi vào phase 'ended' — resetToIdle sẽ null activeCall khi idle.
+  const endedCallIdRef = useRef<string | null>(null);
+  const endedRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const prev = groupCallPhaseRef.current;
+    groupCallPhaseRef.current = groupCallPhase;
+
+    if (prev === groupCallPhase) return;
+    if (activeCall?.chatId && chatId && activeCall.chatId !== chatId) return;
+
+    // Lưu callId ngay khi vừa end (call state còn, trước resetToIdle).
+    if (groupCallPhase === 'ended' && activeCall?.callId) {
+      endedCallIdRef.current = activeCall.callId;
+    }
+
+    // Vừa start/join call trong chat này → history có row calling ngay.
+    if (
+      (groupCallPhase === 'connecting' || groupCallPhase === 'active') &&
+      prev !== 'connecting' &&
+      prev !== 'active'
+    ) {
+      room.refreshCallHistory();
+      return;
+    }
+
+    // Call vừa end → stamp ended ngay trên bubble (optimistic).
+    if (groupCallPhase === 'ended' && endedCallIdRef.current) {
+      room.markCallEndedOptimistic(endedCallIdRef.current);
+    }
+
+    // ended → idle (sau ~3s overlay): rejoin để lấy status/ended_at thật từ server.
+    if (prev === 'ended' && groupCallPhase === 'idle') {
+      if (endedRefreshTimerRef.current) clearTimeout(endedRefreshTimerRef.current);
+      endedRefreshTimerRef.current = setTimeout(() => {
+        endedRefreshTimerRef.current = null;
+        endedCallIdRef.current = null;
+        room.refreshCallHistory();
+      }, 500);
+    }
+  }, [groupCallPhase, activeCall?.chatId, activeCall?.callId, chatId, room]);
+
+  useEffect(
+    () => () => {
+      if (endedRefreshTimerRef.current) clearTimeout(endedRefreshTimerRef.current);
+    },
+    [],
+  );
+
+  // Bystander không nhận group:call:ended (chỉ người trong call được relay).
+  // Quay lại màn → rejoin để thấy call đã ended / ongoing mới.
+  const refreshCallHistory = room.refreshCallHistory;
+  useFocusEffect(
+    useCallback(() => {
+      if (!chatId) return;
+      // Delay nhẹ để socket kịp open sau khi navigate.
+      const timer = setTimeout(() => {
+        refreshCallHistory();
+      }, 300);
+      return () => clearTimeout(timer);
+    }, [chatId, refreshCallHistory]),
+  );
+
   const { byId: serverEmojis } = useServerEmojis();
 
   const timeline = useMemo<GroupedItem[]>(() => {

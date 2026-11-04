@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { isSystemMessage } from '@/components/chat/system-message';
 import { formatChatTime } from '@/utils/chat';
 import type { GroupChatConversation } from '@/types/group-chat';
 
@@ -22,13 +23,15 @@ export function GroupConversationListItem({ group, myUserId, onPress }: Props) {
 
   const previewText = !last_message
     ? t('chat.noMessages')
-    : last_message.media_id
-      ? last_message.media_type?.startsWith('audio/')
-        ? t('chat.voiceMessage')
-        : t('chat.mediaMessage')
-      : last_message.emoji_id
-        ? t('chat.emojiMessage')
-        : last_message.content || t('chat.mediaMessage');
+    : isSystemMessage(last_message)
+      ? t('chat.systemMessage')
+      : last_message.media_id
+        ? last_message.media_type?.startsWith('audio/')
+          ? t('chat.voiceMessage')
+          : t('chat.mediaMessage')
+        : last_message.emoji_id
+          ? t('chat.emojiMessage')
+          : last_message.content || t('chat.mediaMessage');
   const preview =
     last_message && last_message.sender_id === myUserId
       ? `${t('chat.youPrefix')}${previewText}`

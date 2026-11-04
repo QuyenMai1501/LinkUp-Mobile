@@ -77,14 +77,15 @@ function getSystemMessageText(
   const extraParam = parts[2] || '';
 
   // Ưu tiên map tên của group; 1-1 resolve theo ngữ cảnh hội thoại.
+  // Fallback cuối = t('chat.unknown') — không render uuid actor (server set
+  // SenderName = actorID cho system msg, memberNames có thể không có tên).
   const actorName = !actorId
     ? ''
     : actorId === ctx.myUserId
       ? t('chat.you')
       : ctx.memberNames?.[actorId] ||
-        (actorId === ctx.partnerUserId
-          ? ctx.partnerName || actorId
-          : actorId);
+        (actorId === ctx.partnerUserId ? ctx.partnerName : undefined) ||
+        t('chat.unknown');
 
   switch (translationKey) {
     case 'member_left':
@@ -101,7 +102,8 @@ function getSystemMessageText(
     case 'group_avatar_changed':
       return t('chat.systemGroupAvatarChanged', { name: actorName });
     default:
-      return msg.content;
+      // Không render content thô — dạng key|uuid|... chứa uuid actor.
+      return t('chat.unknown');
   }
 }
 

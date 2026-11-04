@@ -21,6 +21,9 @@ export function useGroupCallSocket(): GroupCallSocket {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(1000);
   const closedByUserRef = useRef(false);
+  // connect() async (getWsUrl) — guard đồng bộ chặn caller thứ 2 trong lúc
+  // caller thứ 1 còn đang await, nếu không sẽ tạo 2 WebSocket cùng lúc.
+  const connectingRef = useRef(false);
   const connectRef = useRef<() => void>(() => {});
   const [status, setStatus] = useState<GroupCallSocketStatus>('closed');
 
@@ -32,11 +35,19 @@ export function useGroupCallSocket(): GroupCallSocket {
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    // readyState <= OPEN bắt cả CONNECTING (0) lẫn OPEN (1) — caller thứ 2
+    // không được tạo socket trùng khi socket thứ 1 đang mở hoặc đang nối.
+    if (connectingRef.current) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
     closedByUserRef.current = false;
+    connectingRef.current = true;
 
     getWsUrl().then((url) => {
+      connectingRef.current = false;
       if (!url) return;
+      // Re-check sau await: connect() khác có thể đã tạo socket trong lúc chờ.
+      if (closedByUserRef.current) return;
+      if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
       setStatus('connecting');
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -61,6 +72,9 @@ export function useGroupCallSocket(): GroupCallSocket {
       };
 
       ws.onclose = () => {
+        // Chỉ socket hiện hành được null ref + schedule reconnect —
+        // socket mồ côi đóng không được giết socket sống đang dùng.
+        if (wsRef.current !== ws) return;
         setStatus('closed');
         wsRef.current = null;
         if (!closedByUserRef.current) {

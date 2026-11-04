@@ -14,6 +14,7 @@ import type {
 import type { GroupChatSocket } from './useGroupChatSocket';
 import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { GroupCallHistoryItem } from '@/types/group-call';
+import { isSystemMessage } from '@/components/chat/system-message';
 
 function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
   return [...list].sort(
@@ -77,6 +78,13 @@ export interface GroupChatRoom {
   unpinMessage: (messageId: string) => void;
   // Lịch sử cuộc gọi nhóm — đến qua group:history (mirror Web useGroupChatRoom).
   callHistory: GroupCallHistoryItem[];
+  /** Gửi lại group:join để lấy history + messages mới (không cần reconnect). */
+  refreshCallHistory: () => void;
+  /**
+   * Đánh dấu call đã ended ngay trên state (optimistic) — server persistCallEnd
+   * chạy best-effort sau group:call:ended, refresh ngay có thể vẫn thấy calling.
+   */
+  markCallEndedOptimistic: (callId: string) => void;
   sendMessage: (content: string, opts?: SendMessageOptions) => void;
   sendTyping: (isTyping: boolean) => void;
   deleteMessage: (messageId: string, mode: 'all' | 'me') => void;
@@ -126,6 +134,9 @@ export function useGroupChatRoom({
   const messagesRef = useRef<ChatMessage[]>([]);
   const memberNamesRef = useRef<Record<string, string>>({});
   const memberAvatarsRef = useRef<Record<string, string>>({});
+  // group:history lần đầu = full replace; các lần rejoin (refreshCallHistory)
+  // merge để không mất optimistic pending bubbles.
+  const historyLoadedRef = useRef(false);
 
   // Hàng đợi id bubble tạm (optimistic) — echo group:message:new shift() từng
   // id để thay đúng temp (không so content).
@@ -158,6 +169,10 @@ export function useGroupChatRoom({
     const nextNames = { ...memberNamesRef.current };
     const nextAvatars = { ...memberAvatarsRef.current };
     for (const m of list) {
+      // System msg: server set SenderName = actorID (uuid) — không ghi vào
+      // memberNames, nếu không sẽ map uuid → uuid (first-write-wins) và
+      // component system message render thô uuid đó.
+      if (isSystemMessage(m)) continue;
       if (m.sender_name && !nextNames[m.sender_id]) {
         nextNames[m.sender_id] = m.sender_name;
         namesChanged = true;
@@ -241,18 +256,32 @@ export function useGroupChatRoom({
       };
       if (!data || data.chat_id !== chatIdRef.current) return;
       setLoading(false);
-      const msgs = sortByCreatedAt(
+      const serverMsgs = sortByCreatedAt(
         dedupeByID((data.messages ?? []).filter((m) => !isCallSystemMsg(m))),
       );
-      setMessages(msgs);
+      // Lần đầu: replace full. Rejoin: merge — server wins theo id, giữ pending
+      // temp/failed đang gửi dở (không có trong server list).
+      if (!historyLoadedRef.current) {
+        setMessages(serverMsgs);
+        historyLoadedRef.current = true;
+      } else {
+        setMessages((prev) => {
+          const byId = new Map(serverMsgs.map((m) => [m.id, m]));
+          const keptPending = prev.filter(
+            (m) => !byId.has(m.id) && (m.sending || m.failed || m.id.startsWith('temp-')),
+          );
+          return sortByCreatedAt(dedupeByID([...serverMsgs, ...keptPending]));
+        });
+      }
+      // History call LUÔN lấy từ server — kể cả rejoin (bubble ended/calling mới).
       setCallHistory(data.calls ?? []);
-      rememberNames(msgs);
+      rememberNames(serverMsgs);
 
       // Tự động đánh dấu đã đọc: marker mới nhất = toàn bộ tin ≤ nó đã đọc.
-      if (msgs.length > 0 && socket.status === 'open') {
+      if (serverMsgs.length > 0 && socket.status === 'open') {
         socket.send('group:message:read', {
           chat_id: data.chat_id!,
-          last_message_id: msgs[msgs.length - 1].id,
+          last_message_id: serverMsgs[serverMsgs.length - 1].id,
         });
       }
     },
@@ -522,6 +551,7 @@ export function useGroupChatRoom({
       setSearchKeyword('');
       setPinnedMessages([]);
       setCallHistory([]);
+      historyLoadedRef.current = false;
       memberNamesRef.current = {};
       memberAvatarsRef.current = {};
       sendTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
@@ -576,6 +606,24 @@ export function useGroupChatRoom({
     if (!chatId || socket.status !== 'open') return;
     socket.send('group:join', { chat_id: chatId });
   }, [chatId, socket.status, socket.send]);
+
+  const refreshCallHistory = useCallback(() => {
+    const chatID = chatIdRef.current;
+    if (!chatID || socket.status !== 'open') return;
+    socket.send('group:join', { chat_id: chatID });
+  }, [socket]);
+
+  const markCallEndedOptimistic = useCallback((callId: string) => {
+    setCallHistory((prev) => {
+      if (!prev.some((c) => c.call_id === callId)) return prev;
+      const now = new Date().toISOString();
+      return prev.map((c) =>
+        c.call_id === callId
+          ? { ...c, status: 'ended', ended_at: c.ended_at ?? now }
+          : c,
+      );
+    });
+  }, []);
 
   const sendMessage = useCallback(
     (content: string, opts?: SendMessageOptions) => {
@@ -840,6 +888,8 @@ export function useGroupChatRoom({
       pinMessage,
       unpinMessage,
       callHistory,
+      refreshCallHistory,
+      markCallEndedOptimistic,
       sendMessage,
       sendTyping,
       deleteMessage,
@@ -865,6 +915,8 @@ export function useGroupChatRoom({
       pinMessage,
       unpinMessage,
       callHistory,
+      refreshCallHistory,
+      markCallEndedOptimistic,
       sendMessage,
       sendTyping,
       deleteMessage,

@@ -4,6 +4,7 @@ import { RTCView, type MediaStream } from 'react-native-webrtc';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { GroupCallParticipant } from '@/types/group-call';
 
 const COLORS = {
@@ -35,7 +36,9 @@ export function GroupCallParticipantTile({
 }: Props) {
   const showMuted = muted ?? participant.muted;
   const showVideo = videoEnabled ?? participant.video_enabled;
-  const name = participant.display_name || participant.user_id;
+  const { t } = useTranslation();
+  // Không fallback user_id (uuid) — tên chưa fetch được → "Không xác định".
+  const name = participant.display_name || t('call.unknown');
   const showVideoView = !!stream && showVideo;
 
   return (
