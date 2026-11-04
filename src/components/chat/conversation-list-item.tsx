@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatChatTime } from '@/utils/chat';
 import { mediaPreviewKey } from '@/utils/chat-media-preview';
+import { isInvitePreviewContent, isSystemPreviewMessage } from '@/utils/chat-preview';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ChatConversation } from '@/types/chat';
 
@@ -36,8 +37,9 @@ export function ConversationListItem({
   // Preview tin cuối: E2E chưa hydrate được (không có khóa / decrypt fail) →
   // server chỉ giữ ciphertext, client nhận content rỗng → hiển thị placeholder khóa
   // thay vì "tệp đính kèm" hay lộ ciphertext.
-  // Lời mời nhóm (type=group_invite) cả content là JSON payload (request_id…) →
-  // không render raw, hiển thị localized.
+  // Lời mời nhóm: list payload TRIMMED không có type → sniff content JSON
+  // (request_id…) — không bao giờ render raw, hiển thị localized.
+  // Tin system cũng content-sniff (payload thiếu type/category).
   // Media phân biệt [Video]/[GIF]/[Image] (mirror web chatMediaPreview);
   // audio (voice) giữ nhãn riêng.
   const mediaKey = last_message?.media_id
@@ -56,11 +58,14 @@ export function ConversationListItem({
         ? t('chat.mediaMessage')
       : last_message.emoji_id
         ? t('chat.emojiMessage')
-        : last_message.type === 'group_invite'
+        : last_message.type === 'group_invite' ||
+            isInvitePreviewContent(last_message.content)
           ? t('chat.groupInviteTitle')
-          : is_encrypted && !last_message.content
-            ? t('chat.encryptedPreview')
-            : last_message.content || t('chat.mediaMessage');
+          : isSystemPreviewMessage(last_message)
+            ? t('chat.systemMessage')
+            : is_encrypted && !last_message.content
+              ? t('chat.encryptedPreview')
+              : last_message.content || t('chat.mediaMessage');
   const preview =
     last_message && last_message.sender_id === myUserId
       ? `${t('chat.youPrefix')}${previewText}`
