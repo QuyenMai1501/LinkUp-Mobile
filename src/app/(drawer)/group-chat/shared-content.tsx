@@ -42,7 +42,8 @@ function formatFileSize(bytes: number): string {
 
 /** SharedMediaItem → ChatMessage giả để tái dùng MediaLightbox. */
 function toLightboxMessages(content: SharedContent): ChatMessage[] {
-  return content.media.map((m) => ({
+  // Server Go marshal slice rỗng → JSON null (không phải []).
+  return (content.media ?? []).map((m) => ({
     id: m.message_id,
     chat_id: '',
     sender_id: '',

@@ -544,6 +544,7 @@
     "leftGroupSuccess": "You left the group",
     "leaveGroup": "Leave group",
     "leaveGroupConfirm": "Are you sure you want to leave \"{name}\"?",
+    "leaveGroupAdminBlock": "You are the group leader. Transfer the role to another member before leaving.",
     "leaveModePublic": "Public",
     "leaveModePublicDesc": "Notify the group that you left",
     "leaveModeSilent": "Silent",

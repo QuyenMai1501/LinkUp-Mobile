@@ -544,6 +544,7 @@
     "leftGroupSuccess": "Bạn đã rời khỏi nhóm",
     "leaveGroup": "Rời khỏi nhóm",
     "leaveGroupConfirm": "Bạn có chắc muốn rời khỏi nhóm \"{name}\"?",
+    "leaveGroupAdminBlock": "Bạn là nhóm trưởng. Hãy chuyển quyền nhóm trưởng cho thành viên khác trước khi rời nhóm.",
     "leaveModePublic": "Công khai",
     "leaveModePublicDesc": "Thông báo cho cả nhóm rằng bạn đã rời",
     "leaveModeSilent": "Im lặng",

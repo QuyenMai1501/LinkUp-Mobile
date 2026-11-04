@@ -663,9 +663,18 @@ export default function GroupChatSettingsScreen() {
             </Pressable>
           </View>
 
-          {/* Rời nhóm */}
+          {/* Rời nhóm — admin phải chuyển quyền trước khi rời */}
           <Pressable
-            onPress={() => setLeaveOpen(true)}
+            onPress={() => {
+              if (isAdmin) {
+                showAlert(
+                  t('common.actionRequired'),
+                  t('chat.leaveGroupAdminBlock'),
+                );
+                return;
+              }
+              setLeaveOpen(true);
+            }}
             style={[styles.leaveBtn, { backgroundColor: theme.dangerLight }]}>
             <Icon name="logout" size={16} color={theme.danger} />
             <ThemedText style={[styles.leaveBtnText, { color: theme.danger }]}>
@@ -939,25 +948,33 @@ export default function GroupChatSettingsScreen() {
               <Pressable
                 style={[
                   styles.leaveActionBtn,
-                  { backgroundColor: theme.bgSecondary },
+                  {
+                    backgroundColor: theme.bgSecondary,
+                    paddingHorizontal: Spacing.md,
+                  },
                 ]}
                 onPress={() => setConfirmTransfer(null)}
                 disabled={actionBusy}>
-                <ThemedText style={{ color: theme.text }}>
+                <ThemedText
+                  style={{ color: theme.text, textAlign: 'center' }}>
                   {t('common.cancel')}
                 </ThemedText>
               </Pressable>
               <Pressable
                 style={[
                   styles.leaveActionBtn,
-                  { backgroundColor: theme.primary },
+                  {
+                    backgroundColor: theme.primary,
+                    paddingHorizontal: Spacing.md,
+                  },
                 ]}
                 onPress={handleConfirmTransfer}
                 disabled={actionBusy}>
                 {actionBusy ? (
                   <ActivityIndicator size={14} color={theme.textOnPrimary} />
                 ) : (
-                  <ThemedText style={{ color: theme.textOnPrimary }}>
+                  <ThemedText
+                    style={{ color: theme.textOnPrimary, textAlign: 'center' }}>
                     {t('chat.transferAdmin')}
                   </ThemedText>
                 )}
