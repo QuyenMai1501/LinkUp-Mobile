@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
@@ -8,7 +16,7 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useProfilePosts } from '@/hooks/useProfilePosts';
-import { getSavedPosts } from '@/api/posts';
+import { getEmojis, getSavedPosts, reactPost } from '@/api/posts';
 import type { ViewProfileResponse } from '@/types/profile';
 import type { FeedPost } from '@/types/post';
 import PostCard from '@/components/post-card';
@@ -34,6 +42,7 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
     hasMore,
     handleLike,
     handleSavePost,
+    fetchMore,
   } = useProfilePosts(userId);
 
   // Saved posts state
@@ -42,6 +51,49 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
   const [savedHasMore, setSavedHasMore] = useState(true);
   const savedLoadingRef = useRef(false);
   const savedCursorRef = useRef<string | null>(null);
+  const likeEmojiIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    getEmojis()
+      .then((res) => {
+        const like = res.data.find((e) => e.code === ':like:');
+        if (like) likeEmojiIdRef.current = like.id;
+      })
+      .catch(() => {});
+  }, []);
+
+  // Phân trang Posts: tải trang kế khi kéo gần cuối ScrollView (parity với
+  // IntersectionObserver của web). fetchMore tự guard trong hook bằng loadingRef.
+  const handlePostsScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!hasMore || postsLoading) return;
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 600) {
+        fetchMore();
+      }
+    },
+    [hasMore, postsLoading, fetchMore],
+  );
+
+  // Like trong Saved tab phải patch mảng savedPosts (handleLike của hook
+  // chỉ patch mảng posts ở tab Bài viết).
+  const handleSavedLike = useCallback(async (postId: string) => {
+    const emojiId = likeEmojiIdRef.current;
+    const prev = savedPosts;
+    setSavedPosts((list) =>
+      list.map((p) =>
+        p.id === postId
+          ? { ...p, is_liked: !p.is_liked, likes_count: p.likes_count + (p.is_liked ? -1 : 1) }
+          : p,
+      ),
+    );
+    if (!emojiId) return;
+    try {
+      await reactPost(postId, emojiId);
+    } catch {
+      setSavedPosts(prev);
+    }
+  }, [savedPosts]);
 
   const fetchSavedPosts = useCallback(async (reset = false) => {
     if (savedLoadingRef.current) return;
@@ -112,7 +164,9 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
         <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
+          contentContainerStyle={styles.scrollContent}
+          scrollEventThrottle={16}
+          onScroll={handlePostsScroll}>
           {postsLoading && posts.length === 0 ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color={theme.primary} />
@@ -173,7 +227,7 @@ export function ProfileTabs({ userId, isSelf, profile }: ProfileTabsProps) {
                 <PostCard
                   key={post.id}
                   post={post}
-                  onLike={() => handleLike(post.id)}
+                  onLike={() => handleSavedLike(post.id)}
                   onSave={() => {
                     setSavedPosts((prev) => prev.filter((p) => p.id !== post.id));
                     handleSavePost(post.id);
