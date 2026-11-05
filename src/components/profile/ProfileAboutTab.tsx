@@ -1,9 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { RichContent } from '@/components/rich-content';
+import { showAlert } from '@/utils/alert';
 import { getEmojiTextMap } from '@/utils/emojis';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -12,10 +13,14 @@ import type { ViewProfileResponse } from '@/types/profile';
 
 const EMOJI_MAP = getEmojiTextMap();
 
-function formatDate(dateStr?: string): string {
+function formatDate(dateStr?: string, language = 'vi'): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString(language === 'en' ? 'en-US' : 'vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 function formatJoinDate(dateStr: string): string {
@@ -34,7 +39,14 @@ interface InfoItem {
 
 export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
+  const openWebsite = (url: string) => {
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    Linking.openURL(href).catch(() => {
+      showAlert(t('common.error'), href);
+    });
+  };
 
   const infoItems: InfoItem[] = [];
 
@@ -51,7 +63,7 @@ export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
     infoItems.push({ icon: '🔗', label: t('profile.website'), value: profile.website, isLink: true });
   }
   if (profile.date_of_birth) {
-    infoItems.push({ icon: '🎂', label: t('profile.birthday'), value: formatDate(profile.date_of_birth) });
+    infoItems.push({ icon: '🎂', label: t('profile.birthday'), value: formatDate(profile.date_of_birth, language) });
   }
 
   if (!profile.bio && infoItems.length === 0) {
@@ -82,7 +94,15 @@ export function ProfileAboutTab({ profile }: { profile: ViewProfileResponse }) {
               <ThemedText style={styles.infoIcon}>{item.icon}</ThemedText>
               <View style={styles.infoContent}>
                 <ThemedText themeColor="textSecondary" style={styles.infoLabel}>{item.label}</ThemedText>
-                <ThemedText style={styles.infoValue}>{item.value}</ThemedText>
+                {item.isLink ? (
+                  <Pressable onPress={() => openWebsite(item.value)}>
+                    <ThemedText style={[styles.infoValue, { color: theme.primary, textDecorationLine: 'underline' }]}>
+                      {item.value}
+                    </ThemedText>
+                  </Pressable>
+                ) : (
+                  <ThemedText style={styles.infoValue}>{item.value}</ThemedText>
+                )}
               </View>
             </View>
           ))}

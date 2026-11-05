@@ -24,7 +24,8 @@
     "processing": "Processing...",
     "dark": "Dark",
     "light": "Light",
-    "sessionExpired": "Session expired"
+    "sessionExpired": "Session expired",
+    "loadMore": "Load more"
   },
   "auth": {
     "login": {
@@ -1032,6 +1033,10 @@
     "birthday": "Birthday",
     "saved": "Saved",
     "noSavedPosts": "No saved posts yet",
+    "noMedia": "No photos or videos yet",
+    "postsCountLabel": "{{count}} posts",
+    "shareProfile": "Share profile",
+    "linkCopied": "Profile link copied",
     "dateOfBirth": "Date of birth",
     "saveError": "Could not save changes",
     "privacySection": "Privacy",

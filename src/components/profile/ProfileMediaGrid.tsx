@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import VideoPlayer from '@/components/video-player';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { getUserMedia } from '@/api/profile';
 import type { MediaItem } from '@/types/profile';
 import { MediaLightbox } from './MediaLightbox';
@@ -20,6 +21,7 @@ interface ProfileMediaGridProps {
 
 export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -65,7 +67,7 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
     return (
       <View style={styles.center}>
         <Icon name="images" size={48} color={theme.textSecondary} />
-        <ThemedText themeColor="textSecondary" style={styles.emptyText}>No media</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.emptyText}>{t('profile.noMedia')}</ThemedText>
       </View>
     );
   }
@@ -89,7 +91,7 @@ export function ProfileMediaGrid({ userId }: ProfileMediaGridProps) {
       </View>
       {hasMore && (
         <Pressable onPress={loadMore} style={styles.loadMore}>
-          <ThemedText style={[styles.loadMoreText, { color: theme.primary }]}>Load more</ThemedText>
+          <ThemedText style={[styles.loadMoreText, { color: theme.primary }]}>{t('common.loadMore')}</ThemedText>
         </Pressable>
       )}
       {lightboxIndex !== null && (

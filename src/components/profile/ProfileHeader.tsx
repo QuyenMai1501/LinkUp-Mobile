@@ -16,6 +16,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getUserStories } from '@/api/story';
 import { batchGetPresence } from '@/api/presence';
+import * as Clipboard from 'expo-clipboard';
+import { formatCount } from '@/utils/format';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ViewProfileResponse, FollowStats } from '@/types/profile';
@@ -23,6 +25,9 @@ import type { StoryItem } from '@/types/story';
 import { FriendButton } from './FriendButton';
 
 const EMOJI_MAP = getEmojiTextMap();
+
+// Base web để tạo link hồ sơ khi chia sẻ (vd https://linkup.vn).
+const WEB_BASE_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? 'https://linkup.vn').replace(/\/$/, '');
 
 interface ProfileHeaderProps {
   profile: ViewProfileResponse;
@@ -66,7 +71,7 @@ export function ProfileHeader({
   menuSlot,
 }: ProfileHeaderProps) {
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { user: authUser } = useAuth();
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [storyItems, setStoryItems] = useState<StoryItem[] | null>(null);
@@ -81,6 +86,15 @@ export function ProfileHeader({
       setAvatarViewerOpen(true);
     }
   }, [onViewAvatar]);
+
+  const handleShareProfile = useCallback(async () => {
+    try {
+      await Clipboard.setStringAsync(`${WEB_BASE_URL}/profile/${profile.user_id}`);
+      showAlert(t('common.success'), t('profile.linkCopied'));
+    } catch {
+      showAlert(t('common.error'), t('common.error'));
+    }
+  }, [profile.user_id, t]);
 
   // Chấm xanh online (chỉ hồ sơ người khác — parity web usePresence).
   useEffect(() => {
@@ -264,12 +278,21 @@ export function ProfileHeader({
 
         {/* User info */}
         <ThemedText style={styles.displayName}>{profile.display_name}</ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.username}>@{profile.username}</ThemedText>
+        <View style={styles.usernameRow}>
+          <ThemedText themeColor="textSecondary" style={styles.username}>
+            @{profile.username}
+          </ThemedText>
+          <Pressable onPress={handleShareProfile} hitSlop={8} style={styles.shareBtn}>
+            <Icon name="share" size={16} color={theme.textSecondary} />
+          </Pressable>
+        </View>
         {profile.bio ? (
           <RichContent content={profile.bio} emojiMap={EMOJI_MAP} style={[styles.bio, { color: theme.text }]} />
         ) : null}
         <ThemedText themeColor="textSecondary" style={styles.meta}>
-          📅 {t('profile.joined')} {formatJoinDate(profile.created_at)}
+          {profile.post_count > 0 &&
+            `${t('profile.postsCountLabel', { count: formatCount(profile.post_count, language) })} · `}
+          {t('profile.joined')} {formatJoinDate(profile.created_at)}
         </ThemedText>
 
         {/* Stats */}
@@ -492,7 +515,15 @@ const styles = StyleSheet.create({
   },
   avatarMenuText: { ...Typography.body, fontSize: 14 },
   displayName: { ...Typography.h2, marginTop: Spacing.sm, textAlign: 'center' },
-  username: { ...Typography.caption, marginBottom: Spacing.sm },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  username: { ...Typography.caption },
+  shareBtn: { padding: 4 },
   bio: { ...Typography.body, textAlign: 'center', paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   meta: { ...Typography.caption, marginBottom: Spacing.md },
   stats: {

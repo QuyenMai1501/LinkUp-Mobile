@@ -24,7 +24,8 @@
     "processing": "Đang xử lý...",
     "dark": "Tối",
     "light": "Sáng",
-    "sessionExpired": "Phiên đăng nhập đã hết hạn"
+    "sessionExpired": "Phiên đăng nhập đã hết hạn",
+    "loadMore": "Tải thêm"
   },
   "auth": {
     "login": {
@@ -1032,6 +1033,10 @@
     "birthday": "Sinh nhật",
     "saved": "Đã lưu",
     "noSavedPosts": "Chưa có bài viết đã lưu",
+    "noMedia": "Chưa có ảnh hoặc video nào",
+    "postsCountLabel": "{{count}} bài viết",
+    "shareProfile": "Chia sẻ hồ sơ",
+    "linkCopied": "Đã sao chép liên kết hồ sơ",
     "dateOfBirth": "Ngày sinh",
     "saveError": "Không thể lưu thay đổi",
     "privacySection": "Quyền riêng tư",
