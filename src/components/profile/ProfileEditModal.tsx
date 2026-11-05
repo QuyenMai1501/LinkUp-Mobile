@@ -6,10 +6,13 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
+import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
@@ -26,6 +29,60 @@ function stripEmoji(text: string): string {
   return text.replace(EMOJI_RE, '');
 }
 
+// 'YYYY-MM-DD' (state) ↔ ISO string (API) — parity web ProfileEditModal.
+function isoToDateOnly(iso?: string): string {
+  return iso ? iso.split('T')[0] : '';
+}
+
+function dateOnlyToIso(dateOnly: string): string | null {
+  if (!dateOnly) return null;
+  const d = new Date(`${dateOnly}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function displayDate(dateOnly: string, language: string): string {
+  if (!dateOnly) return '';
+  const [y, m, d] = dateOnly.split('-');
+  if (!y || !m || !d) return dateOnly;
+  return language === 'en' ? `${m}/${d}/${y}` : `${d}/${m}/${y}`;
+}
+
+function ToggleRow({
+  label,
+  hint,
+  value,
+  onValueChange,
+  isLast,
+}: {
+  label: string;
+  hint: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  isLast?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        styles.toggleRow,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.divider },
+      ]}>
+      <View style={styles.toggleMeta}>
+        <ThemedText style={styles.toggleLabel}>{label}</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.toggleHint}>
+          {hint}
+        </ThemedText>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: theme.border, true: theme.primary }}
+        thumbColor={theme.card}
+      />
+    </View>
+  );
+}
+
 const DISPLAY_NAME_REGEX = /^[\p{L}\p{M}\d ]+$/u;
 const MAX_DISPLAY_NAME = 55;
 const MAX_BIO = 200;
@@ -39,13 +96,20 @@ interface ProfileEditModalProps {
 
 export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModalProps) {
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio);
   const [location, setLocation] = useState(profile.location);
   const [work, setWork] = useState(profile.work);
   const [education, setEducation] = useState(profile.education);
   const [website, setWebsite] = useState(profile.website);
+  const [dateOfBirth, setDateOfBirth] = useState(isoToDateOnly(profile.date_of_birth));
+  const [showDobPicker, setShowDobPicker] = useState(false);
+  const [isPrivateProfile, setIsPrivateProfile] = useState(profile.is_private_profile);
+  const [isPrivatePosts, setIsPrivatePosts] = useState(profile.is_private_posts);
+  const [allowStrangerFriend, setAllowStrangerFriend] = useState(
+    profile.allow_stranger_friend_request,
+  );
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -86,6 +150,15 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
     if (work !== profile.work) input.work = work;
     if (education !== profile.education) input.education = education;
     if (website !== profile.website) input.website = website;
+    if (dateOfBirth !== isoToDateOnly(profile.date_of_birth)) {
+      const iso = dateOnlyToIso(dateOfBirth);
+      if (iso) input.date_of_birth = iso;
+    }
+    if (isPrivateProfile !== profile.is_private_profile) input.is_private_profile = isPrivateProfile;
+    if (isPrivatePosts !== profile.is_private_posts) input.is_private_posts = isPrivatePosts;
+    if (allowStrangerFriend !== profile.allow_stranger_friend_request) {
+      input.allow_stranger_friend_request = allowStrangerFriend;
+    }
 
     if (Object.keys(input).length === 0) {
       onClose();
@@ -96,11 +169,31 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
     try {
       const res = await updateProfile(input);
       onSaved(res.data);
-    } catch {
+    } catch (err) {
+      showAlert(
+        t('common.error'),
+        err instanceof Error && err.message ? err.message : t('profile.saveError'),
+      );
     } finally {
       setSaving(false);
     }
   };
+
+  const handleDobChange = (event: DateTimePickerEvent, date?: Date) => {
+    // Android tự đóng picker sau khi chọn; iOS giữ inline spinner.
+    if (Platform.OS !== 'ios') setShowDobPicker(false);
+    if (event.type === 'dismissed' || !date) return;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    setDateOfBirth(`${y}-${m}-${d}`);
+    clearError('date_of_birth');
+  };
+
+  const dobDate = (() => {
+    const iso = dateOnlyToIso(dateOfBirth);
+    return iso ? new Date(iso) : new Date();
+  })();
 
   return (
     <Modal visible transparent statusBarTranslucent onRequestClose={onClose}>
@@ -193,6 +286,52 @@ export function ProfileEditModal({ profile, onClose, onSaved }: ProfileEditModal
                 {!!errors.website && <ThemedText themeColor="danger" style={styles.errorText}>{errors.website}</ThemedText>}
               </View>
             </View>
+
+            <View style={styles.field}>
+              <ThemedText style={styles.label}>{t('profile.dateOfBirth')}</ThemedText>
+              <Pressable
+                onPress={() => setShowDobPicker((v) => !v)}
+                style={[styles.input, styles.dobTrigger, { borderColor: theme.border }]}>
+                <ThemedText style={{ color: dateOfBirth ? theme.text : theme.textSecondary }}>
+                  {displayDate(dateOfBirth, language) || t('profile.birthday')}
+                </ThemedText>
+                <Icon name="calendar" size={16} color={theme.textSecondary} />
+              </Pressable>
+              {showDobPicker && (
+                <DateTimePicker
+                  value={dobDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  maximumDate={new Date()}
+                  onChange={handleDobChange}
+                />
+              )}
+            </View>
+
+            <View style={styles.field}>
+              <ThemedText style={styles.label}>{t('profile.privacySection')}</ThemedText>
+              <View style={[styles.toggleCard, { backgroundColor: theme.bgSecondary, borderColor: theme.border }]}>
+                <ToggleRow
+                  label={t('profile.privateProfileLabel')}
+                  hint={t('profile.privateProfileHint')}
+                  value={isPrivateProfile}
+                  onValueChange={setIsPrivateProfile}
+                />
+                <ToggleRow
+                  label={t('profile.privatePosts')}
+                  hint={t('profile.privatePostsHint')}
+                  value={isPrivatePosts}
+                  onValueChange={setIsPrivatePosts}
+                />
+                <ToggleRow
+                  label={t('profile.allowStrangerFriend')}
+                  hint={t('profile.allowStrangerFriendHint')}
+                  value={allowStrangerFriend}
+                  onValueChange={setAllowStrangerFriend}
+                  isLast
+                />
+              </View>
+            </View>
           </ScrollView>
 
           <View style={styles.footer}>
@@ -247,6 +386,26 @@ const styles = StyleSheet.create({
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   row: { flexDirection: 'row', gap: Spacing.sm },
+  dobTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleCard: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  toggleMeta: { flex: 1 },
+  toggleLabel: { ...Typography.body, fontWeight: '600' },
+  toggleHint: { ...Typography.caption, marginTop: 2 },
   footer: { padding: Spacing.md, borderTopWidth: 1 },
   errorText: { ...Typography.caption, marginTop: 2 },
 });
