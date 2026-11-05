@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Modal, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getUserStories } from '@/api/story';
+import { batchGetPresence } from '@/api/presence';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ViewProfileResponse, FollowStats } from '@/types/profile';
@@ -70,6 +71,34 @@ export function ProfileHeader({
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [storyItems, setStoryItems] = useState<StoryItem[] | null>(null);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+
+  const openAvatarViewer = useCallback(() => {
+    if (onViewAvatar) {
+      onViewAvatar();
+    } else {
+      setAvatarViewerOpen(true);
+    }
+  }, [onViewAvatar]);
+
+  // Chấm xanh online (chỉ hồ sơ người khác — parity web usePresence).
+  useEffect(() => {
+    if (isSelf || !profile.user_id) return;
+    let cancelled = false;
+    batchGetPresence([profile.user_id])
+      .then((res) => {
+        if (cancelled) return;
+        const p = res?.data?.[profile.user_id];
+        setIsOnline(p?.status === 'online');
+      })
+      .catch(() => {
+        if (!cancelled) setIsOnline(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSelf, profile.user_id]);
 
   // Kiểm tra profile này có tin đang active không (1 request — vừa có tin,
   // vừa biết đã xem hết chưa để tô ring xám).
@@ -98,8 +127,8 @@ export function ProfileHeader({
   const handleAvatarPress = () => {
     if (isSelf || hasStory) {
       setAvatarMenuVisible(!avatarMenuVisible);
-    } else if (onViewAvatar) {
-      onViewAvatar();
+    } else if (profile.avatar_uri) {
+      openAvatarViewer();
     }
   };
 
@@ -194,6 +223,14 @@ export function ProfileHeader({
               <Icon name="camera" size={12} color={theme.textOnPrimary} />
             </View>
           )}
+          {isOnline && (
+            <View
+              style={[
+                styles.onlineDot,
+                { backgroundColor: theme.success, borderColor: theme.background },
+              ]}
+            />
+          )}
         </View>
 
         {/* Avatar menu: self (đổi ảnh) + ai cũng có (xem tin khi có story) */}
@@ -206,11 +243,11 @@ export function ProfileHeader({
                   <ThemedText style={styles.avatarMenuText}>{t('story.viewStory')}</ThemedText>
                 </Pressable>
               )}
-              {onViewAvatar && (
+              {!!profile.avatar_uri && (
                 <Pressable
                   onPress={() => {
                     setAvatarMenuVisible(false);
-                    onViewAvatar();
+                    openAvatarViewer();
                   }}
                   style={styles.avatarMenuItem}>
                   <ThemedText style={styles.avatarMenuText}>{t('story.viewAvatar')}</ThemedText>
@@ -312,6 +349,25 @@ export function ProfileHeader({
           }}
         />
       )}
+
+      {/* Xem ảnh đại diện full-screen */}
+      {avatarViewerOpen && !!profile.avatar_uri && (
+        <Modal visible statusBarTranslucent onRequestClose={() => setAvatarViewerOpen(false)}>
+          <View style={styles.avatarViewer}>
+            <Pressable
+              onPress={() => setAvatarViewerOpen(false)}
+              style={styles.avatarViewerClose}
+              hitSlop={12}>
+              <Icon name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+            <Image
+              source={{ uri: profile.avatar_uri }}
+              style={styles.avatarViewerImg}
+              contentFit="contain"
+            />
+          </View>
+        </Modal>
+      )}
     </ThemedView>
   );
 }
@@ -378,6 +434,37 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2.5,
+  },
+  avatarViewer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarViewerClose: {
+    position: 'absolute',
+    top: 54,
+    right: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarViewerImg: {
+    width: '100%',
+    height: '75%',
   },
   menuOverlay: {
     ...StyleSheet.absoluteFill,
