@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Modal, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,9 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getUserStories } from '@/api/story';
+import { batchGetPresence } from '@/api/presence';
+import * as Clipboard from 'expo-clipboard';
+import { formatCount } from '@/utils/format';
 import { useAuth } from '@/contexts/auth-context';
 import { getEmojiTextMap } from '@/utils/emojis';
 import type { ViewProfileResponse, FollowStats } from '@/types/profile';
@@ -22,6 +25,9 @@ import type { StoryItem } from '@/types/story';
 import { FriendButton } from './FriendButton';
 
 const EMOJI_MAP = getEmojiTextMap();
+
+// Base web để tạo link hồ sơ khi chia sẻ (vd https://linkup.vn).
+const WEB_BASE_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? 'https://linkup.vn').replace(/\/$/, '');
 
 interface ProfileHeaderProps {
   profile: ViewProfileResponse;
@@ -65,11 +71,48 @@ export function ProfileHeader({
   menuSlot,
 }: ProfileHeaderProps) {
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { user: authUser } = useAuth();
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [storyItems, setStoryItems] = useState<StoryItem[] | null>(null);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+
+  const openAvatarViewer = useCallback(() => {
+    if (onViewAvatar) {
+      onViewAvatar();
+    } else {
+      setAvatarViewerOpen(true);
+    }
+  }, [onViewAvatar]);
+
+  const handleShareProfile = useCallback(async () => {
+    try {
+      await Clipboard.setStringAsync(`${WEB_BASE_URL}/profile/${profile.user_id}`);
+      showAlert(t('common.success'), t('profile.linkCopied'));
+    } catch {
+      showAlert(t('common.error'), t('common.error'));
+    }
+  }, [profile.user_id, t]);
+
+  // Chấm xanh online (chỉ hồ sơ người khác — parity web usePresence).
+  useEffect(() => {
+    if (isSelf || !profile.user_id) return;
+    let cancelled = false;
+    batchGetPresence([profile.user_id])
+      .then((res) => {
+        if (cancelled) return;
+        const p = res?.data?.[profile.user_id];
+        setIsOnline(p?.status === 'online');
+      })
+      .catch(() => {
+        if (!cancelled) setIsOnline(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSelf, profile.user_id]);
 
   // Kiểm tra profile này có tin đang active không (1 request — vừa có tin,
   // vừa biết đã xem hết chưa để tô ring xám).
@@ -98,8 +141,8 @@ export function ProfileHeader({
   const handleAvatarPress = () => {
     if (isSelf || hasStory) {
       setAvatarMenuVisible(!avatarMenuVisible);
-    } else if (onViewAvatar) {
-      onViewAvatar();
+    } else if (profile.avatar_uri) {
+      openAvatarViewer();
     }
   };
 
@@ -194,6 +237,14 @@ export function ProfileHeader({
               <Icon name="camera" size={12} color={theme.textOnPrimary} />
             </View>
           )}
+          {isOnline && (
+            <View
+              style={[
+                styles.onlineDot,
+                { backgroundColor: theme.success, borderColor: theme.background },
+              ]}
+            />
+          )}
         </View>
 
         {/* Avatar menu: self (đổi ảnh) + ai cũng có (xem tin khi có story) */}
@@ -206,11 +257,11 @@ export function ProfileHeader({
                   <ThemedText style={styles.avatarMenuText}>{t('story.viewStory')}</ThemedText>
                 </Pressable>
               )}
-              {onViewAvatar && (
+              {!!profile.avatar_uri && (
                 <Pressable
                   onPress={() => {
                     setAvatarMenuVisible(false);
-                    onViewAvatar();
+                    openAvatarViewer();
                   }}
                   style={styles.avatarMenuItem}>
                   <ThemedText style={styles.avatarMenuText}>{t('story.viewAvatar')}</ThemedText>
@@ -227,12 +278,21 @@ export function ProfileHeader({
 
         {/* User info */}
         <ThemedText style={styles.displayName}>{profile.display_name}</ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.username}>@{profile.username}</ThemedText>
+        <View style={styles.usernameRow}>
+          <ThemedText themeColor="textSecondary" style={styles.username}>
+            @{profile.username}
+          </ThemedText>
+          <Pressable onPress={handleShareProfile} hitSlop={8} style={styles.shareBtn}>
+            <Icon name="share" size={16} color={theme.textSecondary} />
+          </Pressable>
+        </View>
         {profile.bio ? (
           <RichContent content={profile.bio} emojiMap={EMOJI_MAP} style={[styles.bio, { color: theme.text }]} />
         ) : null}
         <ThemedText themeColor="textSecondary" style={styles.meta}>
-          📅 {t('profile.joined')} {formatJoinDate(profile.created_at)}
+          {profile.post_count > 0 &&
+            `${t('profile.postsCountLabel', { count: formatCount(profile.post_count, language) })} · `}
+          {t('profile.joined')} {formatJoinDate(profile.created_at)}
         </ThemedText>
 
         {/* Stats */}
@@ -264,6 +324,22 @@ export function ProfileHeader({
           ) : (
             <>
               <FriendButton userId={profile.user_id} />
+              <Pressable
+                onPress={onFollow}
+                disabled={followBusy}
+                style={[
+                  styles.actionBtn,
+                  { backgroundColor: isFollowing ? theme.border : theme.primaryLight },
+                  followBusy && { opacity: 0.6 },
+                ]}>
+                <ThemedText
+                  style={[
+                    styles.actionBtnText,
+                    { color: isFollowing ? theme.text : theme.primary },
+                  ]}>
+                  {isFollowing ? t('profile.unfollow') : t('profile.follow')}
+                </ThemedText>
+              </Pressable>
               {onMessage && (
                 <Pressable
                   onPress={onMessage}
@@ -295,6 +371,25 @@ export function ProfileHeader({
               .catch(() => {});
           }}
         />
+      )}
+
+      {/* Xem ảnh đại diện full-screen */}
+      {avatarViewerOpen && !!profile.avatar_uri && (
+        <Modal visible statusBarTranslucent onRequestClose={() => setAvatarViewerOpen(false)}>
+          <View style={styles.avatarViewer}>
+            <Pressable
+              onPress={() => setAvatarViewerOpen(false)}
+              style={styles.avatarViewerClose}
+              hitSlop={12}>
+              <Icon name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+            <Image
+              source={{ uri: profile.avatar_uri }}
+              style={styles.avatarViewerImg}
+              contentFit="contain"
+            />
+          </View>
+        </Modal>
       )}
     </ThemedView>
   );
@@ -363,6 +458,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2.5,
+  },
+  avatarViewer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarViewerClose: {
+    position: 'absolute',
+    top: 54,
+    right: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarViewerImg: {
+    width: '100%',
+    height: '75%',
+  },
   menuOverlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 99,
@@ -389,7 +515,15 @@ const styles = StyleSheet.create({
   },
   avatarMenuText: { ...Typography.body, fontSize: 14 },
   displayName: { ...Typography.h2, marginTop: Spacing.sm, textAlign: 'center' },
-  username: { ...Typography.caption, marginBottom: Spacing.sm },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  username: { ...Typography.caption },
+  shareBtn: { padding: 4 },
   bio: { ...Typography.body, textAlign: 'center', paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   meta: { ...Typography.caption, marginBottom: Spacing.md },
   stats: {

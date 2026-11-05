@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
@@ -25,6 +25,7 @@ export default function SelfProfileScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigation = useNavigation();
+  const router = useRouter();
   const [profile, setProfile] = useState<ViewProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +91,14 @@ export default function SelfProfileScreen() {
     setShowEditModal(false);
   };
 
+  const openFollowList = useCallback(
+    (type: 'followers' | 'following') => {
+      if (!user?.id) return;
+      (router as any).push(`/(drawer)/profile/follow-list?userId=${user.id}&type=${type}`);
+    },
+    [router, user],
+  );
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -148,6 +157,8 @@ export default function SelfProfileScreen() {
             onEdit={() => setShowEditModal(true)}
             onAvatarChange={handleAvatarChange}
             onCoverChange={handleCoverChange}
+            onOpenFollowers={() => openFollowList('followers')}
+            onOpenFollowing={() => openFollowList('following')}
           />
           <ProfileTabs
             userId={user?.id ?? ''}

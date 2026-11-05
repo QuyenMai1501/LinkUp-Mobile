@@ -72,6 +72,14 @@ export default function UserProfileScreen() {
 
   const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
 
+  const openFollowList = useCallback(
+    (type: 'followers' | 'following') => {
+      if (!userId) return;
+      (router as any).push(`/(drawer)/profile/follow-list?userId=${userId}&type=${type}`);
+    },
+    [router, userId],
+  );
+
   const handleMessage = () => {
     if (!userId || messageBusy) return;
     setMessageBusy(true);
@@ -167,6 +175,8 @@ export default function UserProfileScreen() {
             followBusy={followBusy}
             onFollow={handleFollow}
             onMessage={!isSelf ? handleMessage : undefined}
+            onOpenFollowers={() => openFollowList('followers')}
+            onOpenFollowing={() => openFollowList('following')}
             menuSlot={!isSelf ? <ProfileMenu userId={userId!} isSelf={false} /> : undefined}
           />
           {!isSelf && <MutualFriends userId={userId!} />}

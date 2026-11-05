@@ -8,6 +8,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { blockUser } from '@/api/block';
+import ReportSheet from '@/components/report-sheet';
 
 interface ProfileMenuProps {
   userId: string;
@@ -19,6 +20,7 @@ export function ProfileMenu({ userId, isSelf }: ProfileMenuProps) {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [blocking, setBlocking] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const menuRef = useRef<View>(null);
 
   if (isSelf) return null;
@@ -49,6 +51,16 @@ export function ProfileMenu({ userId, isSelf }: ProfileMenuProps) {
           <Pressable style={styles.overlay} onPress={() => setIsOpen(false)} />
           <ThemedView style={[styles.menu, { borderColor: theme.border }]}>
             <Pressable
+              onPress={() => {
+                setIsOpen(false);
+                setReporting(true);
+              }}
+              style={styles.menuItem}>
+              <ThemedText style={styles.menuText}>
+                {t('profile.reportUser')}
+              </ThemedText>
+            </Pressable>
+            <Pressable
               onPress={handleBlock}
               disabled={blocking}
               style={styles.menuItem}>
@@ -58,6 +70,14 @@ export function ProfileMenu({ userId, isSelf }: ProfileMenuProps) {
             </Pressable>
           </ThemedView>
         </>
+      )}
+
+      {reporting && (
+        <ReportSheet
+          targetType="user"
+          targetId={userId}
+          onClose={() => setReporting(false)}
+        />
       )}
     </View>
   );

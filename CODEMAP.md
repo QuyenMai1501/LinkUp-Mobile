@@ -103,9 +103,9 @@ Cấu trúc dự án là **type-based**: cùng một tính năng nằm rải sev
 - API: `api/settings.ts` · Types: `types/settings.ts`
 
 ### Hồ sơ (profile)
-- Screens: `app/(drawer)/profile.tsx` (của mình), `app/(drawer)/profile/[userId].tsx` (người khác)
-- Components: `components/profile/` — `ProfileHeader`, `ProfileTabs`, `ProfileAboutTab`, `ProfileFriendsTab`, `ProfileMediaGrid` (**video branch**: ô grid video → `VideoPlayer uri interactive={false}`, `isVideo()` helper + `styles.gridFill`/`gridItem` overflow hidden), `ProfileEditModal`, `ProfileMenu`, `ProfileSkeleton`, `FriendButton`, `MutualFriends`, `MediaLightbox` (**video branch**: `VideoPlayer uri muted={false} loop={false} nativeControls`)
-- API: `api/profile.ts` · Hooks: `useProfilePosts` · Types: `types/profile.ts`
+- Screens: `app/(drawer)/profile.tsx` (của mình), `app/(drawer)/profile/[userId].tsx` (người khác), `app/(drawer)/profile/follow-list.tsx` (danh sách người theo dõi/đang theo dõi — params `userId`+`type`, phân trang page-based, nút follow inline, đăng ký `_layout.tsx` `profile/follow-list`)
+- Components: `components/profile/` — `ProfileHeader` (nút Theo dõi/Hủy theo dõi, stats bấm được → follow-list, chấm xanh online `batchGetPresence`, xem ảnh đại diện full-screen Modal, sao chép link chia sẻ `EXPO_PUBLIC_WEB_URL` fallback `https://linkup.vn`), `ProfileTabs` (phân trang Posts khi cuộn gần cuối → `fetchMore`, Saved tab like patch `savedPosts` riêng), `ProfileAboutTab` (website `Linking.openURL`, ngày sinh theo ngôn ngữ), `ProfileFriendsTab`, `ProfileMediaGrid` (**video branch**: ô grid video → `VideoPlayer uri interactive={false}`, `isVideo()` helper + `styles.gridFill`/`gridItem` overflow hidden; i18n load more/empty), `ProfileEditModal` (ngày sinh `@react-native-community/datetimepicker` + 3 toggle quyền riêng tư + báo lỗi khi lưu fail), `ProfileMenu` (báo cáo user `ReportSheet targetType="user"` + chặn), `ProfileSkeleton`, `FriendButton`, `MutualFriends`, `MediaLightbox` (**video branch**: `VideoPlayer uri muted={false} loop={false} nativeControls`)
+- API: `api/profile.ts` · `api/follow.ts` (`getFollowers`/`getFollowing` dùng ở follow-list) · Hooks: `useProfilePosts`, `useFollowStats` · Types: `types/profile.ts`
 - Utils: `utils/profile-nav.ts` — `navigateToProfile(router, userId)` dùng chung khi bấm avatar/tên (feed, comment, chat, bạn bè…)
 
 ### Tìm kiếm

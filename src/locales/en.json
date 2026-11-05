@@ -24,7 +24,8 @@
     "processing": "Processing...",
     "dark": "Dark",
     "light": "Light",
-    "sessionExpired": "Session expired"
+    "sessionExpired": "Session expired",
+    "loadMore": "Load more"
   },
   "auth": {
     "login": {
@@ -998,8 +999,12 @@
   "profile": {
     "title": "Profile",
     "editProfile": "Edit Profile",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
     "followers": "Followers",
     "following": "Following",
+    "noFollowers": "No followers yet",
+    "noFollowing": "Not following anyone yet",
     "posts": "Posts",
     "loading": "Loading profile...",
     "notFound": "Profile not found",
@@ -1028,6 +1033,19 @@
     "birthday": "Birthday",
     "saved": "Saved",
     "noSavedPosts": "No saved posts yet",
+    "noMedia": "No photos or videos yet",
+    "postsCountLabel": "{{count}} posts",
+    "shareProfile": "Share profile",
+    "linkCopied": "Profile link copied",
+    "dateOfBirth": "Date of birth",
+    "saveError": "Could not save changes",
+    "privacySection": "Privacy",
+    "privateProfileLabel": "Private profile",
+    "privateProfileHint": "Only followers can see your profile",
+    "privatePosts": "Hide posts",
+    "privatePostsHint": "Only followers can see your posts",
+    "allowStrangerFriend": "Allow friend requests from strangers",
+    "allowStrangerFriendHint": "Anyone can send you a friend request",
     "validation": {
       "displayNameRequired": "Display name is required",
       "displayNameMin": "Display name must be at least 3 characters",

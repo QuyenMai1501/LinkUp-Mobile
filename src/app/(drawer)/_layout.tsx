@@ -30,6 +30,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="partner" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="profile" />
       <Drawer.Screen name="profile/[userId]" options={{ headerShown: false, swipeEnabled: false }} />
+      <Drawer.Screen name="profile/follow-list" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="chat/[chatId]" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="group-chat/[chatId]" options={{ headerShown: false, swipeEnabled: false }} />
       <Drawer.Screen name="group-chat/settings" options={{ headerShown: false, swipeEnabled: false }} />
