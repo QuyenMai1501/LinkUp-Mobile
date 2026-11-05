@@ -998,8 +998,12 @@
   "profile": {
     "title": "Profile",
     "editProfile": "Edit Profile",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
     "followers": "Followers",
     "following": "Following",
+    "noFollowers": "No followers yet",
+    "noFollowing": "Not following anyone yet",
     "posts": "Posts",
     "loading": "Loading profile...",
     "notFound": "Profile not found",

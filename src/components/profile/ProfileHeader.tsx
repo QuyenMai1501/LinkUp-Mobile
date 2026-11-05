@@ -264,6 +264,22 @@ export function ProfileHeader({
           ) : (
             <>
               <FriendButton userId={profile.user_id} />
+              <Pressable
+                onPress={onFollow}
+                disabled={followBusy}
+                style={[
+                  styles.actionBtn,
+                  { backgroundColor: isFollowing ? theme.border : theme.primaryLight },
+                  followBusy && { opacity: 0.6 },
+                ]}>
+                <ThemedText
+                  style={[
+                    styles.actionBtnText,
+                    { color: isFollowing ? theme.text : theme.primary },
+                  ]}>
+                  {isFollowing ? t('profile.unfollow') : t('profile.follow')}
+                </ThemedText>
+              </Pressable>
               {onMessage && (
                 <Pressable
                   onPress={onMessage}
