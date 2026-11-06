@@ -161,7 +161,7 @@ export default function GroupChatScreen() {
 
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
-  const { choices, choose } = useMessageReactions();
+  const { choices, choose, remove } = useMessageReactions();
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
   // Modal chi tiết cảm xúc (tap vào badge trên bubble).
@@ -1528,6 +1528,9 @@ export default function GroupChatScreen() {
         myUserId={myUserId}
         emojis={serverEmojis}
         userProfiles={reactionUserProfiles}
+        onRemoveMine={(codes) => {
+          if (reactionDetail) remove(reactionDetail.id, codes);
+        }}
         onClose={() => setReactionDetail(null)}
       />
 

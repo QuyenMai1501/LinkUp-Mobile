@@ -87,7 +87,8 @@ export function myServerCount(
 
 /**
  * Code mình đang thả trên tin (highlight nút trong pill):
- * union giữa local accumulator + entries server của mình (chưa tap → giữ).
+ * union local accumulator (>0) + entries server chưa bị local quyết định.
+ * local[code] = 0 = đã gỡ → không highlight, không fallback về server.
  */
 export function activeChoicesFor(
   message: ChatMessage | undefined,
@@ -95,10 +96,18 @@ export function activeChoicesFor(
   local: LocalReactionCounts | undefined,
   byId: Map<string, EmojiItem> | null | undefined,
 ): string[] {
-  const set = new Set<string>(local ? Object.keys(local) : []);
+  const set = new Set<string>();
   if (myUserId) {
     for (const r of message?.reactions ?? []) {
-      if (r.user_id === myUserId) set.add(keyOf(r.emoji_id, byId));
+      if (r.user_id !== myUserId) continue;
+      const k = keyOf(r.emoji_id, byId);
+      if (local && k in local) continue; // local đã quyết định (kể cả gỡ = 0)
+      set.add(k);
+    }
+  }
+  if (local) {
+    for (const [k, v] of Object.entries(local)) {
+      if (v > 0) set.add(k);
     }
   }
   return [...set];
@@ -198,16 +207,21 @@ export function summarizeReactions(
     return g;
   };
 
+  // 1) Người khác — entry của mình tách riêng để local thắng (gỡ = ẩn).
   const myServer = new Map<string, number>();
   for (const r of source) {
     const key = keyOf(r.emoji_id, byId);
+    if (r.user_id === myUserId) {
+      myServer.set(key, (myServer.get(key) ?? 0) + 1);
+      continue;
+    }
     const g = ensure(key, charOf(r.emoji_id, byId));
     if (!g) continue;
     g.count += 1;
     g.users.add(r.user_id);
-    if (r.user_id === myUserId) myServer.set(key, (myServer.get(key) ?? 0) + 1);
   }
 
+  // 2) Mình: local[code] thắng serverMine; 0 = đã gỡ → bỏ qua.
   const mineKeys = new Set<string>([
     ...(local ? Object.keys(local) : []),
     ...myServer.keys(),
@@ -215,12 +229,10 @@ export function summarizeReactions(
   for (const key of mineKeys) {
     const mineCount =
       local && key in local ? local[key] : (myServer.get(key) ?? 0);
-    if (mineCount <= 0) continue;
+    if (mineCount <= 0 || !myUserId) continue;
     const g = ensure(key, charOf(key, byId));
-    if (!g || !myUserId) continue;
-    // Server đã có entry của mình → count cộng phần thiếu (local thắng),
-    // chưa echo → cộng đủ local.
-    g.count += mineCount - (myServer.get(key) ?? 0);
+    if (!g) continue;
+    g.count += mineCount;
     g.users.add(myUserId);
   }
 
@@ -232,5 +244,101 @@ export function summarizeReactions(
       user_ids: [...g.users],
     }))
     .filter((g) => g.count > 0)
-    .sort((a, b) => b.count - a.count || Number(b.user_ids.includes(myUserId ?? '')) - Number(a.user_ids.includes(myUserId ?? '')));
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        Number(b.user_ids.includes(myUserId ?? '')) -
+          Number(a.user_ids.includes(myUserId ?? '')),
+    );
+}
+
+export interface ReactionUserItem {
+  key: string;
+  char: string;
+  count: number;
+}
+
+export interface ReactionUserRow {
+  user_id: string;
+  /** Tổng số reaction của người này (sort desc). */
+  total: number;
+  /** Các loại reaction người này đã thả (chi tiết theo emoji). */
+  items: ReactionUserItem[];
+}
+
+/**
+ * Tab "Tất cả" trong modal chi tiết: liệt kê THEO USER — mỗi người các loại
+ * reaction đã thả (kể cả mình từ local); gỡ local = bỏ hẳn (không fallback).
+ * Sort: dòng của mình lên đầu → total giảm dần.
+ */
+export function summarizeByUser(
+  message: Pick<ChatMessage, 'reactions'>,
+  myUserId: string | undefined,
+  local: LocalReactionCounts | undefined,
+  byId: Map<string, EmojiItem> | null | undefined,
+): ReactionUserRow[] {
+  const source = message.reactions ?? [];
+  const byUser = new Map<string, Map<string, ReactionUserItem>>();
+  const ensureItem = (
+    userId: string,
+    key: string,
+    char: string,
+    count: number,
+  ) => {
+    let items = byUser.get(userId);
+    if (!items) {
+      items = new Map();
+      byUser.set(userId, items);
+    }
+    const existing = items.get(key);
+    if (existing) existing.count += count;
+    else items.set(key, { key, char, count });
+  };
+
+  // 1) Người khác.
+  const myServer = new Map<string, number>();
+  for (const r of source) {
+    const key = keyOf(r.emoji_id, byId);
+    if (r.user_id === myUserId) {
+      myServer.set(key, (myServer.get(key) ?? 0) + 1);
+      continue;
+    }
+    const char = charOf(r.emoji_id, byId);
+    if (!char) continue;
+    ensureItem(r.user_id, key, char, 1);
+  }
+
+  // 2) Mình: local thắng (0 = đã gỡ → bỏ).
+  if (myUserId) {
+    const mineKeys = new Set<string>([
+      ...(local ? Object.keys(local) : []),
+      ...myServer.keys(),
+    ]);
+    for (const key of mineKeys) {
+      const mineCount =
+        local && key in local ? local[key] : (myServer.get(key) ?? 0);
+      if (mineCount <= 0) continue;
+      const char = charOf(key, byId);
+      if (!char) continue;
+      ensureItem(myUserId, key, char, mineCount);
+    }
+  }
+
+  const rows: ReactionUserRow[] = [...byUser.entries()].map(
+    ([user_id, items]) => {
+      const list = [...items.values()];
+      return {
+        user_id,
+        total: list.reduce((sum, i) => sum + i.count, 0),
+        items: list,
+      };
+    },
+  );
+  rows.sort((a, b) => {
+    const mineA = a.user_id === myUserId ? 1 : 0;
+    const mineB = b.user_id === myUserId ? 1 : 0;
+    if (mineA !== mineB) return mineB - mineA;
+    return b.total - a.total;
+  });
+  return rows;
 }

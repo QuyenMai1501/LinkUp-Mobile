@@ -27,5 +27,17 @@ export function useMessageReactions() {
     [],
   );
 
-  return { choices, choose };
+  /**
+   * Gỡ reaction (modal chi tiết): đặt local[code] = 0 (tombstone) — ẩn hẳn,
+   * không fallback về data server.
+   */
+  const remove = useCallback((messageId: string, codes: string[]) => {
+    setChoices((prev) => {
+      const local = { ...(prev[messageId] ?? {}) };
+      for (const code of codes) local[code] = 0;
+      return { ...prev, [messageId]: local };
+    });
+  }, []);
+
+  return { choices, choose, remove };
 }

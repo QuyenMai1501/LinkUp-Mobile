@@ -175,7 +175,7 @@ export default function ChatScreen() {
   // Message actions state
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
-  const { choices, choose } = useMessageReactions();
+  const { choices, choose, remove } = useMessageReactions();
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
   // Modal chi tiết cảm xúc (tap vào badge trên bubble).
@@ -1579,6 +1579,9 @@ export default function ChatScreen() {
         myUserId={myUserId}
         emojis={serverEmojis}
         userProfiles={reactionUserProfiles}
+        onRemoveMine={(codes) => {
+          if (reactionDetail) remove(reactionDetail.id, codes);
+        }}
         onClose={() => setReactionDetail(null)}
       />
 
