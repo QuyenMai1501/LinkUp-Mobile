@@ -38,6 +38,7 @@ import { MediaCluster } from "@/components/chat/media-cluster";
 import { MediaLightbox } from "@/components/chat/media-lightbox";
 import { MenuSheet } from "@/components/menu-sheet";
 import { MessageActions } from "@/components/chat/message-actions";
+import { ReactionBar, type ReactionBarTarget } from "@/components/chat/reaction-bar";
 import {
   SystemMessage,
   isSystemMessage,
@@ -55,6 +56,7 @@ import { useChatE2E } from "@/hooks/useChatE2E";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useE2ERecovery } from "@/hooks/useE2ERecovery";
+import { useMessageReactions } from "@/hooks/use-message-reactions";
 import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
@@ -68,6 +70,7 @@ import { formatChatDate } from "@/utils/chat";
 import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
+import { activeChoiceFor, type ReactionAnchor } from "@/utils/reactions";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
 import { newId } from "@/utils/id";
@@ -163,6 +166,10 @@ export default function ChatScreen() {
 
   // Message actions state
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
+  // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
+  const { choices, choose } = useMessageReactions();
+  const [reactionTarget, setReactionTarget] =
+    useState<ReactionBarTarget | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
@@ -644,13 +651,33 @@ export default function ChatScreen() {
     [room],
   );
 
-  // B2: toggle reaction (từ chip trên bubble hoặc quick-react trong menu).
+  // A: toggle reaction LOCAL (badge / quick-heart / quick-react trong menu).
   const handleReact = useCallback(
-    (messageId: string, emojiId: string) => {
-      room.reactToMessage(messageId, emojiId);
+    (messageId: string, emojiKey: string) => {
+      choose(messageId, emojiKey);
     },
-    [room],
+    [choose],
   );
+
+  // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
+  const openReactionBar = useCallback(
+    (msg: ChatMessage, anchor: ReactionAnchor) => {
+      setReactionTarget({ messageId: msg.id, anchor });
+    },
+    [],
+  );
+  const closeReactionBar = useCallback(() => setReactionTarget(null), []);
+  // Code emoji mình đang thả trên tin đang mở pill (highlight nút active).
+  const reactionActiveCode = useMemo(() => {
+    if (!reactionTarget) return null;
+    const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
+    return activeChoiceFor(
+      msg,
+      myUserId,
+      choices[reactionTarget.messageId],
+      serverEmojis,
+    );
+  }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
 
   // A2: gửi lại tin thất bại — upload fail → chạy lại upload (còn job local);
   // WS fail → gửi lại wire payload đã lưu.
@@ -813,6 +840,8 @@ export default function ChatScreen() {
   // --- Infinite scroll: load more on scroll to top ---
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      // A: đóng pill cảm xúc khi cuộn — bubble đã di chuyển khỏi vị trí neo.
+      setReactionTarget((prev) => (prev ? null : prev));
       // Bỏ qua scroll do programmatic gây ra (giống Web)
       if (programmaticScrollRef.current) {
         programmaticScrollRef.current = false;
@@ -1415,6 +1444,8 @@ export default function ChatScreen() {
                         onMediaPress={handleMediaPress}
                         onOpenPost={handleOpenPost}
                         onReact={handleReact}
+                        localChoice={choices[msg.id]}
+                        onOpenReactionBar={openReactionBar}
                       />
                     </Fragment>
                   );
@@ -1492,6 +1523,17 @@ export default function ChatScreen() {
         onForward={handleForward}
         onRetry={handleRetry}
         onDiscard={handleDiscard}
+      />
+
+      {/* A: thanh cảm xúc nổi — neo ngay phía trên bubble được chọn */}
+      <ReactionBar
+        target={reactionTarget}
+        activeCode={reactionActiveCode}
+        onSelect={(code) => {
+          if (reactionTarget) choose(reactionTarget.messageId, code);
+          setReactionTarget(null);
+        }}
+        onClose={closeReactionBar}
       />
 
       {/* B1: chọn hội thoại đích khi chuyển tiếp */}

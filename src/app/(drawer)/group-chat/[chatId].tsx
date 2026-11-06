@@ -30,6 +30,7 @@ import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaCluster } from '@/components/chat/media-cluster';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MessageActions } from '@/components/chat/message-actions';
+import { ReactionBar, type ReactionBarTarget } from '@/components/chat/reaction-bar';
 import {
   SystemMessage,
   isSystemMessage,
@@ -46,6 +47,7 @@ import { useGroupCall } from '@/contexts/group-call-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useGroupChatRoom } from '@/hooks/useGroupChatRoom';
 import { useGroupChatSocket } from '@/hooks/useGroupChatSocket';
+import { useMessageReactions } from '@/hooks/use-message-reactions';
 import { useServerEmojis } from '@/hooks/use-server-emojis';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatMessage, ReplyPreview } from '@/types/chat';
@@ -59,6 +61,7 @@ import {
   type MediaClusterItem,
 } from '@/utils/media-cluster';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
+import { activeChoiceFor, type ReactionAnchor } from '@/utils/reactions';
 
 /** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
 interface GroupCallTimelineItem {
@@ -149,6 +152,10 @@ export default function GroupChatScreen() {
   const scrollFailCountRef = useRef(0);
 
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
+  // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
+  const { choices, choose } = useMessageReactions();
+  const [reactionTarget, setReactionTarget] =
+    useState<ReactionBarTarget | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   // Draft chuyển tiếp (rút từ forward-draft store — navigate sang instance mới).
@@ -637,11 +644,31 @@ export default function GroupChatScreen() {
   }, []);
 
   const handleReact = useCallback(
-    (messageId: string, emojiId: string) => {
-      room.reactToMessage(messageId, emojiId);
+    (messageId: string, emojiKey: string) => {
+      choose(messageId, emojiKey);
     },
-    [room],
+    [choose],
   );
+
+  // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
+  const openReactionBar = useCallback(
+    (msg: ChatMessage, anchor: ReactionAnchor) => {
+      setReactionTarget({ messageId: msg.id, anchor });
+    },
+    [],
+  );
+  const closeReactionBar = useCallback(() => setReactionTarget(null), []);
+  // Code emoji mình đang thả trên tin đang mở pill (highlight nút active).
+  const reactionActiveCode = useMemo(() => {
+    if (!reactionTarget) return null;
+    const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
+    return activeChoiceFor(
+      msg,
+      myUserId,
+      choices[reactionTarget.messageId],
+      serverEmojis,
+    );
+  }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
 
   // Mở picker chọn hội thoại đích (direct hoặc group).
   const handleForward = useCallback((msg: ChatMessage) => {
@@ -779,6 +806,8 @@ export default function GroupChatScreen() {
 
   const handleScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      // A: đóng pill cảm xúc khi cuộn — bubble đã di chuyển khỏi vị trí neo.
+      setReactionTarget((prev) => (prev ? null : prev));
       if (programmaticScrollRef.current) {
         programmaticScrollRef.current = false;
         return;
@@ -1369,6 +1398,8 @@ export default function GroupChatScreen() {
                       onMediaPress={handleMediaPress}
                       onOpenPost={handleOpenPost}
                       onReact={handleReact}
+                      localChoice={choices[msg.id]}
+                      onOpenReactionBar={openReactionBar}
                     />
                   </Fragment>
                 );
@@ -1444,6 +1475,17 @@ export default function GroupChatScreen() {
         onForward={handleForward}
         onRetry={handleRetry}
         onDiscard={handleDiscard}
+      />
+
+      {/* A: thanh cảm xúc nổi — neo ngay phía trên bubble được chọn */}
+      <ReactionBar
+        target={reactionTarget}
+        activeCode={reactionActiveCode}
+        onSelect={(code) => {
+          if (reactionTarget) choose(reactionTarget.messageId, code);
+          setReactionTarget(null);
+        }}
+        onClose={closeReactionBar}
       />
 
       {/* Chọn hội thoại đích khi chuyển tiếp */}
