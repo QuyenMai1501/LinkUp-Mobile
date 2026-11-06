@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -11,6 +11,8 @@ import {
 } from "@/api/giphy";
 import { EmojiImage } from "@/components/chat/emoji-image";
 import { MessageMedia } from "@/components/chat/message-media";
+import { QuickHeart } from "@/components/chat/quick-heart";
+import { ReactionBadges } from "@/components/chat/reaction-badges";
 import { SharedPostBubble } from "@/components/chat/shared-post-bubble";
 import { VideoLinkPreview } from "@/components/chat/video-link-preview";
 import { RichContent } from "@/components/rich-content";
@@ -29,6 +31,7 @@ import {
   isSingleEmojiText,
   singleEmojiCode,
 } from "@/utils/emojis";
+import { mergeReactions, type ReactionAnchor } from "@/utils/reactions";
 import { extractVideoUrls } from "@/utils/videoLink";
 
 interface Props {
@@ -46,14 +49,20 @@ interface Props {
   seen?: boolean;
   /** true = nhấp nháy highlight khi nhảy tới từ kết quả tìm kiếm (B5). */
   highlight?: boolean;
-  /** Emoji server theo id — render sticker (emoji_id) + reaction chip (B2/B3). */
+  /** Emoji server theo id — render sticker (emoji_id) + badge cảm xúc. */
   emojis?: Map<string, ServerEmoji> | null;
   myUserId?: string;
+  /** Reaction LOCAL (không WS): code mình thả trên tin này.
+   *  undefined = chưa can thiệp local (giữ dữ liệu server), null = đã hủy. */
+  localChoice?: string | null;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
-  onReact?: (messageId: string, emojiId: string) => void;
+  /** Toggle reaction theo key chuẩn (code `:heart:`…) — state local. */
+  onReact?: (messageId: string, emojiKey: string) => void;
+  /** Long-press quick-heart → mở pill chọn cảm xúc (anchor = rect bubble). */
+  onOpenReactionBar?: (msg: ChatMessage, anchor: ReactionAnchor) => void;
   /** busyBg (Web): nền preset/custom là ảnh bận → armor: bubble bên nhận thêm
    *  viền + shadow, text tin mình thêm text-shadow (giữ brand, thêm tách lớp). */
   busyBg?: boolean;
@@ -71,17 +80,32 @@ export function ChatBubble({
   highlight = false,
   emojis,
   myUserId,
+  localChoice,
   onLongPress,
   onReplyPress,
   onMediaPress,
   onOpenPost,
   onReact,
+  onOpenReactionBar,
   busyBg = false,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
+  // Reaction local: gộp server + override của mình → render badge cảm xúc.
+  const mergedReactions = useMemo(
+    () => mergeReactions(message, myUserId, localChoice, emojis),
+    [message, myUserId, localChoice, emojis],
+  );
+  // Neo pill reaction: đo rect bubble thật qua measureInWindow.
+  const bubbleRef = useRef<View>(null);
+  const openReactionBar = () => {
+    if (!onOpenReactionBar) return;
+    bubbleRef.current?.measureInWindow((x, y, w, h) => {
+      if (w > 0 && h > 0) onOpenReactionBar(message, { x, y, w, h });
+    });
+  };
 
   // Cột avatar của đối phương: avatar ở tin đầu chuỗi, spacer (cùng bề rộng) cho các tin sau.
   // Bấm avatar → hồ sơ người gửi (bỏ qua tin ẩn danh).
@@ -157,33 +181,6 @@ export function ChatBubble({
     ? (emojis?.get(message.emoji_id!) ?? null)
     : null;
 
-  // B2: gộp reactions theo emoji_id — emoji mình chọn lên đầu.
-  const reactionChips: {
-    emojiId: string;
-    emoji: ServerEmoji;
-    count: number;
-    mine: boolean;
-  }[] = [];
-  if (!message.deleted && !message.decrypt_failed && emojis && onReact) {
-    for (const r of message.reactions ?? []) {
-      const item = emojis.get(r.emoji_id);
-      if (!item) continue;
-      const existing = reactionChips.find((c) => c.emojiId === r.emoji_id);
-      if (existing) {
-        existing.count += 1;
-        if (r.user_id === myUserId) existing.mine = true;
-      } else {
-        reactionChips.push({
-          emojiId: r.emoji_id,
-          emoji: item,
-          count: 1,
-          mine: r.user_id === myUserId,
-        });
-      }
-    }
-    reactionChips.sort((a, b) => Number(b.mine) - Number(a.mine));
-  }
-
   const bgColor = isMine ? theme.primary : theme.card;
   const textColor = isMine ? theme.textOnPrimary : theme.text;
   const singleEmoji = isSharedPost
@@ -235,6 +232,7 @@ export function ChatBubble({
           </ThemedText>
         )}
         <Pressable
+        ref={bubbleRef}
         onLongPress={() => onLongPress?.(message)}
         delayLongPress={400}
         style={[
@@ -376,55 +374,20 @@ export function ChatBubble({
           </>
         )}
 
-        {/* B1/B2: badge đã chuyển tiếp + reaction chips */}
+        {/* B1: badge đã chuyển tiếp */}
         {!message.deleted &&
         !message.decrypt_failed &&
-        (message.forwarded_from || reactionChips.length > 0) ? (
+        message.forwarded_from ? (
           <View style={styles.metaRow}>
-            {message.forwarded_from ? (
-              <ThemedText
-                style={[
-                  styles.forwardBadge,
-                  {
-                    color: isMine ? "rgba(255,255,255,0.8)" : theme.textSecondary,
-                  },
-                ]}>
-                <Icon name="share" size={10} /> {t("chat.forwarded")}
-              </ThemedText>
-            ) : null}
-            {reactionChips.map((chip) => (
-              <Pressable
-                key={chip.emojiId}
-                onPress={() => onReact?.(message.id, chip.emojiId)}
-                style={[
-                  styles.reactionChip,
-                  {
-                    // bareBg: chip trung tính (chữ trắng 18% sẽ chìm trên nền chat nhạt).
-                    backgroundColor: chip.mine
-                      ? bareBg || !isMine
-                        ? theme.primaryLight
-                        : "rgba(255,255,255,0.18)"
-                      : theme.bgSecondary,
-                    borderColor: chip.mine ? theme.primary : theme.border,
-                  },
-                ]}>
-                <Text style={styles.reactionChipEmoji}>
-                  {chip.emoji.character || chip.emoji.code}
-                </Text>
-                {chip.count > 1 && (
-                  <ThemedText
-                    style={[
-                      styles.reactionChipCount,
-                      {
-                        color:
-                          !bareBg && isMine ? theme.textOnPrimary : theme.text,
-                      },
-                    ]}>
-                    {chip.count}
-                  </ThemedText>
-                )}
-              </Pressable>
-            ))}
+            <ThemedText
+              style={[
+                styles.forwardBadge,
+                {
+                  color: isMine ? "rgba(255,255,255,0.8)" : theme.textSecondary,
+                },
+              ]}>
+              <Icon name="share" size={10} /> {t("chat.forwarded")}
+            </ThemedText>
           </View>
         ) : null}
 
@@ -484,7 +447,23 @@ export function ChatBubble({
             ) : null}
           </View>
         ) : null}
+
+        {/* A: nút thả nhanh ❤️ — neo ngoài góc phải-dưới, chỉ tin ĐỐI PHƯƠNG.
+            Tap → thả ❤️ trực tiếp; long-press → rung nhẹ + mở pill cảm xúc. */}
+        {!isMine && !message.failed && !message.sending && onReact && (
+          <QuickHeart
+            onPress={() => onReact(message.id, ":heart:")}
+            onLongPress={openReactionBar}
+          />
+        )}
       </Pressable>
+      {/* A: badge cảm xúc — góc dưới-trái, đè nhẹ mép ngoài mép dưới bubble. */}
+      {!message.deleted && !message.decrypt_failed && onReact && (
+        <ReactionBadges
+          reactions={mergedReactions}
+          onToggle={(key) => onReact(message.id, key)}
+        />
+      )}
       </View>
     </View>
   );
@@ -616,23 +595,6 @@ const styles = StyleSheet.create({
   },
   forwardBadge: {
     ...Typography.caption,
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  reactionChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-    reactionChipEmoji: {
-      fontSize: 12,
-      lineHeight: 14,
-    },
-  reactionChipCount: {
     fontSize: 10,
     fontWeight: "600",
   },

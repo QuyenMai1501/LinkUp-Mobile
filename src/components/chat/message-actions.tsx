@@ -18,8 +18,8 @@ interface Props {
   onDelete: (msg: ChatMessage) => void;
   onPin?: (msg: ChatMessage) => void;
   onUnpin?: (msg: ChatMessage) => void;
-  /** B2: toggle reaction nhanh từ toolbar. */
-  onReact?: (messageId: string, emojiId: string) => void;
+  /** Toggle reaction nhanh — truyền key chuẩn (code) → state local. */
+  onReact?: (messageId: string, emojiKey: string) => void;
   /** B1: mở picker chọn hội thoại để chuyển tiếp. */
   onForward?: (msg: ChatMessage) => void;
   /** A2: gửi lại tin thất bại. */
@@ -95,7 +95,7 @@ export function MessageActions({
             </>
           )}
 
-          {/* B2: hàng reaction nhanh (8 emoji như Web MessageToolbar) */}
+          {/* Reaction nhanh — truyền code (`:heart:`…) để chạy qua state local */}
           {quickEmojis.length > 0 && (
             <View style={[styles.quickRow, { borderBottomColor: colors.border }]}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -104,7 +104,7 @@ export function MessageActions({
                     key={emoji.id}
                     style={styles.quickEmoji}
                     onPress={() => {
-                      onReact?.(message.id, emoji.id);
+                      onReact?.(message.id, emoji.code);
                       onClose();
                     }}>
                     <Text style={styles.quickEmojiChar}>
