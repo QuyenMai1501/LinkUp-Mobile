@@ -31,7 +31,11 @@ import {
   isSingleEmojiText,
   singleEmojiCode,
 } from "@/utils/emojis";
-import { mergeReactions, type ReactionAnchor } from "@/utils/reactions";
+import {
+  mergeReactions,
+  type LocalReactionCounts,
+  type ReactionAnchor,
+} from "@/utils/reactions";
 import { extractVideoUrls } from "@/utils/videoLink";
 
 interface Props {
@@ -52,17 +56,19 @@ interface Props {
   /** Emoji server theo id — render sticker (emoji_id) + badge cảm xúc. */
   emojis?: Map<string, ServerEmoji> | null;
   myUserId?: string;
-  /** Reaction LOCAL (không WS): code mình thả trên tin này.
-   *  undefined = chưa can thiệp local (giữ dữ liệu server), null = đã hủy. */
-  localChoice?: string | null;
+  /** Reaction LOCAL (không WS): { code → số lần mình đã thả }.
+   *  undefined = chưa can thiệp local (giữ dữ liệu server). */
+  localChoice?: LocalReactionCounts;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
-  /** Toggle reaction theo key chuẩn (code `:heart:`…) — state local. */
+  /** Tap thả emoji (code `:heart:`…) — screen tự tính base rồi +1 local. */
   onReact?: (messageId: string, emojiKey: string) => void;
   /** Long-press quick-heart → mở pill chọn cảm xúc (anchor = rect bubble). */
   onOpenReactionBar?: (msg: ChatMessage, anchor: ReactionAnchor) => void;
+  /** Tap vùng badge cảm xúc → mở modal chi tiết. */
+  onOpenReactionDetails?: (msg: ChatMessage) => void;
   /** busyBg (Web): nền preset/custom là ảnh bận → armor: bubble bên nhận thêm
    *  viền + shadow, text tin mình thêm text-shadow (giữ brand, thêm tách lớp). */
   busyBg?: boolean;
@@ -87,6 +93,7 @@ export function ChatBubble({
   onOpenPost,
   onReact,
   onOpenReactionBar,
+  onOpenReactionDetails,
   busyBg = false,
 }: Props) {
   const theme = useTheme();
@@ -458,10 +465,10 @@ export function ChatBubble({
         )}
       </Pressable>
       {/* A: badge cảm xúc — góc dưới-trái, đè nhẹ mép ngoài mép dưới bubble. */}
-      {!message.deleted && !message.decrypt_failed && onReact && (
+      {!message.deleted && !message.decrypt_failed && onOpenReactionDetails && (
         <ReactionBadges
           reactions={mergedReactions}
-          onToggle={(key) => onReact(message.id, key)}
+          onPress={() => onOpenReactionDetails(message)}
         />
       )}
       </View>

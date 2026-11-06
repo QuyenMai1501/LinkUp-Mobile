@@ -5,27 +5,36 @@ import { useTheme } from '@/hooks/use-theme';
 import type { MergedReaction } from '@/utils/reactions';
 
 interface Props {
-  /** Danh sách đã gộp (server + override local) — render null khi rỗng. */
+  /** Danh sách đã gộp + sort (count desc) — render null khi rỗng. */
   reactions: MergedReaction[];
-  /** Tap badge → thả mới / hủy / đổi cảm xúc (logic local). */
-  onToggle: (key: string) => void;
+  /** Tap vùng badge → mở modal chi tiết cảm xúc. */
+  onPress: () => void;
 }
 
+/** Số emoji hiển thị trực tiếp — phần còn lại gộp vào badge "+N". */
+const MAX_VISIBLE = 3;
+
 /**
- * Badge cảm xúc gắn góc dưới-trái bong bóng tin nhắn, đè nhẹ (~6px) ra ngoài
- * mép dưới (marginTop âm) — badge của mình viền/nền nổi bật (active).
+ * Badge cảm xúc góc dưới-trái bong bóng tin nhắn, đè nhẹ (~6px) ra ngoài
+ * mép dưới — hiện tối đa 3 emoji đầu (đã sort) + "+N" (tổng count phần
+ * còn lại). Tap → modal chi tiết. Badge của mình viền/nền nổi bật.
  */
-export function ReactionBadges({ reactions, onToggle }: Props) {
+export function ReactionBadges({ reactions, onPress }: Props) {
   const theme = useTheme();
   if (reactions.length === 0) return null;
 
+  const visible = reactions.slice(0, MAX_VISIBLE);
+  const rest = reactions.slice(MAX_VISIBLE);
+  const restCount = rest.reduce((sum, r) => sum + r.count, 0);
+
   return (
-    <View style={styles.row}>
-      {reactions.map((r) => (
-        <Pressable
+    <Pressable
+      accessibilityLabel="Chi tiết cảm xúc"
+      onPress={onPress}
+      style={styles.row}>
+      {visible.map((r) => (
+        <View
           key={r.key}
-          accessibilityLabel={`Cảm xúc ${r.char}`}
-          onPress={() => onToggle(r.key)}
           style={[
             styles.badge,
             {
@@ -41,9 +50,20 @@ export function ReactionBadges({ reactions, onToggle }: Props) {
               {r.count}
             </ThemedText>
           )}
-        </Pressable>
+        </View>
       ))}
-    </View>
+      {restCount > 0 && (
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: theme.bgSecondary, borderColor: theme.border },
+          ]}>
+          <ThemedText style={[styles.badgeCount, { color: theme.text }]}>
+            +{restCount}
+          </ThemedText>
+        </View>
+      )}
+    </Pressable>
   );
 }
 

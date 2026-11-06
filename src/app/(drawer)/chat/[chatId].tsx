@@ -40,6 +40,10 @@ import { MenuSheet } from "@/components/menu-sheet";
 import { MessageActions } from "@/components/chat/message-actions";
 import { ReactionBar, type ReactionBarTarget } from "@/components/chat/reaction-bar";
 import {
+  ReactionDetailModal,
+  type ReactionUserProfile,
+} from "@/components/chat/reaction-detail-modal";
+import {
   SystemMessage,
   isSystemMessage,
 } from "@/components/chat/system-message";
@@ -70,7 +74,11 @@ import { formatChatDate } from "@/utils/chat";
 import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
-import { activeChoiceFor, type ReactionAnchor } from "@/utils/reactions";
+import {
+  activeChoicesFor,
+  myServerCount,
+  type ReactionAnchor,
+} from "@/utils/reactions";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
 import { navigateToProfile } from "@/utils/profile-nav";
 import { newId } from "@/utils/id";
@@ -170,6 +178,10 @@ export default function ChatScreen() {
   const { choices, choose } = useMessageReactions();
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
+  // Modal chi tiết cảm xúc (tap vào badge trên bubble).
+  const [reactionDetail, setReactionDetail] = useState<ChatMessage | null>(
+    null,
+  );
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   const [showDeleteChat, setShowDeleteChat] = useState(false);
@@ -654,9 +666,16 @@ export default function ChatScreen() {
   // A: toggle reaction LOCAL (badge / quick-heart / quick-react trong menu).
   const handleReact = useCallback(
     (messageId: string, emojiKey: string) => {
-      choose(messageId, emojiKey);
+      const msg = room.messages.find((m) => m.id === messageId);
+      if (!msg) return;
+      const local = choices[messageId];
+      const base =
+        local && emojiKey in local
+          ? local[emojiKey]
+          : myServerCount(msg, myUserId, emojiKey, serverEmojis);
+      choose(messageId, emojiKey, base);
     },
-    [choose],
+    [choices, choose, room.messages, myUserId, serverEmojis],
   );
 
   // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
@@ -668,16 +687,31 @@ export default function ChatScreen() {
   );
   const closeReactionBar = useCallback(() => setReactionTarget(null), []);
   // Code emoji mình đang thả trên tin đang mở pill (highlight nút active).
-  const reactionActiveCode = useMemo(() => {
-    if (!reactionTarget) return null;
+  const reactionActiveCodes = useMemo(() => {
+    if (!reactionTarget) return [];
     const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
-    return activeChoiceFor(
+    return activeChoicesFor(
       msg,
       myUserId,
       choices[reactionTarget.messageId],
       serverEmojis,
     );
   }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
+
+  // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (1-1: partner + tôi).
+  const reactionUserProfiles = useMemo(() => {
+    const profiles: Record<string, ReactionUserProfile> = {};
+    if (partner?.user_id) {
+      profiles[partner.user_id] = {
+        name: partner.display_name ?? "",
+        avatar: partner.avatar_uri ?? null,
+      };
+    }
+    if (myUserId) {
+      profiles[myUserId] = { name: user?.username ?? "", avatar: null };
+    }
+    return profiles;
+  }, [partner, myUserId, user?.username]);
 
   // A2: gửi lại tin thất bại — upload fail → chạy lại upload (còn job local);
   // WS fail → gửi lại wire payload đã lưu.
@@ -1446,6 +1480,7 @@ export default function ChatScreen() {
                         onReact={handleReact}
                         localChoice={choices[msg.id]}
                         onOpenReactionBar={openReactionBar}
+                        onOpenReactionDetails={setReactionDetail}
                       />
                     </Fragment>
                   );
@@ -1528,12 +1563,23 @@ export default function ChatScreen() {
       {/* A: thanh cảm xúc nổi — neo ngay phía trên bubble được chọn */}
       <ReactionBar
         target={reactionTarget}
-        activeCode={reactionActiveCode}
+        activeCodes={reactionActiveCodes}
         onSelect={(code) => {
-          if (reactionTarget) choose(reactionTarget.messageId, code);
+          if (reactionTarget) handleReact(reactionTarget.messageId, code);
           setReactionTarget(null);
         }}
         onClose={closeReactionBar}
+      />
+
+      {/* Chi tiết cảm xúc — nhóm theo emoji, người thả + số lượng */}
+      <ReactionDetailModal
+        visible={!!reactionDetail}
+        message={reactionDetail}
+        localCounts={reactionDetail ? choices[reactionDetail.id] : undefined}
+        myUserId={myUserId}
+        emojis={serverEmojis}
+        userProfiles={reactionUserProfiles}
+        onClose={() => setReactionDetail(null)}
       />
 
       {/* B1: chọn hội thoại đích khi chuyển tiếp */}
