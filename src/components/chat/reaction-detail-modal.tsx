@@ -281,16 +281,15 @@ export function ReactionDetailModal({
           <Animated.View style={[styles.backdrop, backdropAnimatedStyle]} />
         </Pressable>
 
-        <View
-          style={[
-            styles.sheetContainer,
-            { paddingBottom: Spacing.xl + insets.bottom },
-          ]}>
+        <View style={styles.sheetContainer}>
           <GestureDetector gesture={panGesture}>
             <Animated.View
               style={[
                 styles.sheet,
-                { backgroundColor: theme.background },
+                {
+                  backgroundColor: theme.background,
+                  paddingBottom: insets.bottom,
+                },
                 animatedStyle,
               ]}>
               <View style={[styles.handle, { backgroundColor: theme.border }]} />
