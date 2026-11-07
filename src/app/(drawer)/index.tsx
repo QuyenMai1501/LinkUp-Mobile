@@ -108,10 +108,13 @@ function NotificationPanel() {
           </Pressable>
         ))}
         {unreadCount > 0 && (
-          <Pressable onPress={handleMarkAll} style={styles.markAllBtn}>
-            <ThemedText style={[styles.markAllLabel, { color: theme.primary }]}>
-              {t('notifications.markAllRead')}
-            </ThemedText>
+          <Pressable
+            onPress={handleMarkAll}
+            accessibilityRole="button"
+            accessibilityLabel={t('notifications.markAllRead')}
+            hitSlop={8}
+            style={styles.markAllBtn}>
+            <Icon name="checkCircle" size={20} color={theme.primary} />
           </Pressable>
         )}
       </View>
@@ -375,12 +378,8 @@ const styles = StyleSheet.create({
   },
   markAllBtn: {
     marginLeft: 'auto',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  markAllLabel: {
-    ...Typography.caption,
-    fontWeight: 600,
+    padding: 6,
+    borderRadius: Radius.pill,
   },
   center: {
     flex: 1,
