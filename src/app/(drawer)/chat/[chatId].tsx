@@ -24,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { showAlert } from "@/utils/alert";
 import { batchGetPresence } from "@/api/presence";
+import { getMyProfile } from "@/api/profile";
 import { deleteChat, getChatBackground, listChats, uploadChatMedia } from "@/api/chat";
 import { CallHistoryRow } from "@/components/chat/call-history-row";
 import {
@@ -699,6 +700,19 @@ export default function ChatScreen() {
   }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
 
   // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (1-1: partner + tôi).
+  // Avatar của tôi: Auth API không trả → fetch /profile 1 lần khi vào màn.
+  const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getMyProfile()
+      .then((res) => {
+        if (alive) setMyAvatar(res.avatar_uri || null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const reactionUserProfiles = useMemo(() => {
     const profiles: Record<string, ReactionUserProfile> = {};
     if (partner?.user_id) {
@@ -708,10 +722,10 @@ export default function ChatScreen() {
       };
     }
     if (myUserId) {
-      profiles[myUserId] = { name: user?.username ?? "", avatar: null };
+      profiles[myUserId] = { name: user?.username ?? "", avatar: myAvatar };
     }
     return profiles;
-  }, [partner, myUserId, user?.username]);
+  }, [partner, myUserId, user?.username, myAvatar]);
 
   // A2: gửi lại tin thất bại — upload fail → chạy lại upload (còn job local);
   // WS fail → gửi lại wire payload đã lưu.
@@ -1581,9 +1595,6 @@ export default function ChatScreen() {
         userProfiles={reactionUserProfiles}
         onRemoveMine={(codes) => {
           if (reactionDetail) remove(reactionDetail.id, codes);
-        }}
-        onReact={(code) => {
-          if (reactionDetail) handleReact(reactionDetail.id, code);
         }}
         onClose={() => setReactionDetail(null)}
       />

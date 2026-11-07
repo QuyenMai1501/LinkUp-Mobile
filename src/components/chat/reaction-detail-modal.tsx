@@ -1,13 +1,28 @@
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,7 +35,6 @@ import type { ChatMessage } from '@/types/chat';
 import type { EmojiItem } from '@/types/post';
 import {
   REACTION_EMOJIS,
-  activeChoicesFor,
   summarizeByUser,
   summarizeReactions,
   type LocalReactionCounts,
@@ -45,18 +59,24 @@ interface Props {
   userProfiles: Record<string, ReactionUserProfile>;
   /** Gỡ reaction CỦA MÌNH trong tab "Tất cả" (local-only). */
   onRemoveMine?: (codes: string[]) => void;
-  /** Thả cảm xúc từ picker ngay trong modal (giữ modal, list tự refresh). */
-  onReact?: (code: string) => void;
   onClose: () => void;
 }
 
 const TAB_ALL = 'all';
 
+const DISMISS_THRESHOLD = 100;
+const CLOSE_TIMING = { duration: 220, easing: Easing.out(Easing.cubic) } as const;
+const OPEN_TIMING = { duration: 260, easing: Easing.out(Easing.cubic) } as const;
+// Tham chiếu kéo để backdrop mờ dần / sheet scale (px).
+const DRAG_REFERENCE = 300;
+
 /**
  * Modal chi tiết cảm xúc (bottom-sheet) theo TAB: "Tất cả" + 6 emoji.
  * - Tất cả: liệt kê theo USER — avatar, tên, các loại reaction đã thả;
- *   dòng của mình có nút ✕ gỡ (local-only).
+ *   dòng của mình có nút Gỡ (local-only).
  * - Tab emoji: danh sách người thả emoji đó.
+ * Gesture drag-to-dismiss mirror report-sheet: kéo sheet xuống quá
+ * DRAG_REFERENCE (hoặc velocity) → đóng; chỉ pan khi list đang ở đầu.
  */
 export function ReactionDetailModal({
   visible,
@@ -66,18 +86,135 @@ export function ReactionDetailModal({
   emojis,
   userProfiles,
   onRemoveMine,
-  onReact,
   onClose,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<string>(TAB_ALL);
+  // Ảnh URL hỏng (404/timeout) → fallback chữ cái đầu thay vì ô trống.
+  const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
 
-  const handleClose = () => {
+  // Khởi tạo ngoài màn hình (900) để mở vào slide-up thay vì nhảy ra.
+  const translateY = useSharedValue(900);
+  const backdropOpacity = useSharedValue(1);
+  const scale = useSharedValue(1);
+  const scrollY = useSharedValue(0);
+
+  const handleDismiss = useCallback(() => {
     setTab(TAB_ALL);
     onClose();
-  };
+  }, [onClose]);
+
+  const dismissWorklet = useCallback(() => {
+    'worklet';
+    // eslint-disable-next-line react-hooks/immutability
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
+      if (finished) {
+        runOnJS(handleDismiss)();
+      }
+    });
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+    });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
+
+  const animateClose = useCallback(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    translateY.value = withTiming(900, CLOSE_TIMING, (finished) => {
+      if (finished) {
+        runOnJS(handleDismiss)();
+      }
+    });
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withTiming(0.96, CLOSE_TIMING);
+  }, [handleDismiss, translateY, backdropOpacity, scale]);
+
+  const handleClose = useCallback(() => {
+    animateClose();
+  }, [animateClose]);
+
+  // Gesture cuộn native của ScrollView — pan của sheet chạy song song với nó
+  // (mirror report-sheet) để vuốt xuống không bị gesture cuộn nuốt.
+  const nativeScrollGesture = useMemo(() => Gesture.Native(), []);
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-10, 10])
+        .failOffsetX([-25, 25])
+        .simultaneousWithExternalGesture(nativeScrollGesture)
+        .onUpdate((e) => {
+          // Chỉ cho kéo sheet khi đang ở đầu list (scrollY ≈ 0)
+          if (e.translationY > 0 && scrollY.value <= 2) {
+            // eslint-disable-next-line react-hooks/immutability
+            translateY.value = e.translationY;
+
+            const progress = Math.min(e.translationY / DRAG_REFERENCE, 1);
+
+            // eslint-disable-next-line react-hooks/immutability
+            backdropOpacity.value = 1 - progress * 0.85;
+            // eslint-disable-next-line react-hooks/immutability
+            scale.value = 1 - progress * 0.02;
+          }
+        })
+        .onEnd((e) => {
+          const atTop = scrollY.value <= 2;
+
+          if (
+            e.translationY > 0 &&
+            atTop &&
+            (e.translationY >= DISMISS_THRESHOLD || e.velocityY >= 500)
+          ) {
+            dismissWorklet();
+            return;
+          }
+
+          // eslint-disable-next-line react-hooks/immutability
+          translateY.value = withSpring(0, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          backdropOpacity.value = withSpring(1, { damping: 20 });
+          // eslint-disable-next-line react-hooks/immutability
+          scale.value = withSpring(1, { damping: 20 });
+        }),
+    [nativeScrollGesture, translateY, backdropOpacity, scale, dismissWorklet, scrollY],
+  );
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  // Mỗi lần mở (visible true) → slide-up từ dưới (kết thúc animateClose đã về 900).
+  useEffect(() => {
+    if (!visible) return;
+    // eslint-disable-next-line react-hooks/immutability
+    translateY.value = withTiming(0, OPEN_TIMING);
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = 1;
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = 1;
+  }, [visible, translateY, backdropOpacity, scale]);
+
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      // eslint-disable-next-line react-hooks/immutability
+      scrollY.value = e.nativeEvent.contentOffset.y;
+    },
+    [scrollY],
+  );
 
   const byUser = useMemo(() => {
     if (!message) return [];
@@ -89,12 +226,6 @@ export function ReactionDetailModal({
     return summarizeReactions(message, myUserId, localCounts, emojis);
   }, [message, myUserId, localCounts, emojis]);
 
-  // Highlight picker: code mình đang thả (union local + server, bỏ tombstone).
-  const activeCodes = useMemo(() => {
-    if (!message) return [];
-    return activeChoicesFor(message, myUserId, localCounts, emojis);
-  }, [message, myUserId, localCounts, emojis]);
-
   const tabGroup = tab === TAB_ALL ? null : summary.find((g) => g.key === tab);
 
   const renderAvatar = (uid: string) => {
@@ -102,12 +233,15 @@ export function ReactionDetailModal({
     const name = profile?.name || t('chat.unknown');
     const avatar = profile?.avatar ?? null;
     const initial = (name || '?')[0]?.toUpperCase() ?? '?';
-    if (avatar) {
+    if (avatar && !avatarErrors[uid]) {
       return (
         <Image
           source={{ uri: avatar }}
           style={[styles.avatar, { backgroundColor: theme.bgSecondary }]}
           contentFit="cover"
+          onError={() =>
+            setAvatarErrors((prev) => ({ ...prev, [uid]: true }))
+          }
         />
       );
     }
@@ -138,171 +272,184 @@ export function ReactionDetailModal({
     <Modal
       visible={visible && !!message}
       transparent
-      animationType="slide"
+      statusBarTranslucent
       onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose} />
-      <View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: theme.background,
-            paddingBottom: Spacing.xl + insets.bottom,
-          },
-        ]}>
-        <View style={[styles.handle, { backgroundColor: theme.border }]} />
-        <View style={styles.headerRow}>
-          <ThemedText style={styles.title}>
-            {t('chat.reactionsTitle')}
-          </ThemedText>
-          <Pressable hitSlop={8} onPress={handleClose}>
-            <Icon name="close" size={24} />
-          </Pressable>
-        </View>
+      {/* Bắt buộc có GestureHandlerRootView bên trong Modal (mirror report-sheet) */}
+      <GestureHandlerRootView style={styles.flex}>
+        {/* Backdrop — bấm để đóng; opacity animate theo mức vuốt */}
+        <Pressable style={styles.backdropHit} onPress={handleClose}>
+          <Animated.View style={[styles.backdrop, backdropAnimatedStyle]} />
+        </Pressable>
 
-        {/* Picker 6 emoji — thả ngay trong modal, list tự refresh */}
-        <View style={styles.pickerRow}>
-          {REACTION_EMOJIS.map((emoji) => {
-            const active = activeCodes.includes(emoji.code);
-            return (
-              <Pressable
-                key={emoji.code}
-                accessibilityLabel={`Thả cảm xúc ${emoji.char}`}
-                onPress={() => onReact?.(emoji.code)}
-                style={[
-                  styles.pickerBtn,
-                  active && {
-                    backgroundColor: theme.primaryLight,
-                    borderColor: theme.primary,
-                  },
-                ]}>
-                <Text style={styles.pickerEmoji}>{emoji.char}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Hàng tab: Tất cả + 6 emoji */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabs}
-          contentContainerStyle={styles.tabsContent}>
-          <Pressable
-            onPress={() => setTab(TAB_ALL)}
-            style={[
-              styles.tab,
-              tab === TAB_ALL && {
-                backgroundColor: theme.primaryLight,
-                borderColor: theme.primary,
-              },
-            ]}>
-            <ThemedText
+        <View
+          style={[
+            styles.sheetContainer,
+            { paddingBottom: Spacing.xl + insets.bottom },
+          ]}>
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
               style={[
-                styles.tabLabel,
-                tab === TAB_ALL && { color: theme.primary },
+                styles.sheet,
+                { backgroundColor: theme.background },
+                animatedStyle,
               ]}>
-              {t('chat.reactionsAll')}
-            </ThemedText>
-          </Pressable>
-          {REACTION_EMOJIS.map((emoji) => (
-            <Pressable
-              key={emoji.code}
-              onPress={() => setTab(emoji.code)}
-              style={[
-                styles.tab,
-                tab === emoji.code && {
-                  backgroundColor: theme.primaryLight,
-                  borderColor: theme.primary,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.tabEmoji,
-                  tab === emoji.code && { backgroundColor: theme.primary },
-                ]}>
-                {emoji.char}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              <View style={[styles.handle, { backgroundColor: theme.border }]} />
+              <View style={styles.headerRow}>
+                <ThemedText style={styles.title}>
+                  {t('chat.reactionsTitle')}
+                </ThemedText>
+                <Pressable hitSlop={8} onPress={handleClose}>
+                  <Icon name="close" size={24} />
+                </Pressable>
+              </View>
 
-        <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}>
-          {tab === TAB_ALL ? (
-            byUser.length === 0 ? (
-              <ThemedText
-                themeColor="textSecondary"
-                style={styles.empty}>
-                {t('chat.reactionsEmpty')}
-              </ThemedText>
-            ) : (
-              byUser.map((row) => {
-                const isMine = row.user_id === myUserId;
-                return (
-                  <View key={row.user_id} style={styles.userRow}>
-                    {renderAvatar(row.user_id)}
-                    <View style={styles.userMid}>
-                      {renderName(row.user_id)}
-                      <View style={styles.itemsRow}>
-                        {row.items.map((it) => (
-                          <View key={it.key} style={styles.item}>
-                            <Text style={styles.itemEmoji}>{it.char}</Text>
-                            {it.count > 1 && (
-                              <ThemedText
-                                themeColor="textSecondary"
-                                style={styles.itemCount}>
-                                {it.count}
-                              </ThemedText>
+              {/* Hàng tab: Tất cả + 6 emoji */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.tabs}
+                contentContainerStyle={styles.tabsContent}>
+                <Pressable
+                  onPress={() => setTab(TAB_ALL)}
+                  style={[
+                    styles.tab,
+                    tab === TAB_ALL && {
+                      backgroundColor: theme.primaryLight,
+                      borderColor: theme.primary,
+                    },
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.tabLabel,
+                      tab === TAB_ALL && { color: theme.primary },
+                    ]}>
+                    {t('chat.reactionsAll')}
+                  </ThemedText>
+                </Pressable>
+                {REACTION_EMOJIS.map((emoji) => (
+                  <Pressable
+                    key={emoji.code}
+                    onPress={() => setTab(emoji.code)}
+                    style={[
+                      styles.tab,
+                      tab === emoji.code && {
+                        backgroundColor: theme.primaryLight,
+                        borderColor: theme.primary,
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.tabEmoji,
+                        tab === emoji.code && { backgroundColor: theme.primary },
+                      ]}>
+                      {emoji.char}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {/* ScrollView cuộn qua Gesture.Native riêng, pan dismiss chạy song song */}
+              <GestureDetector gesture={nativeScrollGesture}>
+                <ScrollView
+                  style={styles.list}
+                  contentContainerStyle={styles.listContent}
+                  showsVerticalScrollIndicator={false}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}>
+                  {tab === TAB_ALL ? (
+                    byUser.length === 0 ? (
+                      <ThemedText
+                        themeColor="textSecondary"
+                        style={styles.empty}>
+                        {t('chat.reactionsEmpty')}
+                      </ThemedText>
+                    ) : (
+                      byUser.map((row) => {
+                        const isMine = row.user_id === myUserId;
+                        return (
+                          <View key={row.user_id} style={styles.userRow}>
+                            {renderAvatar(row.user_id)}
+                            <View style={styles.userMid}>
+                              {renderName(row.user_id)}
+                              <View style={styles.itemsRow}>
+                                {row.items.map((it) => (
+                                  <View key={it.key} style={styles.item}>
+                                    <Text style={styles.itemEmoji}>{it.char}</Text>
+                                    {it.count > 1 && (
+                                      <ThemedText
+                                        themeColor="textSecondary"
+                                        style={styles.itemCount}>
+                                        {it.count}
+                                      </ThemedText>
+                                    )}
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                            {isMine && onRemoveMine && (
+                              <Pressable
+                                accessibilityLabel={t('chat.removeReaction')}
+                                onPress={() =>
+                                  onRemoveMine(row.items.map((i) => i.key))
+                                }
+                                style={[
+                                  styles.removeBtn,
+                                  { borderColor: theme.primary },
+                                ]}>
+                                <ThemedText
+                                  style={[
+                                    styles.removeBtnText,
+                                    { color: theme.primary },
+                                  ]}>
+                                  {t('chat.remove')}
+                                </ThemedText>
+                              </Pressable>
                             )}
                           </View>
-                        ))}
+                        );
+                      })
+                    )
+                  ) : !tabGroup || tabGroup.user_ids.length === 0 ? (
+                    <ThemedText themeColor="textSecondary" style={styles.empty}>
+                      {t('chat.reactionsEmpty')}
+                    </ThemedText>
+                  ) : (
+                    tabGroup.user_ids.map((uid) => (
+                      <View key={uid} style={styles.userRow}>
+                        {renderAvatar(uid)}
+                        {renderName(uid)}
                       </View>
-                    </View>
-                    {isMine && onRemoveMine && (
-                      <Pressable
-                        hitSlop={8}
-                        accessibilityLabel={t('chat.removeReaction')}
-                        onPress={() =>
-                          onRemoveMine(row.items.map((i) => i.key))
-                        }
-                        style={styles.removeBtn}>
-                        <Icon name="close" size={18} color={theme.textSecondary} />
-                      </Pressable>
-                    )}
-                  </View>
-                );
-              })
-            )
-          ) : !tabGroup || tabGroup.user_ids.length === 0 ? (
-            <ThemedText themeColor="textSecondary" style={styles.empty}>
-              {t('chat.reactionsEmpty')}
-            </ThemedText>
-          ) : (
-            tabGroup.user_ids.map((uid) => (
-              <View key={uid} style={styles.userRow}>
-                {renderAvatar(uid)}
-                {renderName(uid)}
-              </View>
-            ))
-          )}
-        </ScrollView>
-      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </GestureDetector>
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  backdropHit: {
+    ...StyleSheet.absoluteFill,
+  },
   backdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheetContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   sheet: {
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
     paddingTop: Spacing.xs,
     maxHeight: '75%',
+    overflow: 'hidden',
   },
   handle: {
     alignSelf: 'center',
@@ -321,25 +468,6 @@ const styles = StyleSheet.create({
   title: {
     ...Typography.h2,
     fontSize: 18,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xs,
-  },
-  pickerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  pickerEmoji: {
-    fontSize: 22,
-    lineHeight: 24,
   },
   tabs: {
     flexGrow: 0,
@@ -409,7 +537,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   removeBtn: {
-    padding: 4,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  removeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   avatar: {
     width: 32,

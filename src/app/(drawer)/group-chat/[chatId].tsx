@@ -20,6 +20,7 @@ import {
   type GroupChatBackground,
 } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
+import { getMyProfile } from '@/api/profile';
 import {
   ChatBackgroundLayer,
   ChatHeaderBackground,
@@ -690,16 +691,33 @@ export default function GroupChatScreen() {
   }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
 
   // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (group: members).
+  // Avatar của tôi: Auth API không trả → fetch /profile 1 lần khi vào màn
+  // (ưu tiên avatar seed từ member list nếu có).
+  const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getMyProfile()
+      .then((res) => {
+        if (alive) setMyAvatar(res.avatar_uri || null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const reactionUserProfiles = useMemo(() => {
     const profiles: Record<string, ReactionUserProfile> = {};
     for (const [uid, name] of Object.entries(room.memberNames)) {
       profiles[uid] = { name, avatar: room.memberAvatars[uid] ?? null };
     }
-    if (myUserId && !profiles[myUserId]) {
-      profiles[myUserId] = { name: user?.username ?? '', avatar: null };
+    if (myUserId) {
+      profiles[myUserId] = {
+        name: profiles[myUserId]?.name || user?.username || '',
+        avatar: profiles[myUserId]?.avatar ?? myAvatar ?? null,
+      };
     }
     return profiles;
-  }, [room.memberNames, room.memberAvatars, myUserId, user?.username]);
+  }, [room.memberNames, room.memberAvatars, myUserId, user?.username, myAvatar]);
 
   // Mở picker chọn hội thoại đích (direct hoặc group).
   const handleForward = useCallback((msg: ChatMessage) => {
@@ -1530,9 +1548,6 @@ export default function GroupChatScreen() {
         userProfiles={reactionUserProfiles}
         onRemoveMine={(codes) => {
           if (reactionDetail) remove(reactionDetail.id, codes);
-        }}
-        onReact={(code) => {
-          if (reactionDetail) handleReact(reactionDetail.id, code);
         }}
         onClose={() => setReactionDetail(null)}
       />
