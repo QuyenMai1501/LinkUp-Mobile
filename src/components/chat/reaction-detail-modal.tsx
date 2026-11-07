@@ -20,6 +20,7 @@ import type { ChatMessage } from '@/types/chat';
 import type { EmojiItem } from '@/types/post';
 import {
   REACTION_EMOJIS,
+  activeChoicesFor,
   summarizeByUser,
   summarizeReactions,
   type LocalReactionCounts,
@@ -44,6 +45,8 @@ interface Props {
   userProfiles: Record<string, ReactionUserProfile>;
   /** Gỡ reaction CỦA MÌNH trong tab "Tất cả" (local-only). */
   onRemoveMine?: (codes: string[]) => void;
+  /** Thả cảm xúc từ picker ngay trong modal (giữ modal, list tự refresh). */
+  onReact?: (code: string) => void;
   onClose: () => void;
 }
 
@@ -63,6 +66,7 @@ export function ReactionDetailModal({
   emojis,
   userProfiles,
   onRemoveMine,
+  onReact,
   onClose,
 }: Props) {
   const theme = useTheme();
@@ -83,6 +87,12 @@ export function ReactionDetailModal({
   const summary = useMemo(() => {
     if (!message) return [];
     return summarizeReactions(message, myUserId, localCounts, emojis);
+  }, [message, myUserId, localCounts, emojis]);
+
+  // Highlight picker: code mình đang thả (union local + server, bỏ tombstone).
+  const activeCodes = useMemo(() => {
+    if (!message) return [];
+    return activeChoicesFor(message, myUserId, localCounts, emojis);
   }, [message, myUserId, localCounts, emojis]);
 
   const tabGroup = tab === TAB_ALL ? null : summary.find((g) => g.key === tab);
@@ -147,6 +157,28 @@ export function ReactionDetailModal({
           <Pressable hitSlop={8} onPress={handleClose}>
             <Icon name="close" size={24} />
           </Pressable>
+        </View>
+
+        {/* Picker 6 emoji — thả ngay trong modal, list tự refresh */}
+        <View style={styles.pickerRow}>
+          {REACTION_EMOJIS.map((emoji) => {
+            const active = activeCodes.includes(emoji.code);
+            return (
+              <Pressable
+                key={emoji.code}
+                accessibilityLabel={`Thả cảm xúc ${emoji.char}`}
+                onPress={() => onReact?.(emoji.code)}
+                style={[
+                  styles.pickerBtn,
+                  active && {
+                    backgroundColor: theme.primaryLight,
+                    borderColor: theme.primary,
+                  },
+                ]}>
+                <Text style={styles.pickerEmoji}>{emoji.char}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Hàng tab: Tất cả + 6 emoji */}
@@ -289,6 +321,25 @@ const styles = StyleSheet.create({
   title: {
     ...Typography.h2,
     fontSize: 18,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xs,
+  },
+  pickerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  pickerEmoji: {
+    fontSize: 22,
+    lineHeight: 24,
   },
   tabs: {
     flexGrow: 0,

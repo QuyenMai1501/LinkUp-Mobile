@@ -1582,6 +1582,9 @@ export default function ChatScreen() {
         onRemoveMine={(codes) => {
           if (reactionDetail) remove(reactionDetail.id, codes);
         }}
+        onReact={(code) => {
+          if (reactionDetail) handleReact(reactionDetail.id, code);
+        }}
         onClose={() => setReactionDetail(null)}
       />
 
