@@ -48,10 +48,18 @@ interface Props {
   durationSeconds?: number | null;
   /** Bubble của mình → tông màu đảo (nút trắng, chữ trắng trên nền primary). */
   isMine?: boolean;
+  /** Long-press (nút play) → mở MessageActions như bubble text. */
+  onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function VoicePlayer({ uri, durationSeconds, isMine, style }: Props) {
+export function VoicePlayer({
+  uri,
+  durationSeconds,
+  isMine,
+  onLongPress,
+  style,
+}: Props) {
   const theme = useTheme();
   const [headers, setHeaders] = useState<Record<string, string> | undefined>();
   const isRemote = /^https?:\/\//i.test(uri);
@@ -117,6 +125,8 @@ export function VoicePlayer({ uri, durationSeconds, isMine, style }: Props) {
     <View style={[styles.row, style]}>
       <Pressable
         onPress={toggle}
+        onLongPress={onLongPress}
+        delayLongPress={400}
         disabled={!source}
         hitSlop={6}
         style={[styles.playBtn, { backgroundColor: btnBg }]}>

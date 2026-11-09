@@ -37,6 +37,11 @@ interface VideoPlayerProps {
    */
   onTap?: () => void;
   /**
+   * Long-press vùng video (catcher trên VideoView) → mở MessageActions.
+   * Long-press xong không kích hoạt onTap/togglePlay.
+   */
+  onLongPress?: () => void;
+  /**
    * Nâng controls lên trên overlay phía dưới (vd: info bar trong media-viewer)
    * để không bị che. Đơn vị px, cộng vào paddingBottom của overlay.
    */
@@ -52,6 +57,7 @@ export default function VideoPlayer({
   nativeControls = false,
   autoplay = false,
   onTap,
+  onLongPress,
   controlsBottomInset = 0,
 }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
@@ -265,6 +271,8 @@ export default function VideoPlayer({
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={handleCatcherPress}
+        onLongPress={onLongPress}
+        delayLongPress={400}
         accessibilityRole="button"
         accessibilityLabel="video"
       />

@@ -387,6 +387,7 @@ export function ChatBubble({
                 message={message}
                 isMine={isMine}
                 onPress={() => onMediaPress?.(message)}
+                onLongPress={() => onLongPress?.(message)}
               />
             ) : isSingleVideo ? (
               <VideoLinkPreview url={videoUrls[0]} />
