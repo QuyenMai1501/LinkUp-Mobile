@@ -9,11 +9,11 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { MessageTimestamp } from '@/components/chat/message-timestamp';
 import { Radius, Spacing } from '@/constants/theme';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { formatChatTime } from '@/utils/chat';
 import type { ChatMessage } from '@/types/chat';
 
 interface Props {
@@ -23,15 +23,20 @@ interface Props {
   myUserId: string;
   /** busyBg (Web): ảnh nền preset/custom → ô theirs viền + shadow. */
   busyBg?: boolean;
+  /** Hiện timestamp HH:mm dưới lưới (tin đầu nhóm / cách >60s). */
   showTime?: boolean;
+  /** Group chat: nhãn "Đã xem" + accessibilityLabel kèm tên người xem. */
+  isGroup?: boolean;
+  /** user_id → tên thành viên (group) — chỉ dùng cho accessibilityLabel seenBy. */
+  memberNames?: Record<string, string>;
   onOpen: (index: number) => void;
   onLongPress?: (msg: ChatMessage) => void;
 }
 
 /**
  * Cụm ảnh gửi cùng lúc — lưới thích ứng (Messenger/iOS): 2 ảnh = 2 cột đầy,
- * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Giờ + trạng thái (✓/✓✓/
- * spinner) của tin CUỐI cụm: hàng dưới lưới, hug mép phải, dính đáy.
+ * 3–4 ảnh = 2×2, 5+ = 3 cột; ô vuông cover crop. Trạng thái gửi/đã xem
+ * (nhãn chữ như Web) + timestamp HH:mm của cụm nằm dưới lưới.
  *
  * Ô lưới dùng px CỐ ĐỊNH tính từ bề rộng màn hình (không dùng % width trong
  * flex-wrap parent auto) — Yoga resolve % qua nhiều pass, grid height dao động
@@ -44,6 +49,8 @@ export function MediaCluster({
   myUserId,
   busyBg = false,
   showTime = false,
+  isGroup = false,
+  memberNames,
   onOpen,
   onLongPress,
 }: Props) {
@@ -51,7 +58,23 @@ export function MediaCluster({
   const { t } = useTranslation();
   const { width: winW } = useWindowDimensions();
   const last = msgs[msgs.length - 1];
-  const seen = isMine && (last.seen_by ?? []).some((uid) => uid !== myUserId);
+  const seenByNames = (last.seen_by ?? []).filter((uid) => uid !== myUserId);
+  const seen = isMine && seenByNames.length > 0;
+  const pendingStatus = isMine && !last.failed && (last.sending || last.uploading);
+  const statusText = pendingStatus
+    ? t('chat.sending')
+    : seen
+      ? t('chat.seen')
+      : t('chat.sent');
+  const statusLabel =
+    isGroup && seen
+      ? t('chat.seenBy', {
+          names: seenByNames
+            .slice(0, 3)
+            .map((uid) => memberNames?.[uid] ?? t('chat.unknown'))
+            .join(', '),
+        })
+      : statusText;
   // ≤4 ảnh → 2 cột ô to (hết hụt cột ở cụm 2 ảnh); ≥5 → 3 cột.
   const cols = msgs.length <= 4 ? 2 : 3;
   // clusterRow padding Spacing.md mỗi bên; wrap maxWidth 78%.
@@ -76,36 +99,30 @@ export function MediaCluster({
           />
         ))}
       </View>
-      {showTime || isMine ? (
+      {isMine ? (
         <View style={styles.timeRow}>
-          {showTime && (
-            <ThemedText
-              style={[styles.time, { color: theme.textSecondary }]}>
-              {formatChatTime(last.created_at, t)}
-            </ThemedText>
-          )}
-          {isMine && last.failed ? (
-            <ThemedText
-              style={[styles.time, { color: theme.danger }]}>
+          {last.failed ? (
+            <ThemedText style={[styles.status, { color: theme.danger }]}>
               {t('chat.sendFailed')}
             </ThemedText>
-          ) : isMine && last.uploading ? (
-            // Bọc khung cố định — Android ignore numeric size → spinner
-            // default ~20dp sẽ phình chiều cao timeRow.
-            <View style={styles.spinnerBox}>
-              <ActivityIndicator size={10} color={theme.textSecondary} />
-            </View>
-          ) : isMine && !last.sending ? (
+          ) : (
             <ThemedText
+              accessibilityLabel={statusLabel}
               style={[
-                styles.time,
+                styles.status,
                 { color: seen ? '#A5F3FC' : theme.textSecondary },
               ]}>
-              {seen ? '✓✓' : '✓'}
+              {statusText}
             </ThemedText>
-          ) : null}
+          )}
         </View>
       ) : null}
+      {showTime && (
+        <MessageTimestamp
+          createdAt={(msgs[0] ?? last).created_at}
+          isMine={isMine}
+        />
+      )}
     </View>
   );
 }
@@ -185,13 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 4,
   },
-  spinnerBox: {
-    width: 12,
-    height: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  time: {
+  status: {
     fontSize: 10,
     // lineHeight khớp cỡ chữ — ThemedText default kế thừa lineHeight 24.
     lineHeight: 12,

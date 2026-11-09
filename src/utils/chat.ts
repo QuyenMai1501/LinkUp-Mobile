@@ -74,7 +74,16 @@ export function formatChatTime(iso: string, t: TranslationFn): string {
   return vnDate(iso);
 }
 
+/** Giờ tuyệt đối HH:mm (24h) cho timestamp từng tin nhắn — mirror web. */
+export function formatClockTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 export function formatChatDate(iso: string, t: TranslationFn): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
   if (isToday(iso)) return t('chat.today');
   if (isYesterday(iso)) return t('chat.yesterday');
   return vnDateTime(iso);

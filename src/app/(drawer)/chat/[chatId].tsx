@@ -33,6 +33,7 @@ import {
 } from "@/components/chat/chat-background";
 import { ChatBackgroundPicker } from "@/components/chat/chat-background-picker";
 import { ChatBubble } from "@/components/chat/chat-bubble";
+import { ChatDateSeparator } from "@/components/chat/chat-date-separator";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ForwardPickerModal } from "@/components/chat/forward-picker-modal";
 import { MediaCluster } from "@/components/chat/media-cluster";
@@ -1356,29 +1357,6 @@ export default function ChatScreen() {
                   index: number;
                 }) => {
                   const prev = resolvePrevMsg(timeline, index);
-                  const dateSep = (createdAt: string) => (
-                    <View style={styles.dateSep}>
-                      <View
-                        style={[
-                          styles.dateSepLine,
-                          { backgroundColor: theme.border },
-                        ]}
-                      />
-                      <ThemedText
-                        style={[
-                          styles.dateSepText,
-                          { color: theme.textSecondary },
-                        ]}>
-                        {formatChatDate(createdAt, t)}
-                      </ThemedText>
-                      <View
-                        style={[
-                          styles.dateSepLine,
-                          { backgroundColor: theme.border },
-                        ]}
-                      />
-                    </View>
-                  );
 
                   if ("kind" in item) {
                     if (item.kind === "media_cluster") {
@@ -1420,7 +1398,7 @@ export default function ChatScreen() {
                         formatChatDate(prev.createdAt, t);
                     return (
                       <Fragment key={`call-${item.item.id}`}>
-                        {showDate && dateSep(iso)}
+                        {showDate && <ChatDateSeparator createdAt={iso} />}
                         <CallHistoryRow
                           item={item.item}
                           partnerAvatar={partner?.avatar_uri}
@@ -1448,7 +1426,7 @@ export default function ChatScreen() {
                   if (isSystemMessage(msg)) {
                     return (
                       <Fragment key={msg.id}>
-                        {showDate && dateSep(msg.created_at)}
+                        {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                         <SystemMessage
                           message={msg}
                           myUserId={myUserId}
@@ -1464,7 +1442,7 @@ export default function ChatScreen() {
                   if (msg.type === "group_invite") {
                     return (
                       <Fragment key={msg.id}>
-                        {showDate && dateSep(msg.created_at)}
+                        {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                         <GroupInviteBubble
                           message={msg}
                           myUserId={myUserId}
@@ -1476,7 +1454,7 @@ export default function ChatScreen() {
 
                   return (
                     <Fragment key={msg.id}>
-                      {showDate && dateSep(msg.created_at)}
+                      {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                       <ChatBubble
                         message={msg}
                         busyBg={busyBg}
@@ -1905,21 +1883,6 @@ const styles = StyleSheet.create({
   },
   clusterRowTheirs: {
     alignItems: "flex-start",
-  },
-  dateSep: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-  },
-  dateSepLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dateSepText: {
-    ...Typography.caption,
-    fontSize: 12,
   },
   loadMoreRow: {
     alignItems: "center",

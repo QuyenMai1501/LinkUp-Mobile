@@ -26,6 +26,7 @@ import {
   ChatHeaderBackground,
 } from '@/components/chat/chat-background';
 import { ChatBubble } from '@/components/chat/chat-bubble';
+import { ChatDateSeparator } from '@/components/chat/chat-date-separator';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaCluster } from '@/components/chat/media-cluster';
@@ -1341,20 +1342,6 @@ export default function GroupChatScreen() {
               onScrollToIndexFailed={handleScrollToIndexFailed}
               renderItem={({ item, index }: { item: GroupedItem; index: number }) => {
                 const prev = resolvePrevMsg(timeline, index);
-                const dateSep = (createdAt: string) => (
-                  <View style={styles.dateSep}>
-                    <View
-                      style={[styles.dateSepLine, { backgroundColor: theme.border }]}
-                    />
-                    <ThemedText
-                      style={[styles.dateSepText, { color: theme.textSecondary }]}>
-                      {formatChatDate(createdAt, t)}
-                    </ThemedText>
-                    <View
-                      style={[styles.dateSepLine, { backgroundColor: theme.border }]}
-                    />
-                  </View>
-                );
 
                 if ('kind' in item) {
                   if (item.kind === 'media_cluster') {
@@ -1380,6 +1367,8 @@ export default function GroupChatScreen() {
                           myUserId={myUserId}
                           busyBg={busyBg}
                           showTime={showClusterTime}
+                          isGroup
+                          memberNames={room.memberNames}
                           onOpen={(i) =>
                             setLightbox({ msgs: item.msgs, index: i })
                           }
@@ -1427,7 +1416,7 @@ export default function GroupChatScreen() {
                 if (isSystemMessage(msg)) {
                   return (
                     <Fragment key={msg.id}>
-                      {showDate && dateSep(msg.created_at)}
+                      {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                       <SystemMessage
                         message={msg}
                         myUserId={myUserId}
@@ -1439,7 +1428,7 @@ export default function GroupChatScreen() {
 
                 return (
                   <Fragment key={msg.id}>
-                    {showDate && dateSep(msg.created_at)}
+                    {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                     <ChatBubble
                       message={msg}
                       busyBg={busyBg}
@@ -1449,6 +1438,8 @@ export default function GroupChatScreen() {
                         msg.sender_id === myUserId &&
                         (msg.seen_by ?? []).some((uid) => uid !== myUserId)
                       }
+                      isGroup
+                      memberNames={room.memberNames}
                       emojis={serverEmojis}
                       myUserId={myUserId}
                       avatarUri={msg.sender_avatar ?? null}
@@ -1819,21 +1810,6 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
-  },
-  dateSep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  dateSepLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dateSepText: {
-    ...Typography.caption,
-    fontSize: 11,
   },
   clusterRow: {
     // Thoáng giữa các cụm ảnh — bubble thường vẫn marginVertical 2 (parity Web).
