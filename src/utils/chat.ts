@@ -1,5 +1,25 @@
 type TranslationFn = (key: string, params?: Record<string, string | number>) => string;
 
+/**
+ * Bubble optimistic (đang gửi: text/media/voice) — id tạm `temp-N` do client
+ * sinh. Tin này dùng giờ THIẾT BỊ nên không được so giờ với tin server.
+ */
+export function isPendingMessage(m: { id: string }): boolean {
+  return m.id.startsWith('temp-');
+}
+
+/** So sánh tin theo created_at; bubble optimistic (`temp-`) LUÔN xếp cuối. */
+export function sortMessagesByCreatedAt<T extends { id: string; created_at: string }>(
+  list: T[],
+): T[] {
+  return [...list].sort((a, b) => {
+    const pa = isPendingMessage(a) ? 1 : 0;
+    const pb = isPendingMessage(b) ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+}
+
 function diffMinutes(iso: string): number {
   const diff = Date.now() - new Date(iso).getTime();
   return Math.max(0, Math.floor(diff / 60000));

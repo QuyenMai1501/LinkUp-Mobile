@@ -61,7 +61,6 @@ import { useChatE2E } from "@/hooks/useChatE2E";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { useE2ERecovery } from "@/hooks/useE2ERecovery";
-import { useMessageReactions } from "@/hooks/use-message-reactions";
 import { useServerEmojis } from "@/hooks/use-server-emojis";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CallHistoryItem } from "@/types/call";
@@ -71,13 +70,12 @@ import type {
   ChatMessage,
   ReplyPreview,
 } from "@/types/chat";
-import { formatChatDate } from "@/utils/chat";
+import { formatChatDate, isPendingMessage } from "@/utils/chat";
 import { notifyChatListDirty } from "@/utils/chat-list-dirty";
 import { RECOVERY_RESOLVED_KEY } from "@/utils/e2e-flags";
 import { stashForwardDraft, takeForwardDraft } from "@/utils/forward-draft";
 import {
   activeChoicesFor,
-  myServerCount,
   type ReactionAnchor,
 } from "@/utils/reactions";
 import { takeStoryReplyDraft } from "@/utils/story-reply-draft";
@@ -175,8 +173,7 @@ export default function ChatScreen() {
 
   // Message actions state
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
-  // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
-  const { choices, choose, remove } = useMessageReactions();
+  // Pill cảm xúc đang mở (neo theo bubble).
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
   // Modal chi tiết cảm xúc (tap vào badge trên bubble).
@@ -272,7 +269,7 @@ export default function ChatScreen() {
   });
 
   // Emoji server (sticker render + reaction chip) — cache module.
-  const { byId: serverEmojis } = useServerEmojis();
+  const { byId: serverEmojis, byCode } = useServerEmojis();
 
   // B6: deep-link vào chat khi cổng khôi phục E2E chưa mở → đá về danh sách
   // (RecoveryGateModal chỉ render ở messages.tsx).
@@ -375,12 +372,28 @@ export default function ChatScreen() {
       }
       return new Date(g.created_at).getTime();
     };
+    // Bubble optimistic (`temp-`) dùng giờ thiết bị → luôn xếp cuối, không so
+    // giờ với tin server (tránh nhảy thứ tự khi đồng hồ máy lệch server).
+    const pendingRank = (g: GroupedItem): number => {
+      if ("kind" in g) {
+        if (g.kind === "media_cluster") {
+          return g.msgs.some((m) => isPendingMessage(m)) ? 1 : 0;
+        }
+        return 0;
+      }
+      return isPendingMessage(g) ? 1 : 0;
+    };
     const callItems: CallTimelineItem[] = callHistory.map((item) => ({
       kind: "call",
       item,
     }));
     return [...clusterTimelineMedia(room.messages), ...callItems].sort(
-      (a, b) => created(a) - created(b),
+      (a, b) => {
+        const pa = pendingRank(a);
+        const pb = pendingRank(b);
+        if (pa !== pb) return pa - pb;
+        return created(a) - created(b);
+      },
     );
   }, [room.messages, callHistory]);
 
@@ -664,19 +677,16 @@ export default function ChatScreen() {
     [room],
   );
 
-  // A: toggle reaction LOCAL (badge / quick-heart / quick-react trong menu).
+  // Thả/gỡ cảm xúc: map code (`:heart:`…) → emoji_id server rồi gửi WS.
+  // Server broadcast lại danh sách reactions (user được nhiều emoji/tin).
+  const { reactToMessage } = room;
   const handleReact = useCallback(
     (messageId: string, emojiKey: string) => {
-      const msg = room.messages.find((m) => m.id === messageId);
-      if (!msg) return;
-      const local = choices[messageId];
-      const base =
-        local && emojiKey in local
-          ? local[emojiKey]
-          : myServerCount(msg, myUserId, emojiKey, serverEmojis);
-      choose(messageId, emojiKey, base);
+      const emojiId = byCode?.get(emojiKey)?.id;
+      if (!emojiId) return;
+      reactToMessage(messageId, emojiId);
     },
-    [choices, choose, room.messages, myUserId, serverEmojis],
+    [byCode, reactToMessage],
   );
 
   // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
@@ -691,13 +701,12 @@ export default function ChatScreen() {
   const reactionActiveCodes = useMemo(() => {
     if (!reactionTarget) return [];
     const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
-    return activeChoicesFor(
-      msg,
-      myUserId,
-      choices[reactionTarget.messageId],
-      serverEmojis,
-    );
-  }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
+    return activeChoicesFor(msg, myUserId, serverEmojis);
+  }, [reactionTarget, room.messages, myUserId, serverEmojis]);
+  // Tin chi tiết luôn lấy bản mới nhất từ room → modal cập nhật live theo WS.
+  const reactionDetailMsg = reactionDetail
+    ? room.messages.find((m) => m.id === reactionDetail.id) ?? reactionDetail
+    : null;
 
   // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (1-1: partner + tôi).
   // Avatar của tôi: Auth API không trả → fetch /profile 1 lần khi vào màn.
@@ -1492,7 +1501,6 @@ export default function ChatScreen() {
                         onMediaPress={handleMediaPress}
                         onOpenPost={handleOpenPost}
                         onReact={handleReact}
-                        localChoice={choices[msg.id]}
                         onOpenReactionBar={openReactionBar}
                         onOpenReactionDetails={setReactionDetail}
                       />
@@ -1587,14 +1595,19 @@ export default function ChatScreen() {
 
       {/* Chi tiết cảm xúc — nhóm theo emoji, người thả + số lượng */}
       <ReactionDetailModal
-        visible={!!reactionDetail}
-        message={reactionDetail}
-        localCounts={reactionDetail ? choices[reactionDetail.id] : undefined}
+        visible={!!reactionDetailMsg}
+        message={reactionDetailMsg}
         myUserId={myUserId}
         emojis={serverEmojis}
         userProfiles={reactionUserProfiles}
-        onRemoveMine={(codes) => {
-          if (reactionDetail) remove(reactionDetail.id, codes);
+        onRemoveMine={() => {
+          if (!reactionDetailMsg) return;
+          const mine =
+            reactionDetailMsg.reactions?.filter((r) => r.user_id === myUserId) ??
+            [];
+          for (const r of mine) {
+            room.reactToMessage(reactionDetailMsg.id, r.emoji_id);
+          }
         }}
         onClose={() => setReactionDetail(null)}
       />

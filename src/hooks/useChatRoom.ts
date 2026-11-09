@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { showAlert } from '@/utils/alert';
+import {
+  isPendingMessage,
+  sortMessagesByCreatedAt as sortByCreatedAt,
+} from '@/utils/chat';
 import type {
   ChatMessage,
   HistoryCursor,
@@ -14,11 +18,8 @@ import { rememberLocalMediaUri } from '@/utils/local-media';
 import type { ChatSocket } from './useChatSocket';
 import type { ChatE2E } from './useChatE2E';
 
-function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
-  return [...list].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  );
-}
+// Bubble optimistic (`temp-N`) dùng giờ thiết bị — `sortByCreatedAt` (utils/chat)
+// luôn xếp chúng cuối cho tới khi có echo server, tránh nhảy thứ tự khi lệch giờ.
 
 function dedupeByID(list: ChatMessage[]): ChatMessage[] {
   const seen = new Set<string>();
@@ -494,7 +495,7 @@ export function useChatRoom({
         setMessages((prev) => {
           let changed = false;
           const next = prev.map((m) => {
-            if (m.sender_id !== myUserId || m.id.startsWith('temp-')) return m;
+            if (m.sender_id !== myUserId || isPendingMessage(m)) return m;
             if (new Date(m.created_at).getTime() > lastReadAt) return m;
             const seen = m.seen_by ?? [];
             if (seen.includes(readerId)) return m;

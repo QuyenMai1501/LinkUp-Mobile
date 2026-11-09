@@ -34,7 +34,6 @@ import {
 import {
   charOf,
   mergeReactions,
-  type LocalReactionCounts,
   type ReactionAnchor,
 } from "@/utils/reactions";
 import { extractVideoUrls } from "@/utils/videoLink";
@@ -57,14 +56,11 @@ interface Props {
   /** Emoji server theo id — render sticker (emoji_id) + badge cảm xúc. */
   emojis?: Map<string, ServerEmoji> | null;
   myUserId?: string;
-  /** Reaction LOCAL (không WS): { code → số lần mình đã thả }.
-   *  undefined = chưa can thiệp local (giữ dữ liệu server). */
-  localChoice?: LocalReactionCounts;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
-  /** Tap thả emoji (code `:heart:`…) — screen tự tính base rồi +1 local. */
+  /** Tap thả emoji (code `:heart:`…) — screen map sang emoji_id server rồi gửi WS. */
   onReact?: (messageId: string, emojiKey: string) => void;
   /** Long-press quick-heart → mở pill chọn cảm xúc (anchor = rect bubble). */
   onOpenReactionBar?: (msg: ChatMessage, anchor: ReactionAnchor) => void;
@@ -87,7 +83,6 @@ export function ChatBubble({
   highlight = false,
   emojis,
   myUserId,
-  localChoice,
   onLongPress,
   onReplyPress,
   onMediaPress,
@@ -103,23 +98,15 @@ export function ChatBubble({
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
   // Reaction local: gộp server + override của mình → render badge cảm xúc.
   const mergedReactions = useMemo(
-    () => mergeReactions(message, myUserId, localChoice, emojis),
-    [message, myUserId, localChoice, emojis],
+    () => mergeReactions(message, myUserId, emojis),
+    [message, myUserId, emojis],
   );
   // Reaction ĐẦU TIÊN tin nhận được — QuickHeart hiển thị emoji đó
-  // (server trước theo created_at, chưa echo → key local đầu tiên).
+  // (server trả theo created_at).
   const firstReactionChar = useMemo(() => {
     const first = message.reactions?.[0];
-    if (first) {
-      const c = charOf(first.emoji_id, emojis);
-      if (c) return c;
-    }
-    if (localChoice) {
-      const key = Object.keys(localChoice).find((k) => localChoice[k] > 0);
-      if (key) return charOf(key, emojis);
-    }
-    return null;
-  }, [message.reactions, localChoice, emojis]);
+    return first ? charOf(first.emoji_id, emojis) : null;
+  }, [message.reactions, emojis]);
   // Đo bubble + badge → margin âm cho badge tràn mép trái khi dài hơn bubble.
   const [bubbleW, setBubbleW] = useState(0);
   const [badgeW, setBadgeW] = useState(0);
