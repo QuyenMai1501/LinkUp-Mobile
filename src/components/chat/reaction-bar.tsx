@@ -20,8 +20,8 @@ export interface ReactionBarTarget {
 interface Props {
   /** null = đóng. Anchor = bubble rect đo được (measureInWindow). */
   target: ReactionBarTarget | null;
-  /** Code emoji mình đang thả — highlight nút trong pill. */
-  activeCode: string | null;
+  /** Code các emoji mình đang thả — highlight nút active (multi-select). */
+  activeCodes: string[];
   /** Chọn emoji → toggle local + screen tự đóng pill. */
   onSelect: (code: string) => void;
   onClose: () => void;
@@ -40,7 +40,7 @@ const PILL_EST_H = 56;
  */
 export function ReactionBar({
   target,
-  activeCode,
+  activeCodes,
   onSelect,
   onClose,
 }: Props) {
@@ -100,7 +100,7 @@ export function ReactionBar({
             entering={ZoomIn.springify().damping(14).mass(0.6)}
             style={styles.row}>
             {REACTION_EMOJIS.map((emoji) => {
-              const active = activeCode === emoji.code;
+              const active = activeCodes.includes(emoji.code);
               return (
                 <Pressable
                   key={emoji.code}

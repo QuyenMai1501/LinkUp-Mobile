@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -31,7 +31,12 @@ import {
   isSingleEmojiText,
   singleEmojiCode,
 } from "@/utils/emojis";
-import { mergeReactions, type ReactionAnchor } from "@/utils/reactions";
+import {
+  charOf,
+  mergeReactions,
+  type LocalReactionCounts,
+  type ReactionAnchor,
+} from "@/utils/reactions";
 import { extractVideoUrls } from "@/utils/videoLink";
 
 interface Props {
@@ -52,17 +57,19 @@ interface Props {
   /** Emoji server theo id — render sticker (emoji_id) + badge cảm xúc. */
   emojis?: Map<string, ServerEmoji> | null;
   myUserId?: string;
-  /** Reaction LOCAL (không WS): code mình thả trên tin này.
-   *  undefined = chưa can thiệp local (giữ dữ liệu server), null = đã hủy. */
-  localChoice?: string | null;
+  /** Reaction LOCAL (không WS): { code → số lần mình đã thả }.
+   *  undefined = chưa can thiệp local (giữ dữ liệu server). */
+  localChoice?: LocalReactionCounts;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
-  /** Toggle reaction theo key chuẩn (code `:heart:`…) — state local. */
+  /** Tap thả emoji (code `:heart:`…) — screen tự tính base rồi +1 local. */
   onReact?: (messageId: string, emojiKey: string) => void;
   /** Long-press quick-heart → mở pill chọn cảm xúc (anchor = rect bubble). */
   onOpenReactionBar?: (msg: ChatMessage, anchor: ReactionAnchor) => void;
+  /** Tap vùng badge cảm xúc → mở modal chi tiết. */
+  onOpenReactionDetails?: (msg: ChatMessage) => void;
   /** busyBg (Web): nền preset/custom là ảnh bận → armor: bubble bên nhận thêm
    *  viền + shadow, text tin mình thêm text-shadow (giữ brand, thêm tách lớp). */
   busyBg?: boolean;
@@ -87,6 +94,7 @@ export function ChatBubble({
   onOpenPost,
   onReact,
   onOpenReactionBar,
+  onOpenReactionDetails,
   busyBg = false,
 }: Props) {
   const theme = useTheme();
@@ -98,6 +106,23 @@ export function ChatBubble({
     () => mergeReactions(message, myUserId, localChoice, emojis),
     [message, myUserId, localChoice, emojis],
   );
+  // Reaction ĐẦU TIÊN tin nhận được — QuickHeart hiển thị emoji đó
+  // (server trước theo created_at, chưa echo → key local đầu tiên).
+  const firstReactionChar = useMemo(() => {
+    const first = message.reactions?.[0];
+    if (first) {
+      const c = charOf(first.emoji_id, emojis);
+      if (c) return c;
+    }
+    if (localChoice) {
+      const key = Object.keys(localChoice).find((k) => localChoice[k] > 0);
+      if (key) return charOf(key, emojis);
+    }
+    return null;
+  }, [message.reactions, localChoice, emojis]);
+  // Đo bubble + badge → margin âm cho badge tràn mép trái khi dài hơn bubble.
+  const [bubbleW, setBubbleW] = useState(0);
+  const [badgeW, setBadgeW] = useState(0);
   // Neo pill reaction: đo rect bubble thật qua measureInWindow.
   const bubbleRef = useRef<View>(null);
   const openReactionBar = () => {
@@ -233,6 +258,7 @@ export function ChatBubble({
         )}
         <Pressable
         ref={bubbleRef}
+        onLayout={(e) => setBubbleW(e.nativeEvent.layout.width)}
         onLongPress={() => onLongPress?.(message)}
         delayLongPress={400}
         style={[
@@ -448,20 +474,24 @@ export function ChatBubble({
           </View>
         ) : null}
 
-        {/* A: nút thả nhanh ❤️ — neo ngoài góc phải-dưới, chỉ tin ĐỐI PHƯƠNG.
-            Tap → thả ❤️ trực tiếp; long-press → rung nhẹ + mở pill cảm xúc. */}
+        {/* A: nút thả nhanh — neo ngoài góc phải-dưới, chỉ tin ĐỐI PHƯƠNG.
+            0 reaction → heart outline; có → emoji reaction đầu tiên.
+            Tap → thả emoji đang hiện; long-press → rung nhẹ + mở pill. */}
         {!isMine && !message.failed && !message.sending && onReact && (
           <QuickHeart
-            onPress={() => onReact(message.id, ":heart:")}
+            reactionChar={firstReactionChar}
+            onPress={(code) => onReact(message.id, code)}
             onLongPress={openReactionBar}
           />
         )}
       </Pressable>
-      {/* A: badge cảm xúc — góc dưới-trái, đè nhẹ mép ngoài mép dưới bubble. */}
-      {!message.deleted && !message.decrypt_failed && onReact && (
+      {/* A: badge cảm xúc — góc dưới-trái; nội dung dài hơn bubble → tràn mép trái. */}
+      {!message.deleted && !message.decrypt_failed && onOpenReactionDetails && (
         <ReactionBadges
           reactions={mergedReactions}
-          onToggle={(key) => onReact(message.id, key)}
+          onPress={() => onOpenReactionDetails(message)}
+          onLayout={setBadgeW}
+          style={{ marginLeft: Math.min(0, bubbleW - badgeW) }}
         />
       )}
       </View>

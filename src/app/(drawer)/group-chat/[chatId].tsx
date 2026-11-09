@@ -20,6 +20,7 @@ import {
   type GroupChatBackground,
 } from '@/api/group-chat';
 import { uploadChatMedia } from '@/api/chat';
+import { getMyProfile } from '@/api/profile';
 import {
   ChatBackgroundLayer,
   ChatHeaderBackground,
@@ -31,6 +32,10 @@ import { MediaCluster } from '@/components/chat/media-cluster';
 import { MediaLightbox } from '@/components/chat/media-lightbox';
 import { MessageActions } from '@/components/chat/message-actions';
 import { ReactionBar, type ReactionBarTarget } from '@/components/chat/reaction-bar';
+import {
+  ReactionDetailModal,
+  type ReactionUserProfile,
+} from '@/components/chat/reaction-detail-modal';
 import {
   SystemMessage,
   isSystemMessage,
@@ -61,7 +66,11 @@ import {
   type MediaClusterItem,
 } from '@/utils/media-cluster';
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
-import { activeChoiceFor, type ReactionAnchor } from '@/utils/reactions';
+import {
+  activeChoicesFor,
+  myServerCount,
+  type ReactionAnchor,
+} from '@/utils/reactions';
 
 /** Item lịch sử cuộc gọi nhóm — xen vào timeline theo created_at. */
 interface GroupCallTimelineItem {
@@ -153,9 +162,13 @@ export default function GroupChatScreen() {
 
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
   // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
-  const { choices, choose } = useMessageReactions();
+  const { choices, choose, remove } = useMessageReactions();
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
+  // Modal chi tiết cảm xúc (tap vào badge trên bubble).
+  const [reactionDetail, setReactionDetail] = useState<ChatMessage | null>(
+    null,
+  );
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null);
   // Draft chuyển tiếp (rút từ forward-draft store — navigate sang instance mới).
@@ -645,9 +658,16 @@ export default function GroupChatScreen() {
 
   const handleReact = useCallback(
     (messageId: string, emojiKey: string) => {
-      choose(messageId, emojiKey);
+      const msg = room.messages.find((m) => m.id === messageId);
+      if (!msg) return;
+      const local = choices[messageId];
+      const base =
+        local && emojiKey in local
+          ? local[emojiKey]
+          : myServerCount(msg, myUserId, emojiKey, serverEmojis);
+      choose(messageId, emojiKey, base);
     },
-    [choose],
+    [choices, choose, room.messages, myUserId, serverEmojis],
   );
 
   // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
@@ -659,16 +679,45 @@ export default function GroupChatScreen() {
   );
   const closeReactionBar = useCallback(() => setReactionTarget(null), []);
   // Code emoji mình đang thả trên tin đang mở pill (highlight nút active).
-  const reactionActiveCode = useMemo(() => {
-    if (!reactionTarget) return null;
+  const reactionActiveCodes = useMemo(() => {
+    if (!reactionTarget) return [];
     const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
-    return activeChoiceFor(
+    return activeChoicesFor(
       msg,
       myUserId,
       choices[reactionTarget.messageId],
       serverEmojis,
     );
   }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
+
+  // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (group: members).
+  // Avatar của tôi: Auth API không trả → fetch /profile 1 lần khi vào màn
+  // (ưu tiên avatar seed từ member list nếu có).
+  const [myAvatar, setMyAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getMyProfile()
+      .then((res) => {
+        if (alive) setMyAvatar(res.avatar_uri || null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const reactionUserProfiles = useMemo(() => {
+    const profiles: Record<string, ReactionUserProfile> = {};
+    for (const [uid, name] of Object.entries(room.memberNames)) {
+      profiles[uid] = { name, avatar: room.memberAvatars[uid] ?? null };
+    }
+    if (myUserId) {
+      profiles[myUserId] = {
+        name: profiles[myUserId]?.name || user?.username || '',
+        avatar: profiles[myUserId]?.avatar ?? myAvatar ?? null,
+      };
+    }
+    return profiles;
+  }, [room.memberNames, room.memberAvatars, myUserId, user?.username, myAvatar]);
 
   // Mở picker chọn hội thoại đích (direct hoặc group).
   const handleForward = useCallback((msg: ChatMessage) => {
@@ -1400,6 +1449,7 @@ export default function GroupChatScreen() {
                       onReact={handleReact}
                       localChoice={choices[msg.id]}
                       onOpenReactionBar={openReactionBar}
+                      onOpenReactionDetails={setReactionDetail}
                     />
                   </Fragment>
                 );
@@ -1480,12 +1530,26 @@ export default function GroupChatScreen() {
       {/* A: thanh cảm xúc nổi — neo ngay phía trên bubble được chọn */}
       <ReactionBar
         target={reactionTarget}
-        activeCode={reactionActiveCode}
+        activeCodes={reactionActiveCodes}
         onSelect={(code) => {
-          if (reactionTarget) choose(reactionTarget.messageId, code);
+          if (reactionTarget) handleReact(reactionTarget.messageId, code);
           setReactionTarget(null);
         }}
         onClose={closeReactionBar}
+      />
+
+      {/* Chi tiết cảm xúc — nhóm theo emoji, người thả + số lượng */}
+      <ReactionDetailModal
+        visible={!!reactionDetail}
+        message={reactionDetail}
+        localCounts={reactionDetail ? choices[reactionDetail.id] : undefined}
+        myUserId={myUserId}
+        emojis={serverEmojis}
+        userProfiles={reactionUserProfiles}
+        onRemoveMine={(codes) => {
+          if (reactionDetail) remove(reactionDetail.id, codes);
+        }}
+        onClose={() => setReactionDetail(null)}
       />
 
       {/* Chọn hội thoại đích khi chuyển tiếp */}
