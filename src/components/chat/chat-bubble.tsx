@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { isSingleEmojifyiUrl } from "@/api/emojifyi";
@@ -23,7 +23,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { ChatMessage } from "@/types/chat";
 import type { EmojiItem as ServerEmoji } from "@/types/post";
-import { formatChatTime } from "@/utils/chat";
+import { MessageTimestamp } from "@/components/chat/message-timestamp";
 import { navigateToProfile } from "@/utils/profile-nav";
 import type { EmojiItem } from "@/utils/emojis";
 import {
@@ -34,7 +34,6 @@ import {
 import {
   charOf,
   mergeReactions,
-  type LocalReactionCounts,
   type ReactionAnchor,
 } from "@/utils/reactions";
 import { extractVideoUrls } from "@/utils/videoLink";
@@ -42,6 +41,7 @@ import { extractVideoUrls } from "@/utils/videoLink";
 interface Props {
   message: ChatMessage;
   isMine: boolean;
+  /** true = hiện timestamp HH:mm dưới bubble (tin đầu nhóm / cách >60s). */
   showTime?: boolean;
   isPinned?: boolean;
   /** Avatar của đối phương (chỉ dùng cho tin của họ). */
@@ -50,21 +50,22 @@ interface Props {
   showAvatar?: boolean;
   /** Tên người gửi — chỉ hiển thị trong group chat (tin đầu chuỗi, của người khác). */
   senderName?: string | null;
-  /** true = đối phương đã đọc tin mình gửi → ✓✓ (A1). */
+  /** true = đối phương đã đọc tin mình gửi → nhãn "Đã xem" (A1). */
   seen?: boolean;
+  /** Group chat: dùng nhãn "Đã xem" + accessibilityLabel kèm tên người xem. */
+  isGroup?: boolean;
+  /** user_id → tên thành viên (group) — chỉ dùng cho accessibilityLabel seenBy. */
+  memberNames?: Record<string, string>;
   /** true = nhấp nháy highlight khi nhảy tới từ kết quả tìm kiếm (B5). */
   highlight?: boolean;
   /** Emoji server theo id — render sticker (emoji_id) + badge cảm xúc. */
   emojis?: Map<string, ServerEmoji> | null;
   myUserId?: string;
-  /** Reaction LOCAL (không WS): { code → số lần mình đã thả }.
-   *  undefined = chưa can thiệp local (giữ dữ liệu server). */
-  localChoice?: LocalReactionCounts;
   onLongPress?: (msg: ChatMessage) => void;
   onReplyPress?: (messageId: string) => void;
   onMediaPress?: (msg: ChatMessage) => void;
   onOpenPost?: (postId: string) => void;
-  /** Tap thả emoji (code `:heart:`…) — screen tự tính base rồi +1 local. */
+  /** Tap thả emoji (code `:heart:`…) — screen map sang emoji_id server rồi gửi WS. */
   onReact?: (messageId: string, emojiKey: string) => void;
   /** Long-press quick-heart → mở pill chọn cảm xúc (anchor = rect bubble). */
   onOpenReactionBar?: (msg: ChatMessage, anchor: ReactionAnchor) => void;
@@ -84,10 +85,11 @@ export function ChatBubble({
   showAvatar = false,
   senderName,
   seen = false,
+  isGroup = false,
+  memberNames,
   highlight = false,
   emojis,
   myUserId,
-  localChoice,
   onLongPress,
   onReplyPress,
   onMediaPress,
@@ -103,23 +105,15 @@ export function ChatBubble({
   const emojiMap = useMemo(() => getEmojiTextMap(), []);
   // Reaction local: gộp server + override của mình → render badge cảm xúc.
   const mergedReactions = useMemo(
-    () => mergeReactions(message, myUserId, localChoice, emojis),
-    [message, myUserId, localChoice, emojis],
+    () => mergeReactions(message, myUserId, emojis),
+    [message, myUserId, emojis],
   );
   // Reaction ĐẦU TIÊN tin nhận được — QuickHeart hiển thị emoji đó
-  // (server trước theo created_at, chưa echo → key local đầu tiên).
+  // (server trả theo created_at).
   const firstReactionChar = useMemo(() => {
     const first = message.reactions?.[0];
-    if (first) {
-      const c = charOf(first.emoji_id, emojis);
-      if (c) return c;
-    }
-    if (localChoice) {
-      const key = Object.keys(localChoice).find((k) => localChoice[k] > 0);
-      if (key) return charOf(key, emojis);
-    }
-    return null;
-  }, [message.reactions, localChoice, emojis]);
+    return first ? charOf(first.emoji_id, emojis) : null;
+  }, [message.reactions, emojis]);
   // Đo bubble + badge → margin âm cho badge tràn mép trái khi dài hơn bubble.
   const [bubbleW, setBubbleW] = useState(0);
   const [badgeW, setBadgeW] = useState(0);
@@ -151,23 +145,46 @@ export function ChatBubble({
     )
   ) : null;
 
+  // Trạng thái gửi/đã xem — nhãn chữ mirror Web SeenIndicator.
+  const seenByNames = (message.seen_by ?? []).filter(
+    (uid) => uid !== myUserId,
+  );
+  const showingSeen = isMine && seen;
+  const pendingStatus =
+    isMine && !message.failed && (message.sending || message.uploading);
+  const statusText = pendingStatus
+    ? t("chat.sending")
+    : showingSeen
+      ? t("chat.seen")
+      : t("chat.sent");
+  // Web: group hiện tên người xem qua tooltip; mobile dùng accessibilityLabel.
+  const statusLabel =
+    isGroup && showingSeen
+      ? t("chat.seenBy", {
+          names: seenByNames
+            .slice(0, 3)
+            .map((uid) => memberNames?.[uid] ?? t("chat.unknown"))
+            .join(", "),
+        })
+      : statusText;
+
   if (message.deleted) {
     return (
       <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
         {avatarColumn}
-        <View
-          style={[
-            styles.bubble,
-            styles.bubbleDeleted,
-            { backgroundColor: theme.bgSecondary },
-          ]}>
-          <ThemedText themeColor="textSecondary" style={styles.deletedText}>
-            {t("chat.messageDeleted")}
-          </ThemedText>
-          {showTime && (
-            <ThemedText themeColor="textSecondary" style={styles.time}>
-              {formatChatTime(message.created_at, t)}
+        <View style={styles.bubbleCol}>
+          <View
+            style={[
+              styles.bubble,
+              styles.bubbleDeleted,
+              { backgroundColor: theme.bgSecondary },
+            ]}>
+            <ThemedText themeColor="textSecondary" style={styles.deletedText}>
+              {t("chat.messageDeleted")}
             </ThemedText>
+          </View>
+          {showTime && (
+            <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
           )}
         </View>
       </View>
@@ -178,10 +195,15 @@ export function ChatBubble({
     return (
       <View style={[styles.row, isMine ? styles.rowMine : styles.rowTheirs]}>
         {avatarColumn}
-        <View style={[styles.bubble, { backgroundColor: theme.bgSecondary }]}>
-          <ThemedText themeColor="textSecondary" style={styles.deletedText}>
-            {t("chat.undecryptable")}
-          </ThemedText>
+        <View style={styles.bubbleCol}>
+          <View style={[styles.bubble, { backgroundColor: theme.bgSecondary }]}>
+            <ThemedText themeColor="textSecondary" style={styles.deletedText}>
+              {t("chat.undecryptable")}
+            </ThemedText>
+          </View>
+          {showTime && (
+            <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
+          )}
         </View>
       </View>
     );
@@ -365,6 +387,7 @@ export function ChatBubble({
                 message={message}
                 isMine={isMine}
                 onPress={() => onMediaPress?.(message)}
+                onLongPress={() => onLongPress?.(message)}
               />
             ) : isSingleVideo ? (
               <VideoLinkPreview url={videoUrls[0]} />
@@ -417,8 +440,8 @@ export function ChatBubble({
           </View>
         ) : null}
 
-        {/* A1/A2: time + tick đã gửi/đã đọc + trạng thái gửi thất bại */}
-        {showTime || isMine ? (
+        {/* A1/A2: nhãn trạng thái chữ (Đang gửi… / Đã gửi / Đã xem) + pin/lỗi */}
+        {isPinned || isMine ? (
           <View style={styles.timeRow}>
             {isPinned && (
               <Icon
@@ -427,22 +450,6 @@ export function ChatBubble({
                 color={isMine ? "rgba(255,255,255,0.7)" : theme.textSecondary}
               />
             )}
-            {showTime && (
-              <ThemedText
-                style={[
-                  styles.time,
-                  {
-                    // bareBg: xám thay vì trắng 70% (trắng biến mất trên nền chat nhạt).
-                    color: bareBg
-                      ? theme.textSecondary
-                      : isMine
-                        ? "rgba(255,255,255,0.7)"
-                        : theme.textSecondary,
-                  },
-                ]}>
-                {formatChatTime(message.created_at, t)}
-              </ThemedText>
-            )}
             {isMine && message.failed ? (
               <View style={styles.failedRow}>
                 <Icon name="warning" size={11} color={theme.danger} />
@@ -450,25 +457,21 @@ export function ChatBubble({
                   {t("chat.sendFailed")}
                 </ThemedText>
               </View>
-            ) : isMine && message.uploading ? (
-              // Đang upload media local (chưa tới lượt WS gửi) — spinner thay ✓.
-              <ActivityIndicator
-                size={11}
-                color={bareBg ? theme.textSecondary : "rgba(255,255,255,0.7)"}
-              />
-            ) : isMine && !message.sending ? (
+            ) : isMine ? (
               <ThemedText
+                accessibilityLabel={statusLabel}
                 style={[
-                  styles.tick,
+                  styles.statusText,
                   {
+                    // bareBg: xám thay vì trắng 70% (trắng biến mất trên nền chat nhạt).
                     color: bareBg
                       ? theme.textSecondary
-                      : seen
+                      : showingSeen
                         ? "#A5F3FC"
                         : "rgba(255,255,255,0.7)",
                   },
                 ]}>
-                {seen ? "✓✓" : "✓"}
+                {statusText}
               </ThemedText>
             ) : null}
           </View>
@@ -493,6 +496,10 @@ export function ChatBubble({
           onLayout={setBadgeW}
           style={{ marginLeft: Math.min(0, bubbleW - badgeW) }}
         />
+      )}
+      {/* Timestamp HH:mm dưới bubble (tin đầu nhóm / cách >60s) — mirror Web */}
+      {showTime && (
+        <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
       )}
       </View>
     </View>
@@ -628,7 +635,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
   },
-  tick: {
+  statusText: {
     fontSize: 10,
     lineHeight: 12,
   },
@@ -647,11 +654,6 @@ const styles = StyleSheet.create({
       height: 72,
       textAlign: "center",
     },
-  time: {
-    ...Typography.caption,
-    fontSize: 10,
-    alignSelf: "flex-end",
-  },
   deletedText: {
     ...Typography.caption,
     fontStyle: "italic",

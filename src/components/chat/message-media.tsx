@@ -15,11 +15,13 @@ import type { ChatMessage } from '@/types/chat';
 interface Props {
   message: ChatMessage;
   onPress?: () => void;
+  /** Long-press → mở MessageActions (menu đầy đủ như bubble text). */
+  onLongPress?: () => void;
   /** Chỉ dùng cho tin nhắn thoại (tông màu theo bubble mình/đối phương). */
   isMine?: boolean;
 }
 
-export function MessageMedia({ message, onPress, isMine }: Props) {
+export function MessageMedia({ message, onPress, onLongPress, isMine }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { src, isVideo, failed, loading } = useMessageMedia(message);
@@ -54,6 +56,7 @@ export function MessageMedia({ message, onPress, isMine }: Props) {
         uri={src}
         durationSeconds={message.duration_seconds}
         isMine={isMine}
+        onLongPress={onLongPress}
       />
     );
   }
@@ -61,8 +64,19 @@ export function MessageMedia({ message, onPress, isMine }: Props) {
   if (isVideo) {
     return (
       <View style={styles.videoWrap}>
-        <VideoPlayer uri={src} style={styles.videoInline} muted={false} loop={false} />
-        <Pressable onPress={onPress} hitSlop={8} style={styles.expandBtn}>
+        <VideoPlayer
+          uri={src}
+          style={styles.videoInline}
+          muted={false}
+          loop={false}
+          onLongPress={onLongPress}
+        />
+        <Pressable
+          onPress={onPress}
+          onLongPress={onLongPress}
+          delayLongPress={400}
+          hitSlop={8}
+          style={styles.expandBtn}>
           <Icon name="expand" size={14} color={theme.textOnPrimary} />
         </Pressable>
       </View>
@@ -70,7 +84,11 @@ export function MessageMedia({ message, onPress, isMine }: Props) {
   }
 
   return (
-    <Pressable onPress={onPress} style={styles.imageWrap}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
+      style={styles.imageWrap}>
       <Image
         source={{ uri: src }}
         style={[

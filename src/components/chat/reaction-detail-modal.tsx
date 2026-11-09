@@ -37,7 +37,6 @@ import {
   REACTION_EMOJIS,
   summarizeByUser,
   summarizeReactions,
-  type LocalReactionCounts,
 } from '@/utils/reactions';
 
 /** Tên + avatar đã resolve theo user_id (screen build từ data sẵn). */
@@ -50,15 +49,13 @@ interface Props {
   visible: boolean;
   /** Tin đang xem chi tiết — null → không render nội dung. */
   message: ChatMessage | null;
-  /** Local counts của tin này (choices[msgId]) — undefined = chưa can thiệp. */
-  localCounts: LocalReactionCounts | undefined;
   myUserId: string;
   /** Map emoji server (byId) để map emoji_id → char/code. */
   emojis: Map<string, EmojiItem> | null | undefined;
   /** user_id → { name, avatar } (group: memberNames/Avatars; 1-1: partner). */
   userProfiles: Record<string, ReactionUserProfile>;
-  /** Gỡ reaction CỦA MÌNH trong tab "Tất cả" (local-only). */
-  onRemoveMine?: (codes: string[]) => void;
+  /** Gỡ TẤT CẢ reaction CỦA MÌNH trên tin (toggle server từng emoji). */
+  onRemoveMine?: () => void;
   onClose: () => void;
 }
 
@@ -73,7 +70,7 @@ const DRAG_REFERENCE = 300;
 /**
  * Modal chi tiết cảm xúc (bottom-sheet) theo TAB: "Tất cả" + 6 emoji.
  * - Tất cả: liệt kê theo USER — avatar, tên, các loại reaction đã thả;
- *   dòng của mình có nút Gỡ (local-only).
+ *   dòng của mình có nút Gỡ (toggle server tất cả emoji của mình).
  * - Tab emoji: danh sách người thả emoji đó.
  * Gesture drag-to-dismiss mirror report-sheet: kéo sheet xuống quá
  * DRAG_REFERENCE (hoặc velocity) → đóng; chỉ pan khi list đang ở đầu.
@@ -81,7 +78,6 @@ const DRAG_REFERENCE = 300;
 export function ReactionDetailModal({
   visible,
   message,
-  localCounts,
   myUserId,
   emojis,
   userProfiles,
@@ -218,13 +214,13 @@ export function ReactionDetailModal({
 
   const byUser = useMemo(() => {
     if (!message) return [];
-    return summarizeByUser(message, myUserId, localCounts, emojis);
-  }, [message, myUserId, localCounts, emojis]);
+    return summarizeByUser(message, myUserId, emojis);
+  }, [message, myUserId, emojis]);
 
   const summary = useMemo(() => {
     if (!message) return [];
-    return summarizeReactions(message, myUserId, localCounts, emojis);
-  }, [message, myUserId, localCounts, emojis]);
+    return summarizeReactions(message, myUserId, emojis);
+  }, [message, myUserId, emojis]);
 
   const tabGroup = tab === TAB_ALL ? null : summary.find((g) => g.key === tab);
 
@@ -336,13 +332,7 @@ export function ReactionDetailModal({
                         borderColor: theme.primary,
                       },
                     ]}>
-                    <Text
-                      style={[
-                        styles.tabEmoji,
-                        tab === emoji.code && { backgroundColor: theme.primary },
-                      ]}>
-                      {emoji.char}
-                    </Text>
+                    <Text style={styles.tabEmoji}>{emoji.char}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -388,9 +378,7 @@ export function ReactionDetailModal({
                             {isMine && onRemoveMine && (
                               <Pressable
                                 accessibilityLabel={t('chat.removeReaction')}
-                                onPress={() =>
-                                  onRemoveMine(row.items.map((i) => i.key))
-                                }
+                                onPress={() => onRemoveMine()}
                                 style={[
                                   styles.removeBtn,
                                   { borderColor: theme.primary },

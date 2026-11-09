@@ -57,7 +57,8 @@ export function MessageActions({
   const isBlocked = message.deleted || message.decrypt_failed;
   // Chỉ chuyển tiếp được tin có nội dung text/emoji (media giữ nguyên media —
   // mobile không gửi lại media trong forward).
-  const canForward = !isBlocked && !isFailed && !!(message.content?.trim() || message.emoji_id);
+  const hasText = !!message.content?.trim();
+  const canForward = !isBlocked && !isFailed && (hasText || !!message.emoji_id);
   const quickEmojis =
     isBlocked || isFailed || !onReact ? [] : quickReactEmojis(byCode);
 
@@ -128,15 +129,18 @@ export function MessageActions({
                 <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.reply')}</ThemedText>
               </Pressable>
 
-              <Pressable
-                style={[styles.action, { borderBottomColor: colors.border }]}
-                onPress={() => {
-                  Clipboard.setString(message.content);
-                  onClose();
-                }}>
-                <Icon name="copy" size={18} color={colors.text} />
-                <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.copy')}</ThemedText>
-              </Pressable>
+              {/* Media-only (không caption) → "Sao chép" là no-op, ẩn đi. */}
+              {hasText && (
+                <Pressable
+                  style={[styles.action, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    Clipboard.setString(message.content);
+                    onClose();
+                  }}>
+                  <Icon name="copy" size={18} color={colors.text} />
+                  <ThemedText style={[styles.actionLabel, { color: colors.text }]}>{t('chat.copy')}</ThemedText>
+                </Pressable>
+              )}
 
               {/* B1: chuyển tiếp */}
               {canForward && onForward && (

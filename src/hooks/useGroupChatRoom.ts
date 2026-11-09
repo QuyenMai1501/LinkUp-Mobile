@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { showAlert } from '@/utils/alert';
+import {
+  isPendingMessage,
+  sortMessagesByCreatedAt as sortByCreatedAt,
+} from '@/utils/chat';
 import type {
   ChatMessage,
   MessageReaction,
@@ -17,11 +21,8 @@ import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatMember } from '@/types/group-chat';
 import { isSystemMessage } from '@/components/chat/system-message';
 
-function sortByCreatedAt(list: ChatMessage[]): ChatMessage[] {
-  return [...list].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  );
-}
+// Bubble optimistic (`temp-N`) dùng giờ thiết bị — `sortByCreatedAt` (utils/chat)
+// luôn xếp chúng cuối cho tới khi có echo server, tránh nhảy thứ tự khi lệch giờ.
 
 function dedupeByID(list: ChatMessage[]): ChatMessage[] {
   const seen = new Set<string>();
@@ -304,7 +305,7 @@ export function useGroupChatRoom({
         setMessages((prev) => {
           const byId = new Map(serverMsgs.map((m) => [m.id, m]));
           const keptPending = prev.filter(
-            (m) => !byId.has(m.id) && (m.sending || m.failed || m.id.startsWith('temp-')),
+            (m) => !byId.has(m.id) && (m.sending || m.failed || isPendingMessage(m)),
           );
           return sortByCreatedAt(dedupeByID([...serverMsgs, ...keptPending]));
         });

@@ -26,6 +26,7 @@ import {
   ChatHeaderBackground,
 } from '@/components/chat/chat-background';
 import { ChatBubble } from '@/components/chat/chat-bubble';
+import { ChatDateSeparator } from '@/components/chat/chat-date-separator';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ForwardPickerModal } from '@/components/chat/forward-picker-modal';
 import { MediaCluster } from '@/components/chat/media-cluster';
@@ -52,13 +53,12 @@ import { useGroupCall } from '@/contexts/group-call-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useGroupChatRoom } from '@/hooks/useGroupChatRoom';
 import { useGroupChatSocket } from '@/hooks/useGroupChatSocket';
-import { useMessageReactions } from '@/hooks/use-message-reactions';
 import { useServerEmojis } from '@/hooks/use-server-emojis';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatMessage, ReplyPreview } from '@/types/chat';
 import type { GroupCallHistoryItem } from '@/types/group-call';
 import type { GroupChatConversation } from '@/types/group-chat';
-import { formatChatDate } from '@/utils/chat';
+import { formatChatDate, isPendingMessage } from '@/utils/chat';
 import { newId } from '@/utils/id';
 import { mapWithConcurrency } from '@/utils/concurrency';
 import {
@@ -68,7 +68,6 @@ import {
 import { stashForwardDraft, takeForwardDraft } from '@/utils/forward-draft';
 import {
   activeChoicesFor,
-  myServerCount,
   type ReactionAnchor,
 } from '@/utils/reactions';
 
@@ -90,6 +89,20 @@ function itemCreatedMs(item: GroupedItem): number {
     return new Date(item.call.created_at).getTime();
   }
   return new Date(item.created_at).getTime();
+}
+
+/**
+ * Bubble optimistic (`temp-`) dùng giờ THIẾT BỊ → luôn xếp cuối, không so giờ
+ * với tin server (tránh nhảy thứ tự khi đồng hồ máy lệch server).
+ */
+function itemPendingRank(item: GroupedItem): number {
+  if ('kind' in item) {
+    if (item.kind === 'media_cluster') {
+      return item.msgs.some((m) => isPendingMessage(m)) ? 1 : 0;
+    }
+    return 0;
+  }
+  return isPendingMessage(item) ? 1 : 0;
 }
 
 /** Prev item cho date-separator/showTime: media_cluster → tin cuối; group_call → caller; còn lại → tin trước. */
@@ -161,8 +174,7 @@ export default function GroupChatScreen() {
   const scrollFailCountRef = useRef(0);
 
   const [actionTarget, setActionTarget] = useState<ChatMessage | null>(null);
-  // A: thả cảm xúc LOCAL (không gửi backend) + pill đang mở (neo theo bubble).
-  const { choices, choose, remove } = useMessageReactions();
+  // Pill cảm xúc đang mở (neo theo bubble).
   const [reactionTarget, setReactionTarget] =
     useState<ReactionBarTarget | null>(null);
   // Modal chi tiết cảm xúc (tap vào badge trên bubble).
@@ -364,7 +376,7 @@ export default function GroupChatScreen() {
     }, [chatId, refreshCallHistory]),
   );
 
-  const { byId: serverEmojis } = useServerEmojis();
+  const { byId: serverEmojis, byCode } = useServerEmojis();
 
   const timeline = useMemo<GroupedItem[]>(() => {
     const msgItems = clusterTimelineMedia(room.messages);
@@ -377,7 +389,12 @@ export default function GroupChatScreen() {
         call,
       })),
     ];
-    return merged.sort((a, b) => itemCreatedMs(a) - itemCreatedMs(b));
+    return merged.sort((a, b) => {
+      const pa = itemPendingRank(a);
+      const pb = itemPendingRank(b);
+      if (pa !== pb) return pa - pb;
+      return itemCreatedMs(a) - itemCreatedMs(b);
+    });
   }, [room.messages, room.callHistory]);
 
   // Cuộc gọi nhóm đang diễn ra — detect từ history (server chưa stamp
@@ -656,18 +673,16 @@ export default function GroupChatScreen() {
     setDeleteTarget(msg);
   }, []);
 
+  // Thả/gỡ cảm xúc: map code (`:heart:`…) → emoji_id server rồi gửi WS.
+  // Server broadcast lại danh sách reactions (user được nhiều emoji/tin).
+  const { reactToMessage } = room;
   const handleReact = useCallback(
     (messageId: string, emojiKey: string) => {
-      const msg = room.messages.find((m) => m.id === messageId);
-      if (!msg) return;
-      const local = choices[messageId];
-      const base =
-        local && emojiKey in local
-          ? local[emojiKey]
-          : myServerCount(msg, myUserId, emojiKey, serverEmojis);
-      choose(messageId, emojiKey, base);
+      const emojiId = byCode?.get(emojiKey)?.id;
+      if (!emojiId) return;
+      reactToMessage(messageId, emojiId);
     },
-    [choices, choose, room.messages, myUserId, serverEmojis],
+    [byCode, reactToMessage],
   );
 
   // Mở pill cảm xúc từ quick-heart (anchor = rect bubble đo được) + đóng.
@@ -682,13 +697,12 @@ export default function GroupChatScreen() {
   const reactionActiveCodes = useMemo(() => {
     if (!reactionTarget) return [];
     const msg = room.messages.find((m) => m.id === reactionTarget.messageId);
-    return activeChoicesFor(
-      msg,
-      myUserId,
-      choices[reactionTarget.messageId],
-      serverEmojis,
-    );
-  }, [reactionTarget, choices, room.messages, myUserId, serverEmojis]);
+    return activeChoicesFor(msg, myUserId, serverEmojis);
+  }, [reactionTarget, room.messages, myUserId, serverEmojis]);
+  // Tin chi tiết luôn lấy bản mới nhất từ room → modal cập nhật live theo WS.
+  const reactionDetailMsg = reactionDetail
+    ? room.messages.find((m) => m.id === reactionDetail.id) ?? reactionDetail
+    : null;
 
   // Resolve tên/avatar người thả cảm xúc cho modal chi tiết (group: members).
   // Avatar của tôi: Auth API không trả → fetch /profile 1 lần khi vào màn
@@ -1328,20 +1342,6 @@ export default function GroupChatScreen() {
               onScrollToIndexFailed={handleScrollToIndexFailed}
               renderItem={({ item, index }: { item: GroupedItem; index: number }) => {
                 const prev = resolvePrevMsg(timeline, index);
-                const dateSep = (createdAt: string) => (
-                  <View style={styles.dateSep}>
-                    <View
-                      style={[styles.dateSepLine, { backgroundColor: theme.border }]}
-                    />
-                    <ThemedText
-                      style={[styles.dateSepText, { color: theme.textSecondary }]}>
-                      {formatChatDate(createdAt, t)}
-                    </ThemedText>
-                    <View
-                      style={[styles.dateSepLine, { backgroundColor: theme.border }]}
-                    />
-                  </View>
-                );
 
                 if ('kind' in item) {
                   if (item.kind === 'media_cluster') {
@@ -1367,6 +1367,8 @@ export default function GroupChatScreen() {
                           myUserId={myUserId}
                           busyBg={busyBg}
                           showTime={showClusterTime}
+                          isGroup
+                          memberNames={room.memberNames}
                           onOpen={(i) =>
                             setLightbox({ msgs: item.msgs, index: i })
                           }
@@ -1414,7 +1416,7 @@ export default function GroupChatScreen() {
                 if (isSystemMessage(msg)) {
                   return (
                     <Fragment key={msg.id}>
-                      {showDate && dateSep(msg.created_at)}
+                      {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                       <SystemMessage
                         message={msg}
                         myUserId={myUserId}
@@ -1426,7 +1428,7 @@ export default function GroupChatScreen() {
 
                 return (
                   <Fragment key={msg.id}>
-                    {showDate && dateSep(msg.created_at)}
+                    {showDate && <ChatDateSeparator createdAt={msg.created_at} />}
                     <ChatBubble
                       message={msg}
                       busyBg={busyBg}
@@ -1436,6 +1438,8 @@ export default function GroupChatScreen() {
                         msg.sender_id === myUserId &&
                         (msg.seen_by ?? []).some((uid) => uid !== myUserId)
                       }
+                      isGroup
+                      memberNames={room.memberNames}
                       emojis={serverEmojis}
                       myUserId={myUserId}
                       avatarUri={msg.sender_avatar ?? null}
@@ -1447,7 +1451,6 @@ export default function GroupChatScreen() {
                       onMediaPress={handleMediaPress}
                       onOpenPost={handleOpenPost}
                       onReact={handleReact}
-                      localChoice={choices[msg.id]}
                       onOpenReactionBar={openReactionBar}
                       onOpenReactionDetails={setReactionDetail}
                     />
@@ -1540,14 +1543,19 @@ export default function GroupChatScreen() {
 
       {/* Chi tiết cảm xúc — nhóm theo emoji, người thả + số lượng */}
       <ReactionDetailModal
-        visible={!!reactionDetail}
-        message={reactionDetail}
-        localCounts={reactionDetail ? choices[reactionDetail.id] : undefined}
+        visible={!!reactionDetailMsg}
+        message={reactionDetailMsg}
         myUserId={myUserId}
         emojis={serverEmojis}
         userProfiles={reactionUserProfiles}
-        onRemoveMine={(codes) => {
-          if (reactionDetail) remove(reactionDetail.id, codes);
+        onRemoveMine={() => {
+          if (!reactionDetailMsg) return;
+          const mine =
+            reactionDetailMsg.reactions?.filter((r) => r.user_id === myUserId) ??
+            [];
+          for (const r of mine) {
+            room.reactToMessage(reactionDetailMsg.id, r.emoji_id);
+          }
         }}
         onClose={() => setReactionDetail(null)}
       />
@@ -1802,21 +1810,6 @@ const styles = StyleSheet.create({
   },
   messageList: {
     paddingVertical: Spacing.sm,
-  },
-  dateSep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  dateSepLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dateSepText: {
-    ...Typography.caption,
-    fontSize: 11,
   },
   clusterRow: {
     // Thoáng giữa các cụm ảnh — bubble thường vẫn marginVertical 2 (parity Web).
