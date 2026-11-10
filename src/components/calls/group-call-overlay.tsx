@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -117,6 +118,7 @@ function MiniButton({
 export function GroupCallOverlay() {
   const { t } = useTranslation();
   const { width: winW } = useWindowDimensions();
+  const [gridSize, setGridSize] = useState({ width: 0, height: 0 });
   const { user } = useAuth();
   const myUserId = user?.id ?? '';
   const {
@@ -164,7 +166,7 @@ export function GroupCallOverlay() {
   // Không tự render tile của chính mình 2 lần — mirror Web
   // GroupCallOverlay (caller = tôi bị ẩn nếu chưa có remote stream).
   const participants = Array.from(call.participants.values()).filter(
-    (p) => p.user_id !== myUserId || remoteStreams.has(p.user_id),
+    (p) => p.user_id !== myUserId,
   );
   const localParticipant: GroupCallParticipant = {
     user_id: '',
@@ -241,15 +243,37 @@ export function GroupCallOverlay() {
   }
 
   const cols = columnsFor(participantCount);
+  const rows = Math.ceil(participantCount / cols);
   const gap = 6;
   const gridPad = 12;
-  const cell = Math.floor((winW - gridPad * 2 - gap * (cols - 1)) / cols);
-  const cellH = Math.floor(cell * 1.2);
+  const gridTopPad = 96;
+  const availW =
+    (gridSize.width > 0 ? gridSize.width : winW) - gridPad * 2;
+  const availH = gridSize.height > 0 ? gridSize.height - gridTopPad : 0;
+  const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
+  let cell = cellW;
+  if (availH > 0) {
+    const heightLimitedCell = Math.floor(
+      (availH - gap * (rows - 1)) / rows / 1.2,
+    );
+    cell = Math.min(cellW, heightLimitedCell);
+  }
+  const safeCell = Math.max(1, cell);
+  const cellH = Math.floor(safeCell * 1.2);
 
   return (
     <View style={styles.overlay}>
       {/* Grid */}
-      <View style={[styles.grid, { paddingHorizontal: gridPad, gap }]}>
+      <View
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setGridSize((prev) =>
+            prev.width === width && prev.height === height
+              ? prev
+              : { width, height },
+          );
+        }}
+        style={[styles.grid, { paddingHorizontal: gridPad, gap }]}>
         {allParticipants.map((p, idx) => {
           const isLocal = idx === 0;
           const stream = isLocal
@@ -258,7 +282,7 @@ export function GroupCallOverlay() {
           return (
             <View
               key={isLocal ? 'local' : p.user_id}
-              style={{ width: cell, height: cellH }}>
+              style={{ width: safeCell, height: cellH }}>
               <GroupCallParticipantTile
                 participant={p}
                 stream={stream}
@@ -370,6 +394,7 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     justifyContent: 'center',
     paddingTop: 96,
+    overflow: 'hidden',
   },
   topInfo: {
     position: 'absolute',
