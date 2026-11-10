@@ -20,6 +20,12 @@ import { getProfileByUserID } from '@/api/profile';
 import { useAuth } from '@/contexts/auth-context';
 import { useGroupCallSocket } from '@/hooks/useGroupCallSocket';
 import { useTranslation } from '@/hooks/useTranslation';
+import {
+  CALL_AUDIO_CONSTRAINTS,
+  prepareCallAudio,
+  prepareRingtoneAudio,
+  restoreCallAudio,
+} from '@/utils/call-audio';
 import { playRingtone, stopRingtone } from '@/utils/ringtone';
 
 import type {
@@ -221,6 +227,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
 
   const resetToIdle = useCallback(() => {
     stopRingtone();
+    void restoreCallAudio().catch(() => {});
     closeAllPeerConnections();
     stopStreams();
     pendingSignalsRef.current.clear();
@@ -256,6 +263,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
   const showEnded = useCallback(
     (extraMs = 3000) => {
       stopRingtone();
+      void restoreCallAudio().catch(() => {});
       closeAllPeerConnections();
       stopStreams();
       pendingSignalsRef.current.clear();
@@ -486,6 +494,7 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
       setPhaseBoth('ringing');
       setDuration(0);
       participantsRef.current = participants;
+      void prepareRingtoneAudio().catch(() => {});
       playRingtone();
       // Lazy profile — không block ringtone.
       const ids = new Set([...payload.participants, payload.caller_id]);
@@ -838,10 +847,14 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         showAlert(t('groupCall.permissionDenied'));
         return;
       }
+      await prepareCallAudio('video').catch(() => {});
 
       let stream: MediaStream;
       try {
-        stream = await mediaDevices.getUserMedia({ audio: true, video: true });
+        stream = await mediaDevices.getUserMedia({
+          audio: CALL_AUDIO_CONSTRAINTS as any,
+          video: true,
+        });
       } catch {
         showAlert(t('groupCall.permissionDenied'));
         return;
@@ -902,10 +915,15 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
         showAlert(t('groupCall.permissionDenied'));
         return;
       }
+      stopRingtone();
+      await prepareCallAudio('video').catch(() => {});
 
       let stream: MediaStream;
       try {
-        stream = await mediaDevices.getUserMedia({ audio: true, video: true });
+        stream = await mediaDevices.getUserMedia({
+          audio: CALL_AUDIO_CONSTRAINTS as any,
+          video: true,
+        });
       } catch {
         showAlert(t('groupCall.permissionDenied'));
         return;
@@ -913,7 +931,6 @@ export function GroupCallProvider({ children }: { children: ReactNode }) {
 
       joinInFlightRef.current = true;
       try {
-        stopRingtone();
         callIdRef.current = callId;
         localStreamRef.current = stream;
         setLocalStream(stream);
