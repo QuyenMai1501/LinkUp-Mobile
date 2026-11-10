@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useE2ERecovery, isValidPin } from '@/hooks/useE2ERecovery';
 
@@ -360,7 +361,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 48,
   },
-  input: { flex: 1, fontSize: 16 },
+  input: { flex: 1, fontSize: 16, fontFamily: FontFamilies.regular },
   error: { fontSize: 12 },
   footerRow: { flexDirection: 'row', gap: Spacing.sm },
   button: {

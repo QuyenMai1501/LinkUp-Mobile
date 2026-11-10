@@ -19,6 +19,12 @@ import { getProfileByUserID } from '@/api/profile';
 import { useAuth } from '@/contexts/auth-context';
 import { useCallSocket } from '@/hooks/useCallSocket';
 import { useTranslation } from '@/hooks/useTranslation';
+import {
+  CALL_AUDIO_CONSTRAINTS,
+  prepareCallAudio,
+  prepareRingtoneAudio,
+  restoreCallAudio,
+} from '@/utils/call-audio';
 import { playRingtone, playRinging, stopRingtone } from '@/utils/ringtone';
 
 import type {
@@ -177,6 +183,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const resetToIdle = () => {
     stopRingtone();
+    void restoreCallAudio().catch(() => {});
     closePeerConnection();
     stopStreams();
     pendingSignalsRef.current = { ice: [] };
@@ -203,6 +210,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const showEnded = (status: CallStatus) => {
     stopRingtone();
+    void restoreCallAudio().catch(() => {});
     closePeerConnection();
     stopStreams();
     pendingSignalsRef.current = { ice: [] };
@@ -304,6 +312,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     });
     setPhaseBoth('incoming');
     setDuration(0);
+    void prepareRingtoneAudio().catch(() => {});
     playRingtone();
   };
 
@@ -456,10 +465,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
       showError(t('call.permissionDenied'));
       return;
     }
+    await prepareCallAudio(type).catch(() => {});
     let stream: MediaStream;
     try {
       stream = await mediaDevices.getUserMedia({
-        audio: true,
+        audio: CALL_AUDIO_CONSTRAINTS as any,
         video: type === 'video',
       });
     } catch {
@@ -490,17 +500,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
       showError(t('call.permissionDenied'));
       return;
     }
+    stopRingtone();
+    await prepareCallAudio(active.callType).catch(() => {});
     let stream: MediaStream;
     try {
       stream = await mediaDevices.getUserMedia({
-        audio: true,
+        audio: CALL_AUDIO_CONSTRAINTS as any,
         video: active.callType === 'video',
       });
     } catch {
       showError(t('call.permissionDenied'));
       return;
     }
-    stopRingtone();
     localStreamRef.current = stream;
     setLocalStream(stream);
     setLocalMuted(false);

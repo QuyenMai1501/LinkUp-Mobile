@@ -24,6 +24,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import type { ChatMessage } from "@/types/chat";
 import type { EmojiItem as ServerEmoji } from "@/types/post";
 import { MessageTimestamp } from "@/components/chat/message-timestamp";
+import { metaPillStyle } from "@/components/chat/meta-pill";
 import { navigateToProfile } from "@/utils/profile-nav";
 import type { EmojiItem } from "@/utils/emojis";
 import {
@@ -74,6 +75,8 @@ interface Props {
   /** busyBg (Web): nền preset/custom là ảnh bận → armor: bubble bên nhận thêm
    *  viền + shadow, text tin mình thêm text-shadow (giữ brand, thêm tách lớp). */
   busyBg?: boolean;
+  /** true = có wallpaper → timestamp dùng pill nền giống bubble. */
+  onBackground?: boolean;
 }
 
 export function ChatBubble({
@@ -98,6 +101,7 @@ export function ChatBubble({
   onOpenReactionBar,
   onOpenReactionDetails,
   busyBg = false,
+  onBackground = false,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -184,7 +188,13 @@ export function ChatBubble({
             </ThemedText>
           </View>
           {showTime && (
-            <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
+            <MessageTimestamp
+              createdAt={message.created_at}
+              isMine={isMine}
+              onBackground={onBackground}
+              bubbleBg={theme.bgSecondary}
+              bubbleFg={theme.textSecondary}
+            />
           )}
         </View>
       </View>
@@ -202,7 +212,13 @@ export function ChatBubble({
             </ThemedText>
           </View>
           {showTime && (
-            <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
+            <MessageTimestamp
+              createdAt={message.created_at}
+              isMine={isMine}
+              onBackground={onBackground}
+              bubbleBg={theme.bgSecondary}
+              bubbleFg={theme.textSecondary}
+            />
           )}
         </View>
       </View>
@@ -470,6 +486,11 @@ export function ChatBubble({
                         ? "#A5F3FC"
                         : "rgba(255,255,255,0.7)",
                   },
+                  metaPillStyle(
+                    !!(onBackground && bareBg),
+                    theme.primary,
+                    showingSeen ? "#A5F3FC" : theme.textOnPrimary,
+                  ),
                 ]}>
                 {statusText}
               </ThemedText>
@@ -499,7 +520,13 @@ export function ChatBubble({
       )}
       {/* Timestamp HH:mm dưới bubble (tin đầu nhóm / cách >60s) — mirror Web */}
       {showTime && (
-        <MessageTimestamp createdAt={message.created_at} isMine={isMine} />
+        <MessageTimestamp
+          createdAt={message.created_at}
+          isMine={isMine}
+          onBackground={onBackground}
+          bubbleBg={bgColor}
+          bubbleFg={textColor}
+        />
       )}
       </View>
     </View>

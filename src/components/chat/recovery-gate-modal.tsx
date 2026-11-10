@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Spacing, Typography } from '@/constants/theme';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -147,6 +148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
     fontSize: 15,
+    fontFamily: FontFamilies.regular,
   },
   error: { fontSize: 12 },
   footer: {

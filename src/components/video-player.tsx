@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Icon } from '@/components/ui/icon';
+import { FontFamilies } from '@/constants/typography';
 
 const HIDE_DELAY = 2500;
 const SEEK_STEP = 10;
@@ -203,6 +204,8 @@ export default function VideoPlayer({
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => seekFromX(evt.nativeEvent.locationX),
         onPanResponderMove: (evt) => seekFromX(evt.nativeEvent.locationX),
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [seekFromX],
   );
@@ -292,7 +295,7 @@ export default function VideoPlayer({
               onLayout={(e) => setSeekWidth(e.nativeEvent.layout.width)}
               {...seekPan.panHandlers}
             >
-              <View style={styles.seekRail}>
+              <View style={styles.seekRail} pointerEvents="none">
                 <View style={[styles.seekFill, { width: `${progress}%` }]} />
                 <View style={[styles.seekThumb, { left: `${progress}%` }]} />
               </View>
@@ -463,6 +466,7 @@ const styles = StyleSheet.create({
     minWidth: 36,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
+    fontFamily: FontFamilies.regular,
   },
   controlRow: {
     flexDirection: 'row',
@@ -511,6 +515,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: FontFamilies.semibold,
   },
   speedTextActive: {
     color: '#7dd3fc',

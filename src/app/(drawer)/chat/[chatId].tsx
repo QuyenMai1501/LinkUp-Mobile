@@ -1382,6 +1382,7 @@ export default function ChatScreen() {
                             isMine={clusterMine}
                             myUserId={myUserId}
                             busyBg={busyBg}
+                            onBackground={!!chatBackground}
                             showTime={showClusterTime}
                             onOpen={(i) =>
                               setLightbox({ msgs: item.msgs, index: i })
@@ -1458,6 +1459,7 @@ export default function ChatScreen() {
                       <ChatBubble
                         message={msg}
                         busyBg={busyBg}
+                        onBackground={!!chatBackground}
                         isMine={msg.sender_id === myUserId}
                         showTime={showTime}
                         isPinned={room.pinnedMessages.some(

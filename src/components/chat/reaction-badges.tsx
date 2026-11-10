@@ -6,6 +6,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { FontFamilies } from '@/constants/typography';
 import type { MergedReaction } from '@/utils/reactions';
 
 interface Props {
@@ -81,5 +82,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#1F2937',
+    fontFamily: FontFamilies.semibold,
   },
 });

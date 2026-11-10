@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { FontFamilies } from '@/constants/typography';
 import StoryStatsModal from '@/components/story/story-stats-modal';
 import { createDirectChat, createChatInvite } from '@/api/chat';
 import {
@@ -703,6 +704,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: '#FFFFFF',
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   sendBtn: {
     width: 42,

@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { GIPHY_KEY, fetchGiphyGifs, type GiphyGif } from '@/api/giphy';
@@ -176,6 +177,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: Radius.pill,
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   closeBtn: {
     width: 28,

@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/icon';
 import { changePassword } from '@/api/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePasswordPolicy } from '@/hooks/usePasswordPolicy';
 
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 48,
   },
-  input: { flex: 1, fontSize: 16 },
+  input: { flex: 1, fontSize: 16, fontFamily: FontFamilies.regular },
   eyeBtn: { paddingLeft: Spacing.sm },
   error: { fontSize: 12, marginTop: 2 },
   button: {

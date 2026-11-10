@@ -27,7 +27,7 @@ import {
   type StoryEditorDoc,
 } from '@/components/story/story-editor-constants';
 import { Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { FontFamilies, Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { createStories } from '@/api/story';
@@ -720,6 +720,7 @@ const styles = StyleSheet.create({
     minHeight: 72,
     textAlignVertical: 'top',
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   textPreview: {
     flex: 1,
@@ -734,6 +735,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     minHeight: 120,
     textAlignVertical: 'center',
+    fontFamily: FontFamilies.bold,
   },
   gradientRow: {
     flexDirection: 'row',

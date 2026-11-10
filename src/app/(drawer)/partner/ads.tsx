@@ -21,6 +21,7 @@ import { Icon } from '@/components/ui/icon';
 import { AD_STATUS_BADGES } from '@/constants/ad-status';
 import { type IconName } from '@/constants/icon-map';
 import { Radius, Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { PartnerAdListItem } from '@/types/partner';
@@ -388,6 +389,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 10,
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   chipsRow: { gap: Spacing.xs, paddingRight: Spacing.sm },
   chip: {

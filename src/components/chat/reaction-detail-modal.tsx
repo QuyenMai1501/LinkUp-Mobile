@@ -28,7 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { FontFamilies, Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ChatMessage } from '@/types/chat';
@@ -545,6 +545,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     ...Typography.caption,
     fontWeight: '700',
+    fontFamily: FontFamilies.bold,
   },
   userName: {
     flex: 1,

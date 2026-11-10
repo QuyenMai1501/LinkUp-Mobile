@@ -222,6 +222,8 @@ export function ChatBackgroundPicker({
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (e) => setStrengthFromX(e.nativeEvent.locationX),
         onPanResponderMove: (e) => setStrengthFromX(e.nativeEvent.locationX),
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [setStrengthFromX],
   );
@@ -436,9 +438,11 @@ export function ChatBackgroundPicker({
               pointerEvents={saving ? 'none' : 'auto'}
               {...panResponder.panHandlers}>
               <View
+                pointerEvents="none"
                 style={[styles.sliderTrack, { backgroundColor: theme.bgSecondary }]}
               />
               <View
+                pointerEvents="none"
                 style={[
                   styles.sliderFill,
                   {
@@ -448,6 +452,7 @@ export function ChatBackgroundPicker({
                 ]}
               />
               <View
+                pointerEvents="none"
                 style={[
                   styles.sliderThumb,
                   {

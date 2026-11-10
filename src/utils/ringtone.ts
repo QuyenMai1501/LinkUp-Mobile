@@ -1,4 +1,4 @@
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Vibration } from 'react-native';
 
 // Chuông gọi tới: reo 0.7s – nghỉ 0.3s, loop (file wav cùng nhịp với rung).
@@ -8,18 +8,7 @@ const ringingSource = require('../../assets/sounds/ringing.wav');
 
 let ringtonePlayer: AudioPlayer | null = null;
 let ringingPlayer: AudioPlayer | null = null;
-let audioModeReady = false;
 let ringtoneActive = false;
-
-function ensureAudioMode() {
-  if (audioModeReady) return;
-  audioModeReady = true;
-  setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'doNotMix' }).catch(
-    () => {
-      audioModeReady = false;
-    },
-  );
-}
 
 function getRingtonePlayer(): AudioPlayer {
   if (!ringtonePlayer) {
@@ -59,14 +48,12 @@ function safeStop(player: AudioPlayer | null) {
 export function playRingtone() {
   if (ringtoneActive) return;
   ringtoneActive = true;
-  ensureAudioMode();
   safePlay(getRingtonePlayer());
   Vibration.vibrate([0, 700, 300], true);
 }
 
 /** Tiếng reo + rung nhẹ khi gọi ra. */
 export function playRinging() {
-  ensureAudioMode();
   safePlay(getRingingPlayer());
   Vibration.vibrate(300);
 }
