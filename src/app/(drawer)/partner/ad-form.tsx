@@ -27,6 +27,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import VideoPlayer from '@/components/video-player';
 import { Radius, Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { AdMediaFile } from '@/types/partner';
@@ -686,6 +687,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 10,
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   multiline: {
     minHeight: 90,

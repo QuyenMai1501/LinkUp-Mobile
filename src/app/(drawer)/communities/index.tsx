@@ -23,7 +23,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { FontFamilies, Typography } from '@/constants/typography';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useTheme } from '@/hooks/use-theme';
 import { useShimmer } from '@/hooks/use-shimmer';
@@ -477,6 +477,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: Spacing.sm,
+    fontFamily: FontFamilies.regular,
   },
   chipsRow: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import { deactivateAccount } from '@/api/settings';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function DeactivateAccount() {
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
   },
-  input: { fontSize: 16 },
+  input: { fontSize: 16, fontFamily: FontFamilies.regular },
   button: {
     height: 48,
     borderRadius: 12,

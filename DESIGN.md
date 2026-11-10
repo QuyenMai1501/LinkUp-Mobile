@@ -95,8 +95,8 @@ Note: `textOnPrimary` is `#FFFFFF` in **both** modes, so `#FFFFFF` → `theme.te
 
 ## Typography
 
-- **Font families:** `Montserrat` for headings, `Open Sans` for body (defined as `Fonts.heading` / `Fonts.body` in `typography.ts`).
-- **Font loading:** on native, the families only apply once the actual font files are loaded via `expo-font` (`useFonts`). Until then RN falls back to system fonts. Do not invent asset paths — add real `.ttf`/`.otf` assets when available.
+- **Font families:** `Be Vietnam Pro` for both headings and body, matching web. Weight-specific families live in `FontFamilies` (`typography.ts`): Regular 400, Medium 500, SemiBold 600, Bold 700.
+- **Font loading:** the four `.ttf` files live in `assets/fonts/` (same files as `LinkUp_Web/app/fonts`) and are registered with `expo-font` (`useFonts`) in `app/_layout.tsx`. The root layout waits for them before rendering, then falls back to system fonts only if loading fails. Do not swap in Montserrat/Open Sans or invent asset paths.
 
 ### Text Styles (`Typography` in `typography.ts`)
 
@@ -283,5 +283,5 @@ Pattern for partial-screen overlays (CommentSheet, EmojiPicker):
 - Don't hardcode hex codes or `px`-like literals in components
 - Don't add tokens to the `theme.ts` legacy shim
 - Don't use raw CSS values for shadows — convert to RN platform props
-- Don't assume Montserrat/Open Sans are loaded — they need `expo-font` assets
+- Don't assume Be Vietnam Pro is loaded — it needs the bundled `expo-font` assets
 - Don't invent font asset paths

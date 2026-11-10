@@ -1,5 +1,6 @@
 import '@/polyfills'; // PHẢI đứng đầu — cấp globalThis.crypto (WebCrypto) cho e2ee.ts
 
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -69,6 +70,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const router = useRouter();
+  const [fontsLoaded, fontError] = useFonts({
+    'BeVietnamPro-Regular': require('@/assets/fonts/BeVietnamPro-Regular.ttf'),
+    'BeVietnamPro-Medium': require('@/assets/fonts/BeVietnamPro-Medium.ttf'),
+    'BeVietnamPro-SemiBold': require('@/assets/fonts/BeVietnamPro-SemiBold.ttf'),
+    'BeVietnamPro-Bold': require('@/assets/fonts/BeVietnamPro-Bold.ttf'),
+  });
 
   // Navigation sẵn sàng → flush route notification bị giữ lại từ cold start
   // (push tap khi app bị kill đến trước khi Root mount).
@@ -84,6 +91,9 @@ export default function RootLayout() {
     if (!__DEV__) return;
     void import('@/utils/e2ee.selftest').then((m) => m.runE2EESelfTest());
   }, []);
+
+  // Giữ native splash đến khi font load xong; lỗi load thì dùng system font.
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <LanguageProvider>

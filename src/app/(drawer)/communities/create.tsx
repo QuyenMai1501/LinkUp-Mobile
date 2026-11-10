@@ -25,7 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { FontFamilies, Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommunityPrivacy } from '@/types/community';
@@ -399,6 +399,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm + 4,
     paddingVertical: Spacing.sm + 2,
     fontSize: 15,
+    fontFamily: FontFamilies.regular,
   },
   textarea: {
     minHeight: 96,

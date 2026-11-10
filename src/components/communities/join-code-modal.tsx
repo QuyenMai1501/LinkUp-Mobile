@@ -14,7 +14,7 @@ import { communityErrorText, joinCommunity } from '@/api/communities';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing } from '@/constants/spacing';
-import { Typography } from '@/constants/typography';
+import { FontFamilies, Typography } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -191,6 +191,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 4,
     textAlign: 'center',
+    fontFamily: FontFamilies.bold,
   },
   feedback: {
     ...Typography.caption,

@@ -32,6 +32,7 @@ import { ChatBackgroundPicker } from '@/components/chat/chat-background-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { FontFamilies } from '@/constants/typography';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -1085,6 +1086,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   saveBtn: {
     paddingHorizontal: Spacing.md,

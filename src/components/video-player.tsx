@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Icon } from '@/components/ui/icon';
+import { FontFamilies } from '@/constants/typography';
 
 const HIDE_DELAY = 2500;
 const SEEK_STEP = 10;
@@ -465,6 +466,7 @@ const styles = StyleSheet.create({
     minWidth: 36,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
+    fontFamily: FontFamilies.regular,
   },
   controlRow: {
     flexDirection: 'row',
@@ -513,6 +515,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: FontFamilies.semibold,
   },
   speedTextActive: {
     color: '#7dd3fc',

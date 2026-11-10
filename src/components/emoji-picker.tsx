@@ -13,6 +13,7 @@ import {
 import { getEmojis } from '@/api/posts';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/spacing';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { EmojiItem } from '@/types/post';
@@ -301,6 +302,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: Radius.pill,
     fontSize: 14,
+    fontFamily: FontFamilies.regular,
   },
   closeBtn: {
     width: 28,

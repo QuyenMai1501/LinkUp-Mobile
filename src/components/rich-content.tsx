@@ -2,6 +2,7 @@ import { Text, Image, type StyleProp, type TextStyle } from 'react-native';
 
 import { isGiphyUrl, giphyStillUrl, separateGiphyUrls } from '@/api/giphy';
 import { isEmojifyiUrl } from '@/api/emojifyi';
+import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import type { EmojiItem } from '@/utils/emojis';
 
@@ -85,7 +86,7 @@ export function RichContent({ content, style, emojiMap, size = 18, numberOfLines
   return (
     // Color mặc định theo theme (RN Text đen mặc định → chìm trong dark mode);
     // style caller xếp sau nên color truyền từ call site vẫn thắng.
-    <Text style={[{ color: theme.text }, style]} numberOfLines={numberOfLines}>
+    <Text style={[{ color: theme.text, fontFamily: FontFamilies.regular }, style]} numberOfLines={numberOfLines}>
       {segments.map((seg, i) => {
         if (seg.k === 'emojifyi') {
           return (
