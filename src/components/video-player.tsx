@@ -42,8 +42,9 @@ interface VideoPlayerProps {
    * Long-press xong không kích hoạt onTap/togglePlay.
    */
   onLongPress?: () => void;
+  onEnd?: () => void;
   /**
-   * Nâng controls lên trên overlay phía dưới (vd: info bar trong media-viewer)
+   * Nông controls lên trên overlay phía dưới (vd: info bar trong media-viewer)
    * để không bị che. Đơn vị px, cộng vào paddingBottom của overlay.
    */
   controlsBottomInset?: number;
@@ -59,6 +60,7 @@ export default function VideoPlayer({
   autoplay = false,
   onTap,
   onLongPress,
+  onEnd,
   controlsBottomInset = 0,
 }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
@@ -114,9 +116,10 @@ export default function VideoPlayer({
       player.addListener('playbackRateChange', (e: { playbackRate: number }) =>
         setSpeed(e.playbackRate),
       ),
+      player.addListener('playToEnd', () => onEnd?.()),
     ];
     return () => subs.forEach((s) => s.remove());
-  }, [player, startHideTimer, clearHideTimer]);
+  }, [player, startHideTimer, clearHideTimer, onEnd]);
 
   // Feed autoplay: phát khi autoplay=true (trừ khi user đã tap pause), pause khi false.
   // pause() trên player đang paused là no-op — an toàn cho mọi call site không autoplay.

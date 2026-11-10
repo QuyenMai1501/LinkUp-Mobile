@@ -1,7 +1,9 @@
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { decodeToken } from '@/api/auth';
 import { showAlert } from '@/utils/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -38,18 +40,39 @@ interface DrawerContentProps {
 }
 
 export default function DrawerContent({ state, navigation }: DrawerContentProps) {
-  const { user, signOut } = useAuth();
+  const { user, accessToken, signOut } = useAuth();
+  const router = useRouter();
   const { scheme } = useThemeMode();
   const colors = Colors[scheme];
   const { t } = useTranslation();
   const pendingRequestCount = useFriendRequestCount();
 
+  const role = accessToken ? decodeToken(accessToken)?.role : undefined;
+  const partnerItem: NavItem | null = role
+    ? {
+        key: 'partner',
+        label: role === 'USER' ? 'becomePartner' : 'partner',
+        icon: 'stats',
+        href: role === 'USER' ? 'partner/packages' : 'partner/dashboard',
+      }
+    : null;
+  const navItems = partnerItem
+    ? [...NAV_ITEMS.slice(0, 4), partnerItem, ...NAV_ITEMS.slice(4)]
+    : NAV_ITEMS;
+
   const handleNavigate = (href: string) => {
     navigation.closeDrawer();
+    if (href.includes('/')) {
+      router.push(`/${href}` as never);
+      return;
+    }
     navigation.navigate(href);
   };
 
   const isActive = (href: string) => {
+    if (href.startsWith('partner/')) {
+      return state.routeNames[state.index] === 'partner';
+    }
     return state.routeNames[state.index] === href;
   };
 
@@ -67,7 +90,7 @@ export default function DrawerContent({ state, navigation }: DrawerContentProps)
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.navSection}>
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Pressable

@@ -18,7 +18,6 @@ import { type IconName } from '@/constants/icon-map';
 import Feed from '@/components/feed';
 import PostComposer from '@/components/post-composer';
 import FriendsListPanel from '@/components/friends-list-panel';
-import TrendingHashtags from '@/components/trending-hashtags';
 import { Colors } from '@/constants/colors';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -168,7 +167,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = React.useState<TabKey>('home');
   const [composerVisible, setComposerVisible] = React.useState(false);
   const [feedKey, setFeedKey] = React.useState(0);
-  const [feedFilter, setFeedFilter] = React.useState<'explore' | 'following' | 'trending'>('explore');
+  const [feedFilter, setFeedFilter] = React.useState<'explore' | 'following'>('explore');
 
   const openDrawer = () => {
     (navigation as any).openDrawer?.();
@@ -238,14 +237,15 @@ export default function HomeScreen() {
         {/* Tab content */}
         {activeTab === 'home' && (
           <View style={styles.content}>
-            {/* Feed segmented tabs: Khám phá / Đang theo dõi / Thịnh hành */}
+            {/* Feed segmented tabs: Khám phá / Đang theo dõi */}
             <View style={[styles.filterBar, { borderBottomColor: colors.border }]}>
-              {(['explore', 'following', 'trending'] as const).map((f) => (
+              {(['explore', 'following'] as const).map((f) => (
                 <Pressable
                   key={f}
                   onPress={() => setFeedFilter(f)}
                   style={[
                     styles.filterTab,
+                    styles.feedFilterTab,
                     feedFilter === f && { backgroundColor: colors.primaryLight },
                   ]}>
                   <ThemedText
@@ -253,26 +253,18 @@ export default function HomeScreen() {
                       styles.filterLabel,
                       { color: feedFilter === f ? colors.primary : colors.textSecondary },
                     ]}>
-                    {f === 'explore'
-                      ? t('feed.tabExplore')
-                      : f === 'following'
-                        ? t('feed.tabFollowing')
-                        : t('feed.tabTrending')}
+                    {f === 'explore' ? t('feed.tabExplore') : t('feed.tabFollowing')}
                   </ThemedText>
                 </Pressable>
               ))}
             </View>
-            {feedFilter === 'trending' ? (
-              <TrendingHashtags />
-            ) : (
-              <Feed
-                key={`${feedKey}-${feedFilter}`}
-                filter={feedFilter === 'following' ? 'following' : undefined}
-                onExplore={() => setFeedFilter('explore')}
-                onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)}
-                onOpenComposer={() => setComposerVisible(true)}
-              />
-            )}
+            <Feed
+              key={`${feedKey}-${feedFilter}`}
+              filter={feedFilter === 'following' ? 'following' : undefined}
+              onExplore={() => setFeedFilter('explore')}
+              onPostPress={(postId) => (router as any).push(`/(drawer)/post/${postId}`)}
+              onOpenComposer={() => setComposerVisible(true)}
+            />
           </View>
         )}
         {activeTab === 'friends' && (
@@ -371,6 +363,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
+  },
+  feedFilterTab: {
+    flex: 1,
+    alignItems: 'center',
   },
   filterLabel: {
     ...Typography.caption,

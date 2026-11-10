@@ -5,4 +5,5 @@ export const AD_STATUS_BADGES: Record<string, { bg: string; fg: string }> = {
   completed: { bg: '#e0e7ff', fg: '#3730a3' },
   pending: { bg: '#fef3c7', fg: '#92400e' },
   rejected: { bg: '#fee2e2', fg: '#991b1b' },
+  suspended: { bg: '#e5e7eb', fg: '#374151' },
 };

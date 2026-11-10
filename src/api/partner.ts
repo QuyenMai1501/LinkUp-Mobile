@@ -8,6 +8,7 @@ import type {
   FeedAd,
   PartnerAdListItem,
   PartnerAdListResponse,
+  TrackActionType,
   UpdateAdInput,
 } from '@/types/partner';
 
@@ -16,6 +17,11 @@ export interface AdListParams {
   page_size?: number;
   keyword?: string;
   status?: string;
+}
+
+export interface AdAnalyticsRange {
+  from?: string;
+  to?: string;
 }
 
 export const getMyAds = async (
@@ -42,6 +48,14 @@ export const getMyAds = async (
   };
 };
 
+/** Không có GET /ads-management/:id — lấy trang lớn nhất rồi tìm theo id. */
+export const getMyAdById = async (
+  id: string,
+): Promise<PartnerAdListItem | null> => {
+  const res = await getMyAds({ page: 1, page_size: 100 });
+  return res.ads.find((ad) => ad.id === id) ?? null;
+};
+
 type AdFormInput = CreateAdInput | UpdateAdInput;
 
 /**
@@ -66,26 +80,26 @@ function buildAdFormData(input: AdFormInput): FormData {
     fd.append('target_age_min', String(input.target_age_min));
   if (input.target_age_max !== undefined)
     fd.append('target_age_max', String(input.target_age_max));
-  if (input.target_locations?.length)
+  if (input.target_locations !== undefined)
     fd.append('target_locations', JSON.stringify(input.target_locations));
   return fd;
 }
 
-async function submitAdMultipart(
+async function appendMediaFiles(formData: FormData, media: AdMediaFile[]) {
+  for (const file of media) {
+    const raw = await fetch(file.uri);
+    if (!raw.ok) throw new Error(`HTTP ${raw.status}`);
+    const blob = (await raw.blob()).slice(0, undefined, file.type);
+    formData.append('media', blob, file.name);
+  }
+}
+
+async function submitMultipart(
   path: string,
   method: string,
-  input: AdFormInput,
-  media?: AdMediaFile,
+  formData: FormData,
 ): Promise<{ message?: string; data?: unknown }> {
   const token = await tokenStorage.getAccessToken();
-  const formData = buildAdFormData(input);
-  if (media) {
-    const raw = await fetch(media.uri);
-    if (!raw.ok) throw new Error(`HTTP ${raw.status}`);
-    const blob = (await raw.blob()).slice(0, undefined, media.type);
-    formData.append('media', blob, media.name);
-  }
-
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -101,19 +115,32 @@ async function submitAdMultipart(
   return body;
 }
 
-/** Tạo ad — multipart flat fields + media (chỉ CreateAd xử lý file). */
-export const createAd = (
+/** Tạo ad — multipart flat fields + media (image/video 1 file, carousel 2-6). */
+export const createAd = async (
   input: CreateAdInput,
-  media?: AdMediaFile,
-): Promise<{ message?: string; data?: unknown }> =>
-  submitAdMultipart('/ads-management', 'POST', input, media);
+  media: AdMediaFile[] = [],
+): Promise<{ message?: string; data?: unknown }> => {
+  const formData = buildAdFormData(input);
+  await appendMediaFiles(formData, media);
+  return submitMultipart('/ads-management', 'POST', formData);
+};
 
-/** Sửa ad — multipart flat fields (server UpdateAd không nhận file media). */
+/** Sửa ad — multipart flat fields (UpdateAd không nhận file media). */
 export const updateAd = (
   id: string,
   input: UpdateAdInput,
 ): Promise<{ message?: string; data?: unknown }> =>
-  submitAdMultipart(`/ads-management/${id}`, 'PATCH', input);
+  submitMultipart(`/ads-management/${id}`, 'PATCH', buildAdFormData(input));
+
+/** Thay toàn bộ media của ad (PUT, field `media` lặp lại). */
+export const replaceAdMedia = async (
+  id: string,
+  media: AdMediaFile[],
+): Promise<{ message?: string; data?: unknown }> => {
+  const formData = new FormData();
+  await appendMediaFiles(formData, media);
+  return submitMultipart(`/ads-management/${id}/media`, 'PUT', formData);
+};
 
 export const deleteAd = (id: string) =>
   request<unknown>(`/ads-management/${id}`, { method: 'DELETE' });
@@ -124,9 +151,22 @@ export const updateAdStatus = (id: string, status: string) =>
     body: JSON.stringify({ status }),
   });
 
-export const getAdAnalytics = async (id: string): Promise<AdPerformance> => {
+/** Chỉ ad `rejected` mới gửi duyệt lại được. */
+export const submitAdForReview = (id: string) =>
+  request<{ message?: string; data?: unknown }>(`/ads-management/${id}/submit`, {
+    method: 'POST',
+  });
+
+export const getAdAnalytics = async (
+  id: string,
+  range: AdAnalyticsRange = {},
+): Promise<AdPerformance> => {
+  const sp = new URLSearchParams();
+  if (range.from) sp.set('from', range.from);
+  if (range.to) sp.set('to', range.to);
+  const qs = sp.toString();
   const res = await request<{ data: AdPerformance }>(
-    `/ads-management/${id}/analytics`,
+    `/ads-management/${id}/analytics${qs ? `?${qs}` : ''}`,
   );
   return res.data;
 };
@@ -142,8 +182,11 @@ export const getFeedAds = async (): Promise<FeedAd[]> => {
   return res.data ?? [];
 };
 
-export const trackAdAction = (adId: string, action: 'impression' | 'click') =>
-  request<{ status: string }>(`/customer/ads/${adId}/track`, {
-    method: 'POST',
-    body: JSON.stringify({ action_type: action }),
-  });
+export const trackAdAction = (adId: string, action: TrackActionType) =>
+  request<{ status: string; recorded?: boolean }>(
+    `/customer/ads/${adId}/track`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action_type: action }),
+    },
+  );

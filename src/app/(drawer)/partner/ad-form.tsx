@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,35 +18,61 @@ import {
 } from 'expo-router';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { showAlert } from '@/utils/alert';
 import { apiErrorMessage } from '@/api/client';
-import { getMyAds, createAd, updateAd } from '@/api/partner';
+import {
+  createAd,
+  getMyAdById,
+  replaceAdMedia,
+  submitAdForReview,
+  updateAd,
+} from '@/api/partner';
 import { getMySubscription, getPackages } from '@/api/package';
+import { getWallet } from '@/api/wallet';
+import { getProvinces, type Place } from '@/api/locations';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
 import VideoPlayer from '@/components/video-player';
 import { Radius, Spacing } from '@/constants/spacing';
-import { FontFamilies } from '@/constants/typography';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { AdMediaFile } from '@/types/partner';
+import type {
+  AdMediaFile,
+  AdMediaItem,
+  SubscriptionResponse,
+} from '@/types/partner';
+import type { WalletResponse } from '@/types/wallet';
+import { formatVnd } from '@/utils/format';
 
 const FORMATS = ['image', 'video', 'carousel'] as const;
 const GENDERS = ['all', 'male', 'female'] as const;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_CAROUSEL_BYTES = 30 * 1024 * 1024;
+const MAX_VIDEO_MS = 60_000;
 
-/** 'YYYY-MM-DD' | 'YYYY-MM-DD HH:mm' → RFC3339 (server time.Parse);
- *  rỗng → undefined; không parse được → null (báo lỗi input). */
-function toRfc3339(value: string): string | null | undefined {
-  const s = value.trim();
-  if (!s) return undefined;
-  const d = new Date(s.replace(' ', 'T'));
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+type PickerState = {
+  field: 'start' | 'end';
+  step: 'date' | 'time';
+  value: Date;
+};
+
+function dateToIso(value: Date): string {
+  return value.toISOString();
 }
 
-function toInputDate(iso?: string): string {
-  return iso ? iso.slice(0, 10) : '';
+function formatDateTime(value: Date | null, locale: string): string {
+  if (!value) return '';
+  return value.toLocaleString(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function FieldLabel({
@@ -75,22 +102,30 @@ function isVideoUrl(url: string): boolean {
   return /\.(mp4|webm|mov|m4v|avi|mkv)$/.test(path);
 }
 
+function mediaIsVideo(item: AdMediaItem): boolean {
+  if (item.media_type?.startsWith('video')) return true;
+  return isVideoUrl(item.url);
+}
+
 export default function AdFormScreen() {
   const colors = useTheme();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === 'string' && params.id ? params.id : undefined;
   const isEdit = id !== undefined;
 
-  const [loading, setLoading] = useState(isEdit);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [tried, setTried] = useState(false);
   const [meta, setMeta] = useState<{
     status: string;
     rejection_reason?: string;
+    suspended_reason?: string | null;
     media_uri: string;
   } | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [tried, setTried] = useState(false);
+  const [existingMedia, setExistingMedia] = useState<AdMediaItem[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<AdMediaFile[]>([]);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -101,58 +136,93 @@ export default function AdFormScreen() {
   const [cpmPrice, setCpmPrice] = useState('');
   const [cpcPrice, setCpcPrice] = useState('');
   const [maxImpressions, setMaxImpressions] = useState('');
-  const [startedAt, setStartedAt] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [targetGender, setTargetGender] = useState('all');
   const [ageMin, setAgeMin] = useState('18');
   const [ageMax, setAgeMax] = useState('65');
-  const [locations, setLocations] = useState('');
-  const [media, setMedia] = useState<AdMediaFile | null>(null);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [provinces, setProvinces] = useState<Place[]>([]);
+  const [provinceOpen, setProvinceOpen] = useState(false);
+  const [provinceSearch, setProvinceSearch] = useState('');
+  const [picker, setPicker] = useState<PickerState | null>(null);
+
   const [caps, setCaps] = useState<{ video: boolean; carousel: boolean } | null>(
     null,
   );
+  const [subscription, setSubscription] = useState<SubscriptionResponse | null>(
+    null,
+  );
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
 
   const initRef = useRef(false);
 
-  // Khởi tạo 1 lần: edit → prefill từ list (server không có GET /:id);
-  // create → đọc capabilities gói để gate format.
   const init = useCallback(async () => {
+    const [provinceRes, pkgRes, subRes, walletRes] = await Promise.allSettled([
+      getProvinces(),
+      getPackages(),
+      getMySubscription(),
+      getWallet(),
+    ]);
+
+    if (provinceRes.status === 'fulfilled') setProvinces(provinceRes.value);
+    if (walletRes.status === 'fulfilled') setWallet(walletRes.value);
+    if (subRes.status === 'fulfilled') setSubscription(subRes.value);
+
+    const packages = pkgRes.status === 'fulfilled' ? pkgRes.value : [];
+    const sub = subRes.status === 'fulfilled' ? subRes.value : null;
+    if (sub) {
+      const pkg = packages.find(
+        (p) => p.id === sub.package_id || p.name === sub.package_name,
+      );
+      if (pkg) {
+        setCaps({ video: pkg.supports_video, carousel: pkg.supports_carousel });
+      }
+    }
+
     if (isEdit && id) {
       try {
-        const res = await getMyAds({ page: 1, page_size: 100 });
-        const found = res.ads.find((a) => a.id === id);
+        const found = await getMyAdById(id);
         if (!found) throw new Error(t('common.error'));
         setTitle(found.title);
+        setContent(found.content);
+        setTargetUrl(found.target_url);
+        setFormat(found.format || 'image');
         setBudget(String(found.budget));
-        setStartedAt(toInputDate(found.started_at));
-        setExpiresAt(toInputDate(found.expires_at));
+        setDailyBudget(
+          found.daily_budget ? String(found.daily_budget) : '',
+        );
+        setCpmPrice(found.cpm_price ? String(found.cpm_price) : '');
+        setCpcPrice(found.cpc_price ? String(found.cpc_price) : '');
+        setMaxImpressions(
+          found.max_impressions ? String(found.max_impressions) : '',
+        );
+        setStartedAt(found.started_at ? new Date(found.started_at) : null);
+        setExpiresAt(found.expires_at ? new Date(found.expires_at) : null);
+        setTargetGender(found.target_gender || 'all');
+        setAgeMin(String(found.target_age_min ?? 0));
+        setAgeMax(
+          String(
+            found.target_age_max && found.target_age_max <= 100
+              ? found.target_age_max
+              : 100,
+          ),
+        );
+        setLocations(found.target_locations ?? []);
+        setExistingMedia(found.media_list ?? []);
         setMeta({
           status: found.status,
           rejection_reason: found.rejection_reason,
+          suspended_reason: found.suspended_reason,
           media_uri: found.media_uri,
         });
       } catch (e) {
         showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
         router.back();
         return;
-      } finally {
-        setLoading(false);
       }
-    } else {
-      const [pkgs, sub] = await Promise.allSettled([
-        getPackages(),
-        getMySubscription(),
-      ]);
-      if (pkgs.status === 'fulfilled' && sub.status === 'fulfilled') {
-        const pkg = pkgs.value.find(
-          (p) => p.name === sub.value.package_name,
-        );
-        if (pkg) {
-          setCaps({ video: pkg.supports_video, carousel: pkg.supports_carousel });
-        }
-      }
-      setLoading(false);
     }
+    setLoading(false);
   }, [id, isEdit, router, t]);
 
   useFocusEffect(
@@ -169,67 +239,160 @@ export default function AdFormScreen() {
       showAlert(t('common.error'), t('story.permissionNeeded'));
       return;
     }
+    const carousel = format === 'carousel';
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
+      mediaTypes: format === 'video' ? ['videos'] : ['images'],
+      allowsMultipleSelection: carousel,
+      selectionLimit: carousel ? Math.max(1, 6 - mediaFiles.length) : 1,
       quality: 0.8,
     });
-    if (result.canceled || !result.assets[0]) return;
-    const a = result.assets[0];
-    const isVideo = (a.mimeType ?? '').startsWith('video');
-    setMedia({
-      uri: a.uri,
-      name: a.fileName ?? `ad-${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
-      type: a.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+    if (result.canceled || result.assets.length === 0) return;
+
+    const next: AdMediaFile[] = result.assets.map((asset) => {
+      const isVideo = (asset.mimeType ?? '').startsWith('video');
+      return {
+        uri: asset.uri,
+        name:
+          asset.fileName ??
+          `ad-${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
+        type: asset.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+        fileSize: asset.fileSize ?? undefined,
+        durationMs: asset.duration ?? undefined,
+      };
     });
+
+    const combined = carousel ? [...mediaFiles, ...next] : next;
+    if (carousel && combined.length > 6) {
+      showAlert(t('common.error'), t('partner.form.mediaTooMany'));
+      return;
+    }
+    const mediaError = validateMedia(combined, carousel);
+    if (mediaError) {
+      showAlert(t('common.error'), mediaError);
+      return;
+    }
+    setMediaFiles(carousel ? combined : next.slice(0, 1));
+  };
+
+  const validateMedia = (
+    files: AdMediaFile[],
+    carousel: boolean,
+  ): string | null => {
+    if (carousel) {
+      if (files.length === 1) return t('partner.form.mediaTooFew');
+      if (files.length > 6) return t('partner.form.mediaTooMany');
+      const total = files.reduce((sum, f) => sum + (f.fileSize ?? 0), 0);
+      if (total > MAX_CAROUSEL_BYTES) return t('partner.form.mediaTotalTooLarge');
+      for (const file of files) {
+        if ((file.type ?? '').startsWith('video')) {
+          return t('partner.form.mediaCarouselImagesOnly');
+        }
+        if ((file.fileSize ?? 0) > MAX_IMAGE_BYTES) {
+          return t('partner.form.mediaTooLarge');
+        }
+      }
+      return null;
+    }
+    const file = files[0];
+    if (!file) return null;
+    if (format === 'video') {
+      if (!(file.type ?? '').startsWith('video')) {
+        return t('partner.form.mediaVideoOnly');
+      }
+      if ((file.fileSize ?? 0) > MAX_VIDEO_BYTES) {
+        return t('partner.form.mediaTooLarge');
+      }
+      if ((file.durationMs ?? 0) > MAX_VIDEO_MS) {
+        return t('partner.form.mediaTooLong');
+      }
+    } else {
+      if (!(file.type ?? '').startsWith('image')) {
+        return t('partner.form.mediaImageOnly');
+      }
+      if ((file.fileSize ?? 0) > MAX_IMAGE_BYTES) {
+        return t('partner.form.mediaTooLarge');
+      }
+    }
+    return null;
+  };
+
+  const removeMedia = (index: number) => {
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const titleOk = title.trim().length > 0;
   const contentOk = content.trim().length > 0;
-  const urlOk = targetUrl.trim().length > 0;
-  const budgetOk = Number(budget) > 0;
-  const startedRfc = toRfc3339(startedAt);
-  const expiresRfc = toRfc3339(expiresAt);
-  const startedInvalid = startedAt.trim().length > 0 && startedRfc === null;
-  const expiresInvalid = expiresAt.trim().length > 0 && expiresRfc === null;
+  const urlOk = /^https?:\/\/\S+$/i.test(targetUrl.trim());
+  const budgetValue = Number(budget);
+  const budgetOk = Number.isFinite(budgetValue) && budgetValue > 0;
+  const dailyValue = Number(dailyBudget) || 0;
+  const dailyOk = dailyValue <= 0 || dailyValue <= budgetValue;
+  const ageMinValue = Number(ageMin) || 0;
+  const ageMaxValue = Number(ageMax) || 100;
+  const ageOk = ageMinValue >= 0 && ageMaxValue <= 100 && ageMinValue <= ageMaxValue;
+  const datesOk =
+    !startedAt || !expiresAt || expiresAt.getTime() > startedAt.getTime();
+  const mediaCount = mediaFiles.length + existingMedia.length;
+  const mediaOk = format === 'carousel' ? mediaCount >= 2 : true;
   const formOk =
     titleOk &&
     contentOk &&
     urlOk &&
     budgetOk &&
-    !startedInvalid &&
-    !expiresInvalid;
+    dailyOk &&
+    ageOk &&
+    datesOk &&
+    mediaOk;
 
-  const submit = async () => {
+  const gateMessage = (() => {
+    if (isEdit) return null;
+    if (!subscription) return t('partner.form.subscriptionRequired');
+    if (subscription.slots_left <= 0) return t('partner.form.slotsFull');
+    if (wallet && budgetOk && budgetValue > wallet.available) {
+      return t('partner.form.walletShort', {
+        amount: formatVnd(budgetValue - wallet.available),
+      });
+    }
+    return null;
+  })();
+
+  const canSubmit = formOk && !gateMessage && !submitting;
+
+  const buildPayload = () => ({
+    title: title.trim(),
+    content: content.trim(),
+    target_url: targetUrl.trim(),
+    budget: budgetValue,
+    daily_budget: dailyValue,
+    cpm_price: Number(cpmPrice) || 0,
+    cpc_price: Number(cpcPrice) || 0,
+    max_impressions: Number(maxImpressions) || 0,
+    started_at: startedAt ? dateToIso(startedAt) : undefined,
+    expires_at: expiresAt ? dateToIso(expiresAt) : undefined,
+    target_gender: targetGender,
+    target_age_min: ageMinValue,
+    target_age_max: ageMaxValue,
+    target_locations: locations,
+  });
+
+  const submit = async (resubmit = false) => {
     setTried(true);
-    if (!formOk || submitting) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const base = {
-        title: title.trim(),
-        content: content.trim(),
-        target_url: targetUrl.trim(),
-        budget: Number(budget),
-        daily_budget: Number(dailyBudget) || 0,
-        cpm_price: Number(cpmPrice) || 0,
-        cpc_price: Number(cpcPrice) || 0,
-        max_impressions: Number(maxImpressions) || 0,
-        started_at: startedRfc ?? undefined,
-        expires_at: expiresRfc ?? undefined,
-        target_gender: targetGender,
-        target_age_min: Number(ageMin) || 0,
-        target_age_max: Number(ageMax) || 100,
-        target_locations: locations
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-      };
       if (isEdit && id) {
-        await updateAd(id, base);
+        await updateAd(id, buildPayload());
+        if (mediaFiles.length > 0) {
+          await replaceAdMedia(id, mediaFiles);
+        }
+        if (resubmit) {
+          await submitAdForReview(id);
+        }
         showAlert(t('common.success'), t('partner.form.updateSuccess'), [
           { text: t('common.ok'), onPress: () => router.back() },
         ]);
       } else {
-        await createAd({ ...base, format }, media ?? undefined);
+        await createAd({ ...buildPayload(), format }, mediaFiles);
         showAlert(t('common.success'), t('partner.form.createSuccess'), [
           { text: t('common.ok'), onPress: () => router.back() },
         ]);
@@ -248,6 +411,7 @@ export default function AdFormScreen() {
       completed: t('partner.ads.completed'),
       pending: t('partner.ads.pending'),
       rejected: t('partner.ads.rejected'),
+      suspended: t('partner.ads.suspended'),
     };
     return map[s] ?? s;
   };
@@ -259,6 +423,51 @@ export default function AdFormScreen() {
       female: t('partner.form.genderFemale'),
     };
     return map[g] ?? g;
+  };
+
+  const provinceName = (place: Place) =>
+    language.startsWith('en') ? place.name.en : place.name.vi;
+
+  const toggleProvince = (provinceId: string) => {
+    setLocations((prev) =>
+      prev.includes(provinceId)
+        ? prev.filter((item) => item !== provinceId)
+        : prev.length >= 34
+          ? prev
+          : [...prev, provinceId],
+    );
+  };
+
+  const openPicker = (field: 'start' | 'end') => {
+    const current = field === 'start' ? startedAt : expiresAt;
+    setPicker({
+      field,
+      step: 'date',
+      value: current ? new Date(current) : new Date(),
+    });
+  };
+
+  const onPickerChange = (event: { type?: string }, selected?: Date) => {
+    if (!picker) return;
+    if (event.type === 'dismissed') {
+      setPicker(null);
+      return;
+    }
+    if (!selected) return;
+    const next = new Date(picker.value);
+    if (picker.step === 'date') {
+      next.setFullYear(
+        selected.getFullYear(),
+        selected.getMonth(),
+        selected.getDate(),
+      );
+      setPicker({ ...picker, step: 'time', value: next });
+      return;
+    }
+    next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+    if (picker.field === 'start') setStartedAt(next);
+    else setExpiresAt(next);
+    setPicker(null);
   };
 
   const inputStyle = (invalid = false) => [
@@ -283,6 +492,10 @@ export default function AdFormScreen() {
     color: active ? colors.textOnPrimary : colors.text,
     fontWeight: active ? ('600' as const) : ('400' as const),
   });
+
+  const filteredProvinces = provinces.filter((place) =>
+    provinceName(place).toLowerCase().includes(provinceSearch.toLowerCase()),
+  );
 
   if (loading) {
     return (
@@ -319,78 +532,116 @@ export default function AdFormScreen() {
                   {t('partner.ads.rejectionReason')}: {meta.rejection_reason}
                 </ThemedText>
               ) : null}
+              {meta.suspended_reason ? (
+                <ThemedText type="small" style={{ color: colors.danger }}>
+                  {t('partner.ads.suspendedReason')}: {meta.suspended_reason}
+                </ThemedText>
+              ) : null}
             </View>
           )}
 
-          {!isEdit ? (
-            <View style={styles.section}>
-              <FieldLabel text={t('partner.form.uploadMedia')} />
+          {gateMessage ? (
+            <View
+              style={[
+                styles.banner,
+                { backgroundColor: colors.card, borderColor: colors.danger },
+              ]}>
+              <ThemedText type="small" style={{ color: colors.danger }}>
+                {gateMessage}
+              </ThemedText>
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => void pickMedia()}
-                style={[
-                  styles.uploadBox,
-                  { borderColor: colors.border, backgroundColor: colors.card },
-                ]}>
-                {media ? (
-                  <View style={styles.previewWrap}>
-                    {media.type.startsWith('video') ? (
-                      // Video preview có controls (seek/mute) — mirror web <video controls>.
-                      <VideoPlayer
-                        uri={media.uri}
-                        style={styles.preview}
-                        muted
-                        loop={false}
-                        nativeControls
-                      />
-                    ) : (
-                      <Image
-                        source={{ uri: media.uri }}
-                        style={styles.preview}
-                        contentFit="cover"
-                      />
-                    )}
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      hitSlop={8}
-                      style={[styles.removeBtn, { backgroundColor: colors.danger }]}
-                      onPress={() => setMedia(null)}>
-                      <Icon name="close" size={12} color={colors.textOnPrimary} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.uploadInner}>
-                    <Icon name="images" size={26} color={colors.primary} />
-                    <ThemedText
-                      type="small"
-                      themeColor="textSecondary"
-                      style={styles.uploadText}>
-                      {t('partner.form.uploadMedia')}
-                    </ThemedText>
-                  </View>
-                )}
+                activeOpacity={0.75}
+                onPress={() => router.push('/partner/packages' as never)}>
+                <ThemedText type="small" style={{ color: colors.primary }}>
+                  {t('partner.nav.packages')}
+                </ThemedText>
               </TouchableOpacity>
             </View>
-          ) : meta?.media_uri ? (
-            <View style={styles.section}>
-              <FieldLabel text={t('partner.form.uploadMedia')} />
-              {isVideoUrl(meta.media_uri) ? (
-                <VideoPlayer
-                  uri={meta.media_uri}
-                  style={[styles.preview, styles.editPreview]}
-                  muted
-                  loop={false}
-                  nativeControls
-                />
-              ) : (
-                <Image
-                  source={{ uri: meta.media_uri }}
-                  style={[styles.preview, styles.editPreview]}
-                  contentFit="cover"
-                />
-              )}
-            </View>
           ) : null}
+
+          <View style={styles.section}>
+            <FieldLabel text={t('partner.form.uploadMedia')} />
+            {mediaFiles.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.mediaRow}>
+                  {mediaFiles.map((file, index) => (
+                    <View key={`${file.uri}-${index}`} style={styles.mediaWrap}>
+                      {file.type.startsWith('video') ? (
+                        <VideoPlayer
+                          uri={file.uri}
+                          style={styles.preview}
+                          muted
+                          loop={false}
+                          nativeControls
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: file.uri }}
+                          style={styles.preview}
+                          contentFit="cover"
+                        />
+                      )}
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        hitSlop={8}
+                        style={[styles.removeBtn, { backgroundColor: colors.danger }]}
+                        onPress={() => removeMedia(index)}>
+                        <Icon name="close" size={12} color={colors.textOnPrimary} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : existingMedia.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.mediaRow}>
+                  {existingMedia.map((item) => (
+                    <View key={item.url} style={styles.mediaWrap}>
+                      {mediaIsVideo(item) ? (
+                        <VideoPlayer
+                          uri={item.url}
+                          style={styles.preview}
+                          muted
+                          loop={false}
+                          nativeControls
+                        />
+                      ) : (
+                        <Image
+                          source={{ uri: item.url }}
+                          style={styles.preview}
+                          contentFit="cover"
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : null}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => void pickMedia()}
+              style={[
+                styles.uploadBox,
+                { borderColor: colors.border, backgroundColor: colors.card },
+              ]}>
+              <View style={styles.uploadInner}>
+                <Icon name="images" size={22} color={colors.primary} />
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  style={styles.uploadText}>
+                  {format === 'carousel'
+                    ? t('partner.form.uploadCarousel')
+                    : t('partner.form.uploadMedia')}
+                </ThemedText>
+              </View>
+            </TouchableOpacity>
+            {isEdit && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('partner.form.replaceMediaHint')}
+              </ThemedText>
+            )}
+          </View>
 
           {!isEdit && (
             <View style={styles.section}>
@@ -409,14 +660,17 @@ export default function AdFormScreen() {
                       key={f}
                       activeOpacity={0.75}
                       disabled={disabled}
-                      onPress={() => setFormat(f)}
+                      onPress={() => {
+                        setFormat(f);
+                        setMediaFiles([]);
+                      }}
                       style={chipStyle(active, disabled)}>
                       <ThemedText type="small" style={chipTextStyle(active)}>
                         {f === 'image'
-                          ? 'Image'
+                          ? t('partner.form.formatImage')
                           : f === 'video'
-                            ? 'Video'
-                            : 'Carousel'}
+                            ? t('partner.form.formatVideo')
+                            : t('partner.form.formatCarousel')}
                       </ThemedText>
                     </TouchableOpacity>
                   );
@@ -473,6 +727,11 @@ export default function AdFormScreen() {
               placeholderTextColor={colors.textSecondary}
               style={inputStyle(!budgetOk)}
             />
+            {wallet ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('payment.walletBalance')}: {formatVnd(wallet.available)}
+              </ThemedText>
+            ) : null}
           </View>
 
           <View style={styles.row2}>
@@ -484,7 +743,7 @@ export default function AdFormScreen() {
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor={colors.textSecondary}
-                style={inputStyle()}
+                style={inputStyle(!dailyOk)}
               />
             </View>
             <View style={styles.col}>
@@ -525,41 +784,37 @@ export default function AdFormScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <FieldLabel text={t('partner.form.startDate')} />
-            <TextInput
-              value={startedAt}
-              onChangeText={setStartedAt}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textSecondary}
-              style={inputStyle(startedInvalid)}
-            />
-            {startedInvalid && (
-              <ThemedText type="small" style={{ color: colors.danger }}>
-                {t('partner.form.invalidDate')}
-              </ThemedText>
-            )}
+          <View style={styles.row2}>
+            <View style={styles.col}>
+              <FieldLabel text={t('partner.form.startDate')} />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => openPicker('start')}
+                style={inputStyle()}>
+                <ThemedText type="small">
+                  {formatDateTime(startedAt, language) ||
+                    t('partner.form.pickDate')}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.col}>
+              <FieldLabel text={t('partner.form.endDate')} />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => openPicker('end')}
+                style={inputStyle()}>
+                <ThemedText type="small">
+                  {formatDateTime(expiresAt, language) ||
+                    t('partner.form.pickDate')}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.section}>
-            <FieldLabel text={t('partner.form.endDate')} />
-            <TextInput
-              value={expiresAt}
-              onChangeText={setExpiresAt}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textSecondary}
-              style={inputStyle(expiresInvalid)}
-            />
-            {expiresInvalid && (
-              <ThemedText type="small" style={{ color: colors.danger }}>
-                {t('partner.form.invalidDate')}
-              </ThemedText>
-            )}
-          </View>
+          {!datesOk && (
+            <ThemedText type="small" style={{ color: colors.danger }}>
+              {t('partner.form.invalidDateOrder')}
+            </ThemedText>
+          )}
 
           <View style={styles.section}>
             <FieldLabel text={t('partner.form.targetGender')} />
@@ -594,7 +849,7 @@ export default function AdFormScreen() {
                   keyboardType="numeric"
                   placeholder="18"
                   placeholderTextColor={colors.textSecondary}
-                  style={inputStyle()}
+                  style={inputStyle(!ageOk)}
                 />
               </View>
               <View style={styles.col}>
@@ -607,7 +862,7 @@ export default function AdFormScreen() {
                   keyboardType="numeric"
                   placeholder="65"
                   placeholderTextColor={colors.textSecondary}
-                  style={inputStyle()}
+                  style={inputStyle(!ageOk)}
                 />
               </View>
             </View>
@@ -615,15 +870,33 @@ export default function AdFormScreen() {
 
           <View style={styles.section}>
             <FieldLabel text={t('partner.form.targetLocations')} />
-            <TextInput
-              value={locations}
-              onChangeText={setLocations}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="Ha Noi, Ho Chi Minh"
-              placeholderTextColor={colors.textSecondary}
-              style={inputStyle()}
-            />
+            <View style={styles.chipsRow}>
+              {locations.map((provinceId) => {
+                const place = provinces.find((item) => item.id === provinceId);
+                return (
+                  <TouchableOpacity
+                    key={provinceId}
+                    activeOpacity={0.75}
+                    onPress={() => toggleProvince(provinceId)}
+                    style={chipStyle(true)}>
+                    <ThemedText type="small" style={chipTextStyle(true)}>
+                      {place ? provinceName(place) : provinceId} ×
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setProvinceOpen(true)}
+              style={[
+                styles.uploadBox,
+                { borderColor: colors.border, backgroundColor: colors.card },
+              ]}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('partner.form.selectLocations')}
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
@@ -632,15 +905,30 @@ export default function AdFormScreen() {
             styles.footer,
             { borderTopColor: colors.border, backgroundColor: colors.bg },
           ]}>
+          {isEdit && meta?.status === 'rejected' && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              disabled={!canSubmit}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: colors.card, borderColor: colors.primary },
+                !canSubmit && styles.submitDisabled,
+              ]}
+              onPress={() => void submit(true)}>
+              <ThemedText style={{ color: colors.primary, fontWeight: '600' }}>
+                {t('partner.form.saveAndResubmit')}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             activeOpacity={0.8}
-            disabled={submitting}
+            disabled={!canSubmit}
             style={[
               styles.submitBtn,
               { backgroundColor: colors.primary },
-              submitting && styles.submitDisabled,
+              !canSubmit && styles.submitDisabled,
             ]}
-            onPress={() => void submit()}>
+            onPress={() => void submit(false)}>
             {submitting ? (
               <ActivityIndicator size="small" color={colors.textOnPrimary} />
             ) : (
@@ -651,6 +939,87 @@ export default function AdFormScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={picker !== null}
+        onRequestClose={() => setPicker(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <ThemedText type="smallBold">
+              {picker?.field === 'start'
+                ? t('partner.form.startDate')
+                : t('partner.form.endDate')}
+            </ThemedText>
+            {picker && (
+              <DateTimePicker
+                value={picker.value}
+                mode={picker.step}
+                display="spinner"
+                onChange={onPickerChange}
+              />
+            )}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setPicker(null)}
+              style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
+              <ThemedText style={{ color: colors.textOnPrimary, fontWeight: '600' }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={provinceOpen}
+        onRequestClose={() => setProvinceOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
+            <ThemedText type="smallBold">
+              {t('partner.form.targetLocations')}
+            </ThemedText>
+            <TextInput
+              value={provinceSearch}
+              onChangeText={setProvinceSearch}
+              placeholder={t('partner.form.searchLocation')}
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+            />
+            <ScrollView style={styles.modalList}>
+              {filteredProvinces.map((place) => {
+                const selected = locations.includes(place.id);
+                return (
+                  <TouchableOpacity
+                    key={place.id}
+                    activeOpacity={0.75}
+                    onPress={() => toggleProvince(place.id)}
+                    style={[
+                      styles.modalItem,
+                      { borderBottomColor: colors.border },
+                    ]}>
+                    <ThemedText type="small">{provinceName(place)}</ThemedText>
+                    {selected && (
+                      <Icon name="check" size={16} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setProvinceOpen(false)}
+              style={[styles.modalBtn, { backgroundColor: colors.primary }]}>
+              <ThemedText style={{ color: colors.textOnPrimary, fontWeight: '600' }}>
+                {t('common.done')}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -658,87 +1027,53 @@ export default function AdFormScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    paddingBottom: Spacing.lg,
-  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.xl },
   banner: {
     borderWidth: 1,
     borderRadius: Radius.md,
-    padding: Spacing.sm,
+    padding: Spacing.md,
     gap: 4,
   },
-  section: { gap: 6 },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
+  section: { gap: Spacing.xs },
+  labelRow: { flexDirection: 'row', gap: 4, alignItems: 'center' },
   labelText: { fontWeight: '600' },
   input: {
     borderWidth: 1,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: FontFamilies.regular,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    minHeight: 42,
+    justifyContent: 'center',
   },
-  multiline: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  row2: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  col: { flex: 1, gap: 6 },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
+  multiline: { minHeight: 110, paddingTop: Spacing.sm },
+  row2: { flexDirection: 'row', gap: Spacing.sm },
+  col: { flex: 1, gap: Spacing.xs },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   chip: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
   },
-  chipDisabled: { opacity: 0.4 },
+  chipDisabled: { opacity: 0.45 },
   uploadBox: {
     borderWidth: 1,
+    borderStyle: 'dashed',
     borderRadius: Radius.md,
-    minHeight: 96,
-    overflow: 'hidden',
-  },
-  uploadInner: {
-    flex: 1,
-    minHeight: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  uploadText: { textAlign: 'center' },
-  previewWrap: { alignSelf: 'flex-start' },
-  preview: {
-    width: 160,
-    height: 96,
-    borderRadius: Radius.md,
-  },
-  previewFallback: {
+    padding: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editPreview: { width: '100%', height: 160 },
+  uploadInner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  uploadText: { marginLeft: 4 },
+  mediaRow: { flexDirection: 'row', gap: Spacing.sm },
+  mediaWrap: { position: 'relative' },
+  preview: { width: 160, height: 110, borderRadius: Radius.md },
   removeBtn: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 4,
+    right: 4,
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -748,13 +1083,44 @@ const styles = StyleSheet.create({
   footer: {
     borderTopWidth: StyleSheet.hairlineWidth,
     padding: Spacing.md,
+    gap: Spacing.sm,
   },
   submitBtn: {
     height: 48,
     borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitDisabled: { opacity: 0.5 },
   submitText: { fontSize: 16, fontWeight: '600' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  modalList: { maxHeight: 320 },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalBtn: {
+    height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

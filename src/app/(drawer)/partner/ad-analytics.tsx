@@ -37,10 +37,16 @@ export default function AdAnalyticsScreen() {
   const [data, setData] = useState<AdPerformance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState(30);
 
   const load = useCallback(async () => {
     try {
-      const d = await getAdAnalytics(id);
+      const to = new Date();
+      const from = new Date(to.getTime() - rangeDays * 86_400_000);
+      const d = await getAdAnalytics(id, {
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
       setData(d);
       setError(null);
     } catch (e) {
@@ -48,7 +54,7 @@ export default function AdAnalyticsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, t]);
+  }, [id, rangeDays, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,6 +124,22 @@ export default function AdAnalyticsScreen() {
     perfRows.push(performanceStats.slice(i, i + 2));
   }
 
+  const series = o.series ?? [];
+  const maxSeries = Math.max(
+    1,
+    ...series.map((item) => Math.max(item.impressions, item.clicks)),
+  );
+  const insights: string[] = [];
+  if (o.impressions >= 100 && o.click_through_rate < 1) {
+    insights.push(t('partner.analytics.insightLowCtr'));
+  }
+  if (o.impressions > 0 && o.unique_reach < o.impressions * 0.3) {
+    insights.push(t('partner.analytics.insightLowReach'));
+  }
+  if (o.clicks > 0 && o.cost_per_click > 5000) {
+    insights.push(t('partner.analytics.insightHighCpc'));
+  }
+
   const rates: { labelKey: string; value: string }[] = [
     { labelKey: 'partner.analytics.ctr', value: formatPercent(o.click_through_rate) },
     { labelKey: 'partner.analytics.cpc', value: money(o.cost_per_click) },
@@ -132,6 +154,49 @@ export default function AdAnalyticsScreen() {
             {error}
           </ThemedText>
         )}
+
+        <View style={styles.rangeRow}>
+          {[7, 30, 90].map((days) => {
+            const active = rangeDays === days;
+            return (
+              <TouchableOpacity
+                key={days}
+                activeOpacity={0.75}
+                onPress={() => {
+                  setLoading(true);
+                  setRangeDays(days);
+                }}
+                style={[
+                  styles.rangeChip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}>
+                <ThemedText
+                  type="small"
+                  style={{
+                    color: active ? colors.textOnPrimary : colors.text,
+                    fontWeight: active ? '600' : '400',
+                  }}>
+                  {t('partner.analytics.lastDays', { days })}
+                </ThemedText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {o.limited ? (
+          <ThemedView
+            style={[
+              styles.card,
+              { backgroundColor: colors.card, borderColor: colors.primary },
+            ]}>
+            <ThemedText type="small">
+              {t('partner.analytics.limited')}
+            </ThemedText>
+          </ThemedView>
+        ) : null}
 
         <ThemedView
           style={[
@@ -241,6 +306,69 @@ export default function AdAnalyticsScreen() {
           ))}
         </ThemedView>
 
+        {series.length > 0 && (
+          <ThemedView
+            style={[
+              styles.card,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}>
+            <ThemedText style={styles.cardTitle}>
+              {t('partner.analytics.dailySpend')}
+            </ThemedText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chartRow}>
+                {series.map((item) => (
+                  <View key={item.date} style={styles.chartCol}>
+                    <View style={styles.chartBars}>
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            height: Math.max(
+                              2,
+                              (item.impressions / maxSeries) * 80,
+                            ),
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            height: Math.max(2, (item.clicks / maxSeries) * 80),
+                            backgroundColor: colors.accent,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {item.date.slice(5)}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </ThemedView>
+        )}
+
+        {insights.length > 0 && (
+          <ThemedView
+            style={[
+              styles.card,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}>
+            <ThemedText style={styles.cardTitle}>
+              {t('partner.analytics.insights')}
+            </ThemedText>
+            {insights.map((insight) => (
+              <ThemedText key={insight} type="small" themeColor="textSecondary">
+                • {insight}
+              </ThemedText>
+            ))}
+          </ThemedView>
+        )}
+
         {o.format === 'video' && (
           <ThemedView
             style={[
@@ -340,4 +468,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
+  rangeRow: { flexDirection: 'row', gap: Spacing.xs },
+  rangeChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.xs,
+    minHeight: 110,
+  },
+  chartCol: { alignItems: 'center', gap: 4 },
+  chartBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: 84,
+  },
+  chartBar: { width: 7, borderRadius: 3 },
 });

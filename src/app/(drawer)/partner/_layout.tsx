@@ -44,6 +44,8 @@ export default function PartnerLayout() {
       <Stack.Screen name="ads" options={{ title: t('partner.ads.title') }} />
       <Stack.Screen name="ad-form" options={{ title: t('partner.ads.create') }} />
       <Stack.Screen name="ad-analytics" options={{ title: t('partner.analytics.title') }} />
+      <Stack.Screen name="payments" options={{ title: t('partner.payments.title') }} />
+      <Stack.Screen name="wallet" options={{ title: t('wallet.title') }} />
     </Stack>
   );
 }

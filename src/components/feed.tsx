@@ -293,7 +293,13 @@ export default function Feed({ onPostPress, onOpenComposer, filter, onExplore }:
   const handleRefresh = useCallback(async () => {
     cursorRef.current = null;
     setError(null);
-    await Promise.all([fetchNext(), loadStories()]);
+    await Promise.all([
+      fetchNext(),
+      loadStories(),
+      getFeedAds()
+        .then((ads) => setFeedAds(ads))
+        .catch(() => {}),
+    ]);
   }, [fetchNext, loadStories]);
 
   const { refreshing, onRefresh } = usePullToRefresh(handleRefresh);
