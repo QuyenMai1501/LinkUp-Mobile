@@ -1366,6 +1366,7 @@ export default function GroupChatScreen() {
                           isMine={clusterMine}
                           myUserId={myUserId}
                           busyBg={busyBg}
+                          onBackground={!!chatBackground}
                           showTime={showClusterTime}
                           isGroup
                           memberNames={room.memberNames}
@@ -1432,6 +1433,7 @@ export default function GroupChatScreen() {
                     <ChatBubble
                       message={msg}
                       busyBg={busyBg}
+                      onBackground={!!chatBackground}
                       isMine={msg.sender_id === myUserId}
                       showTime={showTime}
                       seen={

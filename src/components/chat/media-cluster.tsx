@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
 import { MessageTimestamp } from '@/components/chat/message-timestamp';
+import { metaPillStyle } from '@/components/chat/meta-pill';
 import { Radius, Spacing } from '@/constants/theme';
 import { useMessageMedia } from '@/hooks/useMessageMedia';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,6 +24,8 @@ interface Props {
   myUserId: string;
   /** busyBg (Web): ảnh nền preset/custom → ô theirs viền + shadow. */
   busyBg?: boolean;
+  /** true = có wallpaper → timestamp dùng pill nền giống bubble. */
+  onBackground?: boolean;
   /** Hiện timestamp HH:mm dưới lưới (tin đầu nhóm / cách >60s). */
   showTime?: boolean;
   /** Group chat: nhãn "Đã xem" + accessibilityLabel kèm tên người xem. */
@@ -48,6 +51,7 @@ export function MediaCluster({
   isMine,
   myUserId,
   busyBg = false,
+  onBackground = false,
   showTime = false,
   isGroup = false,
   memberNames,
@@ -111,6 +115,11 @@ export function MediaCluster({
               style={[
                 styles.status,
                 { color: seen ? '#A5F3FC' : theme.textSecondary },
+                metaPillStyle(
+                  onBackground,
+                  theme.primary,
+                  seen ? '#A5F3FC' : theme.textOnPrimary,
+                ),
               ]}>
               {statusText}
             </ThemedText>
@@ -121,6 +130,7 @@ export function MediaCluster({
         <MessageTimestamp
           createdAt={(msgs[0] ?? last).created_at}
           isMine={isMine}
+          onBackground={onBackground}
         />
       )}
     </View>
