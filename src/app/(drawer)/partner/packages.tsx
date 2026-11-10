@@ -11,7 +11,14 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { showAlert } from '@/utils/alert';
 import { decodeToken } from '@/api/auth';
 import { ApiError, apiErrorMessage } from '@/api/client';
-import { getMySubscription, getPackages, subscribePackage } from '@/api/package';
+import {
+  createWalletPayment,
+  getMySubscription,
+  getPackages,
+  getPaymentMethods,
+  newPaymentRequestId,
+} from '@/api/package';
+import { getWallet } from '@/api/wallet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -20,6 +27,7 @@ import { Radius, Spacing } from '@/constants/spacing';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { AdPackage, SubscriptionResponse } from '@/types/partner';
+import type { PaymentMethodsResponse, WalletResponse } from '@/types/wallet';
 import { formatVnd } from '@/utils/format';
 
 const NOT_SUBSCRIBED = 'package.NOT_SUBSCRIBED';
@@ -37,6 +45,8 @@ export default function PartnerPackagesScreen() {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<AdPackage[]>([]);
   const [sub, setSub] = useState<SubscriptionResponse | null>(null);
+  const [methods, setMethods] = useState<PaymentMethodsResponse | null>(null);
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -45,17 +55,25 @@ export default function PartnerPackagesScreen() {
   const role = accessToken ? decodeToken(accessToken)?.role : undefined;
   const isPartner = role !== undefined && role !== 'USER';
 
-  // Gói hiện tại (server không trả package_id → so theo name, mirror web isActive).
   const activePkgId = sub
-    ? (packages.find((p) => p.name === sub.package_name)?.id ?? null)
+    ? (sub.package_id ??
+      packages.find((p) => p.name === sub.package_name)?.id ??
+      null)
     : null;
 
-  // Mọi setState nằm SAU await — effect gọi load() không setState đồng bộ
-  // (lint react-hooks/set-state-in-effect).
+  const enabledMethods = methods
+    ? methods.methods.filter((m) => m.enabled)
+    : [{ key: 'wallet', enabled: true }];
+  const method = enabledMethods.some((m) => m.key === methods?.default)
+    ? (methods?.default ?? '')
+    : (enabledMethods[0]?.key ?? '');
+
   const load = useCallback(async () => {
-    const [pkgs, subscription] = await Promise.allSettled([
+    const [pkgs, subscription, methodData, walletData] = await Promise.allSettled([
       getPackages(),
       getMySubscription(),
+      getPaymentMethods(),
+      getWallet(),
     ]);
 
     if (pkgs.status === 'fulfilled') {
@@ -78,43 +96,29 @@ export default function PartnerPackagesScreen() {
     } else if (!isNoSubscription(subscription.reason)) {
       setLoadError(apiErrorMessage(subscription.reason, t('common.error')));
     }
+
+    setMethods(methodData.status === 'fulfilled' ? methodData.value : null);
+    setWallet(walletData.status === 'fulfilled' ? walletData.value : null);
     setLoading(false);
   }, [t]);
 
-  // Dùng useFocusEffect (pattern communities) — useEffect + fetch trực tiếp
-  // bị lint react-hooks/set-state-in-effect bắt.
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
 
-  const doSubscribe = async () => {
-    if (!selectedId || submitting) return;
-    if (!isAuthenticated || !user) {
-      showAlert(t('common.error'), t('packages.loginRequired'));
-      return;
-    }
+  const doPay = async (pkg: AdPackage) => {
+    if (!user || submitting) return;
     setSubmitting(true);
     try {
-      const res = await subscribePackage(selectedId);
+      const res = await createWalletPayment(pkg.id, newPaymentRequestId());
       if (res.tokens) {
-        // Lưu token mới (role PARTNER) + cập nhật AuthContext — API calls sau
-        // đó sẽ tự đính kèm token có role đúng.
         await signIn({ user, tokens: res.tokens });
-      }
-      const newRole = res.tokens
-        ? decodeToken(res.tokens.access_token)?.role
-        : role;
-      if (newRole === 'USER') {
-        // Đăng ký thành công nhưng không nhận được token nâng cấp — không gọi
-        // được ads-management với token cũ → báo lỗi phiên.
-        showAlert(t('common.error'), t('packages.sessionError'));
-        return;
       }
       showAlert(
         t('common.success'),
-        sub ? t('packages.upgradeSuccess') : t('packages.success'),
+        t('packages.walletPaymentSuccess'),
         [
           {
             text: t('common.ok'),
@@ -123,27 +127,79 @@ export default function PartnerPackagesScreen() {
         ],
       );
     } catch (e) {
-      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
+      const insufficient =
+        e instanceof ApiError && e.code === 'wallet.INSUFFICIENT_BALANCE';
+      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')), [
+        { text: t('common.cancel'), style: 'cancel' },
+        ...(insufficient
+          ? [
+              {
+                text: t('payment.topUp'),
+                onPress: () => router.push('/partner/wallet' as never),
+              },
+            ]
+          : []),
+      ]);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Đổi/nâng cấp gói = server hủy gói cũ + slots/hạn tính lại từ đầu → confirm.
   const onSubscribe = () => {
     if (!selectedId || submitting) return;
+    if (!isAuthenticated || !user) {
+      showAlert(t('common.error'), t('packages.loginRequired'));
+      return;
+    }
+    if (selectedId === activePkgId) return;
+    if (!method) {
+      showAlert(t('common.error'), t('payment.noMethod'));
+      return;
+    }
+    if (method !== 'wallet') {
+      showAlert(t('payment.method'), t('payment.gatewayComingSoon'));
+      return;
+    }
+    const pkg = packages.find((p) => p.id === selectedId);
+    if (!pkg) return;
+    if (wallet && pkg.price_monthly > wallet.available) {
+      showAlert(
+        t('common.error'),
+        t('payment.insufficientWallet', {
+          amount: formatVnd(pkg.price_monthly - wallet.available),
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('payment.topUp'),
+            onPress: () => router.push('/partner/wallet' as never),
+          },
+        ],
+      );
+      return;
+    }
     if (activePkgId && selectedId !== activePkgId) {
       showAlert(
         t('packages.upgradeConfirm'),
         t('packages.upgradeConfirmMessage'),
         [
           { text: t('common.cancel'), style: 'cancel' },
-          { text: t('common.confirm'), onPress: () => void doSubscribe() },
+          { text: t('common.confirm'), onPress: () => void doPay(pkg) },
         ],
       );
       return;
     }
-    void doSubscribe();
+    showAlert(
+      t('payment.walletConfirmTitle'),
+      t('payment.walletConfirmMessage', {
+        name: pkg.name,
+        amount: formatVnd(pkg.price_monthly),
+      }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.confirm'), onPress: () => void doPay(pkg) },
+      ],
+    );
   };
 
   return (
@@ -184,14 +240,15 @@ export default function PartnerPackagesScreen() {
                     type="small"
                     themeColor="textSecondary"
                     style={styles.metaText}>
-                    {t('partner.packages.expiresAt')}:{' '}
-                    {new Date(sub.expires_at).toLocaleDateString(language)}
+                    {t('partner.packages.slotsLeft')}: {sub.slots_left}/
+                    {sub.max_slots}
                   </ThemedText>
                   <ThemedText
                     type="small"
                     themeColor="textSecondary"
                     style={styles.metaText}>
-                    {t('partner.packages.slotsLeft')}: {sub.slots_left}
+                    {t('partner.packages.expiresAt')}:{' '}
+                    {new Date(sub.expires_at).toLocaleDateString(language)}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     {t('packages.daysLeft', { days: daysLeft })}
@@ -249,6 +306,7 @@ export default function PartnerPackagesScreen() {
                   <TouchableOpacity
                     key={pkg.id}
                     activeOpacity={0.75}
+                    disabled={isActive}
                     onPress={() => setSelectedId(pkg.id)}>
                     <ThemedView
                       style={[
@@ -299,10 +357,7 @@ export default function PartnerPackagesScreen() {
                             />
                             <ThemedText
                               type="small"
-                              style={[
-                                styles.chipText,
-                                { color: colors.primary },
-                              ]}>
+                              style={[styles.chipText, { color: colors.primary }]}>
                               {f}
                             </ThemedText>
                           </View>
@@ -333,9 +388,11 @@ export default function PartnerPackagesScreen() {
                             color: selected ? colors.primary : colors.text,
                             fontWeight: selected ? '600' : '400',
                           }}>
-                          {selected
-                            ? t('packages.selected')
-                            : t('packages.select')}
+                          {isActive
+                            ? t('partner.packages.subscribed')
+                            : selected
+                              ? t('packages.selected')
+                              : t('packages.select')}
                         </ThemedText>
                       </View>
                     </ThemedView>
@@ -352,55 +409,77 @@ export default function PartnerPackagesScreen() {
                 styles.methodRow,
                 {
                   backgroundColor: colors.card,
-                  borderColor: colors.primary,
+                  borderColor:
+                    method === 'wallet' ? colors.primary : colors.border,
                 },
               ]}>
               <View
-                style={[styles.radio, { borderColor: colors.primary }]}>
-                <View
-                  style={[
-                    styles.radioDot,
-                    { backgroundColor: colors.primary },
-                  ]}
-                />
+                style={[
+                  styles.radio,
+                  {
+                    borderColor:
+                      method === 'wallet' ? colors.primary : colors.border,
+                  },
+                ]}>
+                {method === 'wallet' && (
+                  <View
+                    style={[
+                      styles.radioDot,
+                      { backgroundColor: colors.primary },
+                    ]}
+                  />
+                )}
               </View>
               <View style={styles.methodCol}>
-                <ThemedText type="smallBold">{t('payment.free')}</ThemedText>
+                <ThemedText type="smallBold">{t('payment.wallet')}</ThemedText>
                 <ThemedText
                   type="small"
                   themeColor="textSecondary"
                   style={styles.metaText}>
-                  {t('payment.freeDescription')}
+                  {t('payment.walletBalance')}:{' '}
+                  {formatVnd(wallet?.available ?? 0)}
                 </ThemedText>
               </View>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => router.push('/partner/wallet' as never)}>
+                <ThemedText type="small" style={{ color: colors.primary }}>
+                  {t('payment.topUp')}
+                </ThemedText>
+              </TouchableOpacity>
             </ThemedView>
-            <ThemedView
-              style={[
-                styles.methodRow,
-                styles.methodRowDisabled,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}>
-              <View style={[styles.radio, { borderColor: colors.border }]} />
-              <ThemedText
-                type="smallBold"
-                themeColor="textSecondary"
-                style={styles.methodCol}>
-                {t('payment.vnpay')}
-              </ThemedText>
-              <View
+            {['momo', 'vnpay'].map((key) => (
+              <ThemedView
+                key={key}
                 style={[
-                  styles.badge,
-                  { backgroundColor: colors.primaryLight },
+                  styles.methodRow,
+                  styles.methodRowDisabled,
+                  { backgroundColor: colors.card, borderColor: colors.border },
                 ]}>
+                <View style={[styles.radio, { borderColor: colors.border }]} />
                 <ThemedText
-                  style={[
-                    styles.badgeText,
-                    { color: colors.primary },
-                  ]}>
-                  {t('payment.vnpayComingSoon')}
+                  type="smallBold"
+                  themeColor="textSecondary"
+                  style={styles.methodCol}>
+                  {key === 'momo' ? 'MoMo' : t('payment.vnpay')}
                 </ThemedText>
-              </View>
-            </ThemedView>
+                <View
+                  style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
+                  <ThemedText
+                    style={[styles.badgeText, { color: colors.primary }]}>
+                    {t('payment.vnpayComingSoon')}
+                  </ThemedText>
+                </View>
+              </ThemedView>
+            ))}
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => router.push('/partner/payments' as never)}
+              style={[styles.linkBtn, { borderColor: colors.border }]}>
+              <ThemedText type="small">
+                {t('partner.packages.payments')}
+              </ThemedText>
+            </TouchableOpacity>
           </ScrollView>
 
           <View
@@ -417,14 +496,15 @@ export default function PartnerPackagesScreen() {
                 (!selectedId || selectedId === activePkgId || submitting) &&
                   styles.subscribeBtnDisabled,
               ]}
-              onPress={() => onSubscribe()}>
+              onPress={onSubscribe}>
               {submitting ? (
                 <ActivityIndicator size="small" color={colors.textOnPrimary} />
               ) : (
-                <ThemedText style={[styles.subscribeText, { color: colors.textOnPrimary }]}>
+                <ThemedText
+                  style={[styles.subscribeText, { color: colors.textOnPrimary }]}>
                   {selectedId && selectedId === activePkgId
                     ? t('partner.packages.subscribed')
-                    : t('partner.packages.subscribe')}
+                    : t('payment.payNow')}
                 </ThemedText>
               )}
             </TouchableOpacity>

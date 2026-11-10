@@ -14,7 +14,12 @@ import { Image } from 'expo-image';
 
 import { showAlert } from '@/utils/alert';
 import { apiErrorMessage } from '@/api/client';
-import { deleteAd, getMyAds, updateAdStatus } from '@/api/partner';
+import {
+  deleteAd,
+  getMyAds,
+  submitAdForReview,
+  updateAdStatus,
+} from '@/api/partner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/components/ui/icon';
@@ -29,7 +34,15 @@ import { formatCount, formatPercent, formatVnd } from '@/utils/format';
 
 const PAGE_SIZE = 20;
 
-const STATUS_FILTERS = ['', 'active', 'paused', 'pending', 'rejected', 'completed'];
+const STATUS_FILTERS = [
+  '',
+  'active',
+  'paused',
+  'pending',
+  'rejected',
+  'completed',
+  'suspended',
+];
 
 function ActionButton({
   icon,
@@ -126,6 +139,7 @@ export default function PartnerAdsScreen() {
       completed: t('partner.ads.completed'),
       pending: t('partner.ads.pending'),
       rejected: t('partner.ads.rejected'),
+      suspended: t('partner.ads.suspended'),
     };
     return map[s] ?? s;
   };
@@ -135,6 +149,16 @@ export default function PartnerAdsScreen() {
     try {
       await updateAdStatus(ad.id, newStatus);
       showAlert(t('common.success'), t('partner.form.updateSuccess'));
+      void fetchPage(true);
+    } catch (e) {
+      showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
+    }
+  };
+
+  const handleResubmit = async (ad: PartnerAdListItem) => {
+    try {
+      await submitAdForReview(ad.id);
+      showAlert(t('common.success'), t('partner.form.submitSuccess'));
       void fetchPage(true);
     } catch (e) {
       showAlert(t('common.error'), apiErrorMessage(e, t('common.error')));
@@ -171,6 +195,9 @@ export default function PartnerAdsScreen() {
       fg: colors.text,
     };
     const manageable = ad.status === 'active' || ad.status === 'paused';
+    const editable = ['active', 'paused', 'pending', 'rejected'].includes(
+      ad.status,
+    );
     return (
       <ThemedView
         style={[
@@ -215,6 +242,16 @@ export default function PartnerAdsScreen() {
           {t('partner.ads.impressions')}: {formatCount(ad.impressions, language)}{' '}
           · {t('partner.ads.clicks')}: {formatCount(ad.clicks, language)}
         </ThemedText>
+        {ad.rejection_reason ? (
+          <ThemedText type="small" style={{ color: colors.danger }}>
+            {t('partner.ads.rejectionReason')}: {ad.rejection_reason}
+          </ThemedText>
+        ) : null}
+        {ad.suspended_reason ? (
+          <ThemedText type="small" style={{ color: colors.danger }}>
+            {t('partner.ads.suspendedReason')}: {ad.suspended_reason}
+          </ThemedText>
+        ) : null}
 
         <View style={styles.actions}>
           {manageable && (
@@ -228,16 +265,25 @@ export default function PartnerAdsScreen() {
               onPress={() => void handleTogglePause(ad)}
             />
           )}
-          <ActionButton
-            icon="pencil"
-            label={t('common.edit')}
-            onPress={() =>
-              router.push({
-                pathname: '/partner/ad-form',
-                params: { id: ad.id },
-              } as never)
-            }
-          />
+          {editable && (
+            <ActionButton
+              icon="pencil"
+              label={t('common.edit')}
+              onPress={() =>
+                router.push({
+                  pathname: '/partner/ad-form',
+                  params: { id: ad.id },
+                } as never)
+              }
+            />
+          )}
+          {ad.status === 'rejected' && (
+            <ActionButton
+              icon="send"
+              label={t('partner.ads.resubmit')}
+              onPress={() => void handleResubmit(ad)}
+            />
+          )}
           <ActionButton
             icon="stats"
             label={t('partner.nav.analytics')}
