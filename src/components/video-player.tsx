@@ -203,6 +203,8 @@ export default function VideoPlayer({
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (evt) => seekFromX(evt.nativeEvent.locationX),
         onPanResponderMove: (evt) => seekFromX(evt.nativeEvent.locationX),
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [seekFromX],
   );
@@ -292,7 +294,7 @@ export default function VideoPlayer({
               onLayout={(e) => setSeekWidth(e.nativeEvent.layout.width)}
               {...seekPan.panHandlers}
             >
-              <View style={styles.seekRail}>
+              <View style={styles.seekRail} pointerEvents="none">
                 <View style={[styles.seekFill, { width: `${progress}%` }]} />
                 <View style={[styles.seekThumb, { left: `${progress}%` }]} />
               </View>

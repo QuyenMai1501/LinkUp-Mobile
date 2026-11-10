@@ -37,6 +37,8 @@ export function ScrubSlider({ value, min, max, color, onChange, onStart, ariaLab
           setFromX(e.nativeEvent.locationX);
         },
         onPanResponderMove: (e) => setFromX(e.nativeEvent.locationX),
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [onStart, setFromX],
   );
@@ -51,8 +53,12 @@ export function ScrubSlider({ value, min, max, color, onChange, onStart, ariaLab
       accessibilityRole="adjustable"
       accessibilityLabel={ariaLabel}
       accessibilityValue={{ min, max, now: value }}>
-      <View style={[styles.sliderFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
       <View
+        pointerEvents="none"
+        style={[styles.sliderFill, { width: `${pct * 100}%`, backgroundColor: color }]}
+      />
+      <View
+        pointerEvents="none"
         style={[
           styles.sliderThumb,
           { left: Math.max(0, pct * (trackW - 16)), backgroundColor: color },
