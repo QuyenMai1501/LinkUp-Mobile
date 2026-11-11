@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 
+import { deviceNameHeaders } from './device-info';
 import { tokenStorage } from './token-storage';
 import { resolveErrorCode } from '../utils/resolve-error';
 import type { TokenResponse } from '../types/auth';
@@ -63,7 +64,10 @@ async function tryRefreshToken(): Promise<string> {
 
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...deviceNameHeaders(),
+    },
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
 
@@ -80,6 +84,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...deviceNameHeaders(),
     ...(options.headers as Record<string, string>),
   };
 
@@ -131,6 +136,7 @@ export async function rawRequest(path: string, options: RequestInit = {}): Promi
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...deviceNameHeaders(),
     ...(options.headers as Record<string, string>),
   };
 
