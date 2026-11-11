@@ -99,8 +99,10 @@ export default function GroupChatSettingsScreen() {
   const [muteDuration, setMuteDuration] = useState<number>(60);
   const [confirmBan, setConfirmBan] = useState<GroupChatMember | null>(null);
   const [confirmTransfer, setConfirmTransfer] = useState<GroupChatMember | null>(null);
-  // Đang chạy 1 action admin (mute/ban/transfer/toggle) → disable nút.
+  // Đang chạy 1 action admin (mute/ban/transfer) → disable nút.
   const [actionBusy, setActionBusy] = useState(false);
+  const [savingAllowMemberAdd, setSavingAllowMemberAdd] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
 
   // P3b: nền trò chuyện per-group.
   const [background, setBackground] = useState<GroupChatBackground | null>(
@@ -309,29 +311,88 @@ export default function GroupChatSettingsScreen() {
 
   // ===== P1.6: toggles =====
 
-  const handleToggleAllowMemberAdd = useCallback(() => {
-    if (!settings || actionBusy) return;
-    const enabled = !settings.allow_member_add;
-    void runAdminAction(
-      () =>
-        updateGroupSettings(chatId!, { allow_member_add: enabled }).then(
-          (res) => setSettings(res.data),
-        ),
-      enabled ? t('chat.allowMemberAddOn') : t('chat.allowMemberAddOff'),
-    );
-  }, [settings, actionBusy, runAdminAction, chatId, t]);
+  const handleToggleAllowMemberAdd = useCallback(
+    async (value: boolean) => {
+      if (!settings || !chatId || savingAllowMemberAdd) return;
+      const previous = settings.allow_member_add;
+      setSettings((prev) =>
+        prev ? { ...prev, allow_member_add: value } : prev,
+      );
+      setSavingAllowMemberAdd(true);
+      try {
+        const res = await updateGroupSettings(chatId, {
+          allow_member_add: value,
+        });
+        setSettings((prev) =>
+          prev
+            ? { ...prev, allow_member_add: res.data.allow_member_add }
+            : res.data,
+        );
+      } catch (err) {
+        setSettings((prev) =>
+          prev ? { ...prev, allow_member_add: previous } : prev,
+        );
+        const msg = err instanceof Error ? err.message : String(err);
+        showAlert(t('common.error'), msg || t('common.error'));
+      } finally {
+        setSavingAllowMemberAdd(false);
+      }
+    },
+    [settings, savingAllowMemberAdd, chatId, t],
+  );
 
-  const handleToggleNotifications = useCallback(() => {
-    if (!settings || actionBusy) return;
-    const enabled = !settings.member_settings.notifications_enabled;
-    void runAdminAction(
-      () =>
-        updateGroupSettings(chatId!, {
-          notifications_enabled: enabled,
-        }).then((res) => setSettings(res.data)),
-      enabled ? t('chat.notificationsOn') : t('chat.notificationsOff'),
-    );
-  }, [settings, actionBusy, runAdminAction, chatId, t]);
+  const handleToggleNotifications = useCallback(
+    async (value: boolean) => {
+      if (!settings || !chatId || savingNotifications) return;
+      const previous = settings.member_settings.notifications_enabled;
+      setSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              member_settings: {
+                ...prev.member_settings,
+                notifications_enabled: value,
+              },
+            }
+          : prev,
+      );
+      setSavingNotifications(true);
+      try {
+        const res = await updateGroupSettings(chatId, {
+          notifications_enabled: value,
+        });
+        setSettings((prev) =>
+          prev
+            ? {
+                ...prev,
+                member_settings: {
+                  ...prev.member_settings,
+                  notifications_enabled:
+                    res.data.member_settings.notifications_enabled,
+                },
+              }
+            : res.data,
+        );
+      } catch (err) {
+        setSettings((prev) =>
+          prev
+            ? {
+                ...prev,
+                member_settings: {
+                  ...prev.member_settings,
+                  notifications_enabled: previous,
+                },
+              }
+            : prev,
+        );
+        const msg = err instanceof Error ? err.message : String(err);
+        showAlert(t('common.error'), msg || t('common.error'));
+      } finally {
+        setSavingNotifications(false);
+      }
+    },
+    [settings, savingNotifications, chatId, t],
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -580,8 +641,10 @@ export default function GroupChatSettingsScreen() {
                 </ThemedText>
                 <Switch
                   value={settings.allow_member_add}
-                  onValueChange={() => handleToggleAllowMemberAdd()}
-                  disabled={actionBusy}
+                  onValueChange={(value) =>
+                    void handleToggleAllowMemberAdd(value)
+                  }
+                  disabled={savingAllowMemberAdd}
                   trackColor={{ false: theme.border, true: theme.primaryLight }}
                   thumbColor={settings.allow_member_add ? theme.primary : undefined}
                 />
@@ -600,8 +663,10 @@ export default function GroupChatSettingsScreen() {
               </ThemedText>
               <Switch
                 value={settings.member_settings.notifications_enabled}
-                onValueChange={() => handleToggleNotifications()}
-                disabled={actionBusy}
+                onValueChange={(value) =>
+                  void handleToggleNotifications(value)
+                }
+                disabled={savingNotifications}
                 trackColor={{ false: theme.border, true: theme.primaryLight }}
                 thumbColor={
                   settings.member_settings.notifications_enabled

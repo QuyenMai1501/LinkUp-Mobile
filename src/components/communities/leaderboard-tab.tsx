@@ -205,7 +205,10 @@ export default function LeaderboardTab({
           {rest.length > 0 && (
             <View style={cardStyle}>
               <View style={styles.listHead}>
-                <ThemedText themeColor="textSecondary" style={styles.headRank}>
+                <ThemedText
+                  themeColor="textSecondary"
+                  style={styles.headRank}
+                  numberOfLines={1}>
                   {t('contribution.rank')}
                 </ThemedText>
                 <View style={styles.headAvatarSpacer} />
@@ -426,7 +429,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xs,
   },
   headRank: {
-    width: 26,
+    width: 40,
+    flexShrink: 0,
     ...Typography.caption,
     textAlign: 'center',
   },
@@ -449,7 +453,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
   },
   rank: {
-    width: 26,
+    width: 40,
+    flexShrink: 0,
     ...Typography.body,
     fontSize: 13,
     fontWeight: '700',
