@@ -120,14 +120,14 @@ export default function E2ERecoveryForm() {
       <ThemedView style={styles.container}>
         <ThemedView style={[styles.statusCard, { backgroundColor: colors.bgSecondary }]}>
           <Icon name="shield" size={20} color={colors.primary} />
-          <ThemedView style={styles.statusInfo}>
+          <View style={styles.statusInfo}>
             <ThemedText style={styles.label}>{t('settings.e2eStatusActive')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.hint}>
               {activeKey?.updated_at
                 ? `${t('settings.e2eUpdatedAt')}: ${new Date(activeKey.updated_at).toLocaleString()}`
                 : t('settings.e2eStatusActiveHint')}
             </ThemedText>
-          </ThemedView>
+          </View>
         </ThemedView>
 
         <ThemedView style={styles.field}>
@@ -261,12 +261,12 @@ export default function E2ERecoveryForm() {
     <ThemedView style={styles.container}>
       <ThemedView style={[styles.statusCard, { backgroundColor: colors.bgSecondary }]}>
         <Icon name="shield" size={20} color={colors.textSecondary} />
-        <ThemedView style={styles.statusInfo}>
+        <View style={styles.statusInfo}>
           <ThemedText style={styles.label}>{t('settings.e2eStatusInactive')}</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.hint}>
             {t('settings.e2eInactiveHint')}
           </ThemedText>
-        </ThemedView>
+        </View>
       </ThemedView>
 
       <ThemedView style={styles.field}>
@@ -363,19 +363,26 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 16, fontFamily: FontFamilies.regular },
   error: { fontSize: 12 },
-  footerRow: { flexDirection: 'row', gap: Spacing.sm },
+  footerRow: { gap: Spacing.sm },
   button: {
-    flex: 1,
-    height: 44,
+    alignSelf: 'stretch',
+    minHeight: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   buttonPrimary: {},
   buttonGhost: { borderWidth: 1 },
   buttonDanger: {},
-  buttonText: { fontSize: 15, fontWeight: '600' },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
   dangerZone: {
     gap: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
